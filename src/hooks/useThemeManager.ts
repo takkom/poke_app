@@ -11,6 +11,8 @@ import { AppColors, darkColors, lightColors, ThemeMode } from '@/theme/colors';
 
 export type ThemePreference = 'system' | ThemeMode;
 export type SearchMode = 'local' | 'tcgdex';
+export type AppLocale = 'en-US' | 'ko-KR';
+export type DisplayCurrency = 'USD' | 'KRW';
 
 type ThemeManagerValue = {
   colors: AppColors;
@@ -20,6 +22,9 @@ type ThemeManagerValue = {
   systemScheme: ColorSchemeName;
   searchMode: SearchMode;
   setSearchMode: (mode: SearchMode) => void;
+  locale: AppLocale;
+  setLocale: (locale: AppLocale) => void;
+  displayCurrency: DisplayCurrency;
 };
 
 const ThemeManagerContext = createContext<ThemeManagerValue | null>(null);
@@ -36,8 +41,10 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
   const [preference, setPreference] = useState<ThemePreference>('system');
   const [searchMode, setSearchMode] = useState<SearchMode>('local');
+  const [locale, setLocale] = useState<AppLocale>('ko-KR');
   const mode = resolveMode(preference, systemScheme);
   const activeColors = mode === 'dark' ? darkColors : lightColors;
+  const displayCurrency: DisplayCurrency = locale === 'ko-KR' ? 'KRW' : 'USD';
 
   const value = useMemo<ThemeManagerValue>(
     () => ({
@@ -48,8 +55,11 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
       systemScheme,
       searchMode,
       setSearchMode,
+      locale,
+      setLocale,
+      displayCurrency,
     }),
-    [activeColors, mode, preference, searchMode, systemScheme],
+    [activeColors, displayCurrency, locale, mode, preference, searchMode, systemScheme],
   );
 
   return React.createElement(ThemeManagerContext.Provider, { value }, children);

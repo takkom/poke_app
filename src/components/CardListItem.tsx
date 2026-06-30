@@ -16,7 +16,7 @@ export const CardListItem: React.FC<CardListItemProps> = ({ card, onPress }) => 
     card.hasEbay ? { key: 'ebay', label: 'eBay', color: colors.marketplaces.ebay } : null,
     card.hasKream ? { key: 'kream', label: 'KREAM', color: colors.marketplaces.kream } : null,
     card.hasSnkrdunk
-      ? { key: 'sneakrdunk', label: 'SNKRDUNK', color: colors.marketplaces.sneakrdunk }
+      ? { key: 'snkrdunk', label: 'SNKRDUNK', color: colors.marketplaces.snkrdunk }
       : null,
     card.hasTcgplayer ? { key: 'tcgplayer', label: 'TCGplayer', color: colors.primary } : null,
     card.hasCardmarket ? { key: 'cardmarket', label: 'Cardmarket', color: colors.success } : null,

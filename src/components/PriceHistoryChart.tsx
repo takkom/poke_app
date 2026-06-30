@@ -45,12 +45,14 @@ type PriceHistoryChartProps = {
   tcgdexId: string;
   cardName?: string;
   priceHistory: PriceHistoryPoint[];
+  displayCurrency?: "KRW" | "USD" | "JPY";
+  locale?: "ko-KR" | "en-US";
 };
 
 const platforms: Array<{ key: Marketplace; label: string }> = [
   { key: "ebay", label: "eBay" },
   { key: "kream", label: "KREAM" },
-  { key: "sneakrdunk", label: "SNKRDUNK" },
+  { key: "snkrdunk", label: "SNKRDUNK" },
 ];
 
 const chartWidth = 328;
@@ -66,19 +68,36 @@ const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
 const yTickCount = 4;
 const maxXAxisLabels = 4;
 
-function formatKrw(value: number): string {
+function formatCompactMoney(
+  value: number,
+  currency: "KRW" | "USD" | "JPY",
+  locale: "ko-KR" | "en-US",
+): string {
   const rounded = Math.round(value);
-  if (Math.abs(rounded) >= 1_000_000) {
-    return `${(rounded / 1_000_000).toFixed(1)}M \u20a9`;
-  }
+  const symbol = currency === "KRW" ? "\u20a9" : currency === "JPY" ? "\u00a5" : "$";
+  const suffix = currency === "USD" ? "" : ` ${symbol}`;
+  const prefix = currency === "USD" ? symbol : "";
+  const divisor = Math.abs(rounded) >= 1_000_000 ? 1_000_000 : 1_000;
+  const unit = Math.abs(rounded) >= 1_000_000 ? "M" : "K";
+
   if (Math.abs(rounded) >= 100_000) {
-    return `${Math.round(rounded / 1_000)}K \u20a9`;
+    return `${prefix}${(rounded / divisor).toFixed(divisor === 1_000_000 ? 1 : 0)}${unit}${suffix}`;
   }
-  return `${rounded.toLocaleString("ko-KR")} \u20a9`;
+
+  return `${prefix}${rounded.toLocaleString(locale)}${suffix}`;
 }
 
-function formatTooltipKrw(value: number): string {
-  return `${Math.round(value).toLocaleString("ko-KR")} \u20a9`;
+function formatMoney(
+  value: number,
+  currency: "KRW" | "USD" | "JPY",
+  locale: "ko-KR" | "en-US",
+): string {
+  return new Intl.NumberFormat(locale, {
+    currency,
+    maximumFractionDigits: currency === "USD" ? 2 : 0,
+    minimumFractionDigits: currency === "USD" ? 2 : 0,
+    style: "currency",
+  }).format(value);
 }
 
 function formatDateLabel(value: string): string {
@@ -115,7 +134,7 @@ function buildXAxisIndexes(length: number): number[] {
 }
 
 function averageKey(platform: Marketplace): keyof PriceHistoryPoint {
-  return `${platform}_avg_krw` as keyof PriceHistoryPoint;
+  return `${platform}_avg` as keyof PriceHistoryPoint;
 }
 
 function volumeKey(platform: Marketplace): keyof PriceHistoryPoint {
@@ -132,7 +151,7 @@ function getPlatformRows(
   return history
     .map((row) => ({
       date: row.date,
-      value: Number(row[valueKey]),
+      value: Number(row[valueKey] ?? row[`${platform}_avg_krw` as keyof PriceHistoryPoint]),
       volume: Number(row[countKey] ?? 0),
     }))
     .filter((row) => Number.isFinite(row.value) && row.value > 0);
@@ -169,7 +188,7 @@ function initialVisiblePlatforms(history: PriceHistoryPoint[]): VisiblePlatforms
   return {
     ebay: platformHasRecords(history, "ebay"),
     kream: platformHasRecords(history, "kream"),
-    sneakrdunk: platformHasRecords(history, "sneakrdunk"),
+    snkrdunk: platformHasRecords(history, "snkrdunk"),
   };
 }
 
@@ -177,6 +196,8 @@ export function PriceHistoryChart({
   tcgdexId,
   cardName,
   priceHistory,
+  displayCurrency = "KRW",
+  locale = "ko-KR",
 }: PriceHistoryChartProps) {
   const [visiblePlatforms, setVisiblePlatforms] = useState<VisiblePlatforms>(
     () => initialVisiblePlatforms(priceHistory),
@@ -312,7 +333,7 @@ export function PriceHistoryChart({
                 { color: primaryLatest.dataset.color },
               ]}
             >
-              {formatKrw(primaryLatest.point.value)}
+              {formatCompactMoney(primaryLatest.point.value, displayCurrency, locale)}
             </Text>
             <Text style={styles.latestLabel}>
               {primaryLatest.dataset.label} latest avg
@@ -406,7 +427,7 @@ export function PriceHistoryChart({
                     fontWeight="600"
                     textAnchor="end"
                   >
-                    {formatKrw(tick)}
+                    {formatCompactMoney(tick, displayCurrency, locale)}
                   </SvgText>
                 </React.Fragment>
               );
@@ -520,7 +541,7 @@ export function PriceHistoryChart({
                   fontWeight="800"
                   textAnchor="middle"
                 >
-                  {formatTooltipKrw(selectedPoint.point.value)}
+                  {formatMoney(selectedPoint.point.value, displayCurrency, locale)}
                 </SvgText>
                 <SvgText
                   x={tooltipX + 52}

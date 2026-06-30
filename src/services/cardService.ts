@@ -267,9 +267,11 @@ export const getCardById = async (
 
 export const getPriceHistory = async (
   cardId: string,
+  currency: "KRW" | "USD" = "KRW",
 ): Promise<PriceHistoryPoint[]> => {
+  const params = new URLSearchParams({ currency });
   const response = await fetch(
-    `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history`,
+    `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history?${params.toString()}`,
   );
 
   if (!response.ok) {

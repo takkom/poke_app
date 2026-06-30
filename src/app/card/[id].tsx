@@ -140,7 +140,7 @@ function PriceRow({
 
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { colors: themeColors } = useThemeManager();
+  const { colors: themeColors, displayCurrency, locale } = useThemeManager();
   const [card, setCard] = useState<CardWithPricing | null>(null);
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
@@ -198,7 +198,7 @@ export default function CardDetailScreen() {
       setPriceHistoryError(null);
 
       try {
-        const history = await getPriceHistory(requestedCardId);
+        const history = await getPriceHistory(requestedCardId, displayCurrency);
         if (!cancelled) {
           setPriceHistory(history);
         }
@@ -223,7 +223,7 @@ export default function CardDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [card?.id]);
+  }, [card?.id, displayCurrency]);
 
   const tcg = card?.pricing?.tcgplayer;
   const rawTcg = tcg as Record<string, unknown> | undefined;
@@ -347,6 +347,8 @@ export default function CardDetailScreen() {
               tcgdexId={card.id}
               cardName={card.name}
               priceHistory={priceHistory}
+              displayCurrency={displayCurrency}
+              locale={locale}
             />
           )}
 

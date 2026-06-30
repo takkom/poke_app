@@ -233,7 +233,7 @@ export default function SearchTab() {
             {[
               ['eBay', 'Recent eBay transaction history is available.', colors.marketplaces.ebay],
               ['KREAM', 'KREAM sales records are available.', colors.marketplaces.kream],
-              ['SNKRDUNK', 'SNKRDUNK sales records are available.', colors.marketplaces.sneakrdunk],
+              ['SNKRDUNK', 'SNKRDUNK sales records are available.', colors.marketplaces.snkrdunk],
               ['TCGplayer', 'TCGdex card data includes TCGplayer pricing.', colors.primary],
               ['Cardmarket', 'TCGdex card data includes Cardmarket pricing.', colors.success],
             ].map(([label, description, color]) => (
@@ -388,12 +388,12 @@ export default function SearchTab() {
                           style={[
                             styles.marketBadge,
                             {
-                              borderColor: colors.marketplaces.sneakrdunk,
-                              backgroundColor: `${colors.marketplaces.sneakrdunk}22`,
+                              borderColor: colors.marketplaces.snkrdunk,
+                              backgroundColor: `${colors.marketplaces.snkrdunk}22`,
                             },
                           ]}
                         >
-                          <Text style={[styles.marketBadgeText, { color: colors.marketplaces.sneakrdunk }]}>
+                          <Text style={[styles.marketBadgeText, { color: colors.marketplaces.snkrdunk }]}>
                             SNKRDUNK
                           </Text>
                         </View>

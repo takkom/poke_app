@@ -1,4 +1,4 @@
-import { ThemePreference, useThemeManager } from '@/hooks/useThemeManager';
+import { AppLocale, ThemePreference, useThemeManager } from '@/hooks/useThemeManager';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const themeOptions: Array<{ value: ThemePreference; label: string }> = [
@@ -7,8 +7,13 @@ const themeOptions: Array<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: 'System' },
 ];
 
+const localeOptions: Array<{ value: AppLocale; label: string; meta: string }> = [
+  { value: 'ko-KR', label: 'Korean', meta: 'KRW' },
+  { value: 'en-US', label: 'English', meta: 'USD' },
+];
+
 export default function SettingsTab() {
-  const { colors, preference, setPreference, mode } = useThemeManager();
+  const { colors, preference, setPreference, mode, locale, setLocale, displayCurrency } = useThemeManager();
 
   return (
     <ScrollView
@@ -38,6 +43,39 @@ export default function SettingsTab() {
               >
                 <Text style={[styles.segmentText, { color: selected ? '#ffffff' : colors.textSecondary }]}>
                   {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Language</Text>
+          <Text style={[styles.sectionMeta, { color: colors.textSecondary }]}>
+            {displayCurrency}
+          </Text>
+        </View>
+
+        <View style={[styles.segmented, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          {localeOptions.map((option) => {
+            const selected = locale === option.value;
+
+            return (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => setLocale(option.value)}
+                style={[
+                  styles.segment,
+                  selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+              >
+                <Text style={[styles.segmentText, { color: selected ? '#ffffff' : colors.textSecondary }]}>
+                  {option.label}
+                </Text>
+                <Text style={[styles.segmentMeta, { color: selected ? '#ffffff' : colors.textMuted }]}>
+                  {option.meta}
                 </Text>
               </TouchableOpacity>
             );
@@ -96,5 +134,10 @@ const styles = StyleSheet.create({
   segmentText: {
     fontSize: 13,
     fontWeight: '800',
+  },
+  segmentMeta: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
   },
 });

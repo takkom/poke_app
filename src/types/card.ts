@@ -1,11 +1,15 @@
 export interface PriceHistoryPoint {
   date: string;
+  display_currency?: 'KRW' | 'USD' | 'JPY';
+  ebay_avg?: number | null;
+  kream_avg?: number | null;
+  snkrdunk_avg?: number | null;
   ebay_avg_krw: number | null;
   kream_avg_krw: number | null;
-  sneakrdunk_avg_krw?: number | null;
+  snkrdunk_avg_krw?: number | null;
   ebay_volume: number;
   kream_volume: number;
-  sneakrdunk_volume?: number;
+  snkrdunk_volume?: number;
 }
 
 export interface PokemonCard {
