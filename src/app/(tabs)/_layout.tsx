@@ -1,9 +1,11 @@
 import { useThemeManager } from '@/hooks/useThemeManager';
+import { useI18n } from '@/i18n';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 export default function TabsLayout() {
   const { colors } = useThemeManager();
+  const { t } = useI18n();
 
   return (
     <Tabs
@@ -30,8 +32,18 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Search',
-          tabBarLabel: 'Search',
+          title: t('home.title'),
+          tabBarLabel: t('tabs.sold'),
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="chart-bar" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: t('tabs.search'),
+          tabBarLabel: t('tabs.search'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="magnify" color={color} size={size} />
           ),
@@ -40,8 +52,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
-          tabBarLabel: 'Settings',
+          title: t('tabs.settings'),
+          tabBarLabel: t('tabs.settings'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="cog-outline" color={color} size={size} />
           ),

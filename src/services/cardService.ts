@@ -56,6 +56,7 @@ interface ResolutionCardBlueprint {
   tcgdex_id?: string | null;
   name?: string | null;
   local_id?: string | null;
+  card_code?: string | null;
   rarity?: string | null;
   image_url?: string | null;
   projected_image_asset_path?: string | null;
@@ -72,14 +73,42 @@ let cardCache: PokemonCard[] = [];
 let cacheTimestamp = 0;
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
+function resolveTcgdexImageUrl(value?: string | null, quality: "low" | "high" = "low"): string {
+  const fallback = "https://images.tcgdex.net/placeholder.png";
+  if (!value) {
+    return fallback;
+  }
+
+  if (/\.(png|jpg|jpeg|webp)(\?.*)?$/i.test(value)) {
+    return value;
+  }
+
+  if (value.includes("assets.tcgdex.net")) {
+    return `${value.replace(/\/$/, "")}/${quality}.webp`;
+  }
+
+  return value;
+}
+
+function normalizeDisplayNumber(cardCode?: string | null, localId?: string | null): string {
+  const slashCode = cardCode?.match(/\b([A-Z]*\d+|SV\d+)\s*\/\s*(\d+)\b/i);
+  if (slashCode) {
+    return `${slashCode[1].toUpperCase()}/${slashCode[2]}`;
+  }
+
+  return localId ?? cardCode ?? "";
+}
+
 const transformCard = (tcgCard: any): CardWithPricing => {
   // Fall back gracefully across both local backend and TCGdex formats
-  const image =
+  const imageBase =
     tcgCard.image ||
     tcgCard.image_url ||
     tcgCard.images?.large ||
     tcgCard.images?.small ||
     "https://images.tcgdex.net/placeholder.png";
+  const smallImage = resolveTcgdexImageUrl(tcgCard.images?.small || imageBase, "low");
+  const largeImage = resolveTcgdexImageUrl(tcgCard.images?.large || imageBase, "high");
 
   const types = Array.isArray(tcgCard.types)
     ? tcgCard.types
@@ -90,13 +119,15 @@ const transformCard = (tcgCard: any): CardWithPricing => {
   return {
     id: tcgCard.id ?? "unknown",
     name: tcgCard.name ?? "Unknown Card",
-    number: tcgCard.number ?? tcgCard.local_id ?? tcgCard.card_code ?? "",
+    number:
+      tcgCard.number ??
+      normalizeDisplayNumber(tcgCard.card_code, tcgCard.local_id),
     rarity: tcgCard.rarity ?? "Classic Promo",
-    image,
+    image: smallImage,
     // Explicitly guarantee small and large properties exist to prevent UI rendering errors
     images: {
-      small: tcgCard.images?.small || image,
-      large: tcgCard.images?.large || image,
+      small: smallImage,
+      large: largeImage,
     },
     set: {
       id: tcgCard.set?.id || "unknown",
@@ -123,6 +154,24 @@ const transformCard = (tcgCard: any): CardWithPricing => {
     weaknesses: Array.isArray(tcgCard.weaknesses) ? tcgCard.weaknesses : [],
     resistances: Array.isArray(tcgCard.resistances) ? tcgCard.resistances : [],
     pricing: tcgCard.pricing ?? {},
+    hasEbay: Boolean(tcgCard.hasEbay),
+    hasKream: Boolean(tcgCard.hasKream),
+    hasSnkrdunk: Boolean(tcgCard.hasSnkrdunk),
+    hasTcgplayer: Boolean(tcgCard.hasTcgplayer),
+    hasCardmarket: Boolean(tcgCard.hasCardmarket),
+    totalSales: typeof tcgCard.totalSales === "number" ? tcgCard.totalSales : undefined,
+    ebaySales: typeof tcgCard.ebaySales === "number" ? tcgCard.ebaySales : undefined,
+    kreamSales: typeof tcgCard.kreamSales === "number" ? tcgCard.kreamSales : undefined,
+    snkrdunkSales: typeof tcgCard.snkrdunkSales === "number" ? tcgCard.snkrdunkSales : undefined,
+    latestSoldAt: tcgCard.latestSoldAt ?? null,
+    kreamTitle: typeof tcgCard.kreamTitle === "string" ? tcgCard.kreamTitle : null,
+    avgPrice: typeof tcgCard.avgPrice === "number" ? tcgCard.avgPrice : null,
+    previousAvgPrice: typeof tcgCard.previousAvgPrice === "number" ? tcgCard.previousAvgPrice : null,
+    trendPercent: typeof tcgCard.trendPercent === "number" ? tcgCard.trendPercent : null,
+    trendDirection: ["up", "down", "flat", "unknown"].includes(tcgCard.trendDirection)
+      ? tcgCard.trendDirection
+      : "unknown",
+    displayCurrency: tcgCard.displayCurrency ?? undefined,
   };
 };
 export const getAllCards = async (
@@ -282,6 +331,26 @@ export const getPriceHistory = async (
   return Array.isArray(data) ? data : [];
 };
 
+export const getMostSoldCards = async (
+  limit: number = 30,
+  currency: "KRW" | "USD" = "KRW",
+): Promise<PokemonCard[]> => {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    currency,
+  });
+  const response = await fetch(
+    `${LOCAL_API_BASE_URL}/api/cards/most-sold?${params.toString()}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`Most sold cards failed with ${response.status}`);
+  }
+
+  const data = (await response.json()) as PokemonCard[];
+  return Array.isArray(data) ? data.map(transformCard) : [];
+};
+
 // export const getCardPricing = async (
 //   cardId: string,
 // ): Promise<CardPricing | undefined> => {
@@ -358,7 +427,7 @@ export const searchCard = async (searchTerm: string): Promise<any[]> => {
       return {
         id: tcgdexId,
         name: card.name ?? tcgdexId,
-        number: card.local_id ?? "",
+        number: normalizeDisplayNumber(card.card_code, card.local_id),
         rarity: card.rarity ?? undefined,
         image,
         images: image

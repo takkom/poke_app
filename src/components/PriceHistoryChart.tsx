@@ -11,6 +11,7 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 
+import { useI18n } from "@/i18n";
 import { colors, Marketplace } from "@/theme/colors";
 import { PriceHistoryPoint } from "@/types/card";
 
@@ -199,6 +200,7 @@ export function PriceHistoryChart({
   displayCurrency = "KRW",
   locale = "ko-KR",
 }: PriceHistoryChartProps) {
+  const { t } = useI18n();
   const [visiblePlatforms, setVisiblePlatforms] = useState<VisiblePlatforms>(
     () => initialVisiblePlatforms(priceHistory),
   );
@@ -320,7 +322,7 @@ export function PriceHistoryChart({
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>Price history</Text>
+          <Text style={styles.eyebrow}>{t('chart.priceHistory')}</Text>
           <Text style={styles.title} numberOfLines={1}>
             {cardName ?? tcgdexId}
           </Text>
@@ -336,7 +338,7 @@ export function PriceHistoryChart({
               {formatCompactMoney(primaryLatest.point.value, displayCurrency, locale)}
             </Text>
             <Text style={styles.latestLabel}>
-              {primaryLatest.dataset.label} latest avg
+              {t('chart.latestAvg', { platform: primaryLatest.dataset.label })}
             </Text>
           </View>
         ) : null}
@@ -377,13 +379,13 @@ export function PriceHistoryChart({
         {!hasAnyData ? (
           <View style={styles.stateContainer}>
             <Text style={styles.emptyTitle}>
-              No transaction records found for this card.
+              {t('chart.noRecords')}
             </Text>
           </View>
         ) : !hasVisiblePlatforms ? (
           <View style={styles.stateContainer}>
             <Text style={styles.stateText}>
-              Select a platform above to view price trends.
+              {t('chart.selectPlatform')}
             </Text>
           </View>
         ) : (
@@ -562,9 +564,9 @@ export function PriceHistoryChart({
       {hasAnyData && hasVisiblePlatforms ? (
         <View style={styles.metricsRow}>
           <View>
-            <Text style={styles.metricLabel}>Volume</Text>
+            <Text style={styles.metricLabel}>{t('chart.volume')}</Text>
             <Text style={styles.metricValue}>
-              {totalVolume.toLocaleString("ko-KR")}
+              {totalVolume.toLocaleString(locale)}
             </Text>
           </View>
           <View style={styles.volumeBars}>

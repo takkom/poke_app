@@ -1,7 +1,7 @@
 const marketplaceColors = {
-  ebay: '#e53238',
-  kream: '#22c55e',
-  snkrdunk: '#ff5a5f',
+  ebay: '#0064d2',
+  kream: '#ef4444',
+  snkrdunk: '#14b8a6',
 } as const;
 
 export const darkColors = {

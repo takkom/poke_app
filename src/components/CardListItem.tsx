@@ -1,5 +1,6 @@
 import { useThemeManager } from '@/hooks/useThemeManager';
 import { PokemonCard } from '@/types/card';
+import { getDisplayCardName } from '@/utils/displayNames';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -9,9 +10,10 @@ interface CardListItemProps {
 }
 
 export const CardListItem: React.FC<CardListItemProps> = ({ card, onPress }) => {
-  const { colors } = useThemeManager();
+  const { colors, locale } = useThemeManager();
   const imageUrl =
     card.image || card.images?.small || 'https://images.pokemontcg.io/base1/1/high.png';
+  const displayName = getDisplayCardName(card, locale);
   const badges = [
     card.hasEbay ? { key: 'ebay', label: 'eBay', color: colors.marketplaces.ebay } : null,
     card.hasKream ? { key: 'kream', label: 'KREAM', color: colors.marketplaces.kream } : null,
@@ -36,10 +38,11 @@ export const CardListItem: React.FC<CardListItemProps> = ({ card, onPress }) => 
       <Image
         source={{ uri: imageUrl }}
         style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
+        resizeMode="cover"
       />
       <View style={styles.content}>
         <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={2}>
-          {card.name}
+          {displayName}
         </Text>
         <Text style={[styles.number, { color: colors.textSecondary }]}>#{card.number}</Text>
         {card.set?.name ? (

@@ -21,6 +21,17 @@ export interface PokemonCard {
   hasSnkrdunk?: boolean;
   hasTcgplayer?: boolean;
   hasCardmarket?: boolean;
+  totalSales?: number;
+  ebaySales?: number;
+  kreamSales?: number;
+  snkrdunkSales?: number;
+  latestSoldAt?: string | null;
+  kreamTitle?: string | null;
+  avgPrice?: number | null;
+  previousAvgPrice?: number | null;
+  trendPercent?: number | null;
+  trendDirection?: 'up' | 'down' | 'flat' | 'unknown';
+  displayCurrency?: 'KRW' | 'USD' | 'JPY';
   priceHistory?: PriceHistoryPoint[];
   pricing?: CardPricing;
   rarity?: string;

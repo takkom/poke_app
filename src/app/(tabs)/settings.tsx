@@ -1,19 +1,21 @@
 import { AppLocale, ThemePreference, useThemeManager } from '@/hooks/useThemeManager';
+import { useI18n } from '@/i18n';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const themeOptions: Array<{ value: ThemePreference; label: string }> = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
+const themeOptions: Array<{ value: ThemePreference; labelKey: 'settings.light' | 'settings.dark' | 'settings.system' }> = [
+  { value: 'light', labelKey: 'settings.light' },
+  { value: 'dark', labelKey: 'settings.dark' },
+  { value: 'system', labelKey: 'settings.system' },
 ];
 
-const localeOptions: Array<{ value: AppLocale; label: string; meta: string }> = [
-  { value: 'ko-KR', label: 'Korean', meta: 'KRW' },
-  { value: 'en-US', label: 'English', meta: 'USD' },
+const localeOptions: Array<{ value: AppLocale; labelKey: 'settings.korean' | 'settings.english'; meta: string }> = [
+  { value: 'ko-KR', labelKey: 'settings.korean', meta: 'KRW' },
+  { value: 'en-US', labelKey: 'settings.english', meta: 'USD' },
 ];
 
 export default function SettingsTab() {
   const { colors, preference, setPreference, mode, locale, setLocale, displayCurrency } = useThemeManager();
+  const { t } = useI18n();
 
   return (
     <ScrollView
@@ -22,9 +24,9 @@ export default function SettingsTab() {
     >
       <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Theme</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.theme')}</Text>
           <Text style={[styles.sectionMeta, { color: colors.textSecondary }]}>
-            {mode === 'dark' ? 'Dark active' : 'Light active'}
+            {mode === 'dark' ? t('settings.darkActive') : t('settings.lightActive')}
           </Text>
         </View>
 
@@ -42,7 +44,7 @@ export default function SettingsTab() {
                 ]}
               >
                 <Text style={[styles.segmentText, { color: selected ? '#ffffff' : colors.textSecondary }]}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -52,7 +54,7 @@ export default function SettingsTab() {
 
       <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Language</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.language')}</Text>
           <Text style={[styles.sectionMeta, { color: colors.textSecondary }]}>
             {displayCurrency}
           </Text>
@@ -72,7 +74,7 @@ export default function SettingsTab() {
                 ]}
               >
                 <Text style={[styles.segmentText, { color: selected ? '#ffffff' : colors.textSecondary }]}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </Text>
                 <Text style={[styles.segmentMeta, { color: selected ? '#ffffff' : colors.textMuted }]}>
                   {option.meta}

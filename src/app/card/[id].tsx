@@ -1,8 +1,10 @@
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { useThemeManager } from "@/hooks/useThemeManager";
+import { useI18n } from "@/i18n";
 import { getCardById, getPriceHistory } from "@/services/cardService";
 import { AppColors, colors } from "@/theme/colors";
 import { CardPricing, CardWithPricing, PriceHistoryPoint } from "@/types/card";
+import { getDisplayCardName } from "@/utils/displayNames";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -58,14 +60,14 @@ function normalizeVariantPrice(value: unknown): TcgPrice | undefined {
 
 function resolveImageUrl(card: CardWithPricing): string | null {
   if (card.images?.large) {
-    return `${card.images.large}/low.webp`;
+    return card.images.large;
   }
 
   if (card.images?.small) {
-    return `${card.images.small}/low.webp`;
+    return card.images.small;
   }
 
-  return card.image ? `${card.image}/low.webp` : null;
+  return card.image ?? null;
 }
 
 function VariantSelector({
@@ -141,6 +143,7 @@ function PriceRow({
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams();
   const { colors: themeColors, displayCurrency, locale } = useThemeManager();
+  const { t } = useI18n();
   const [card, setCard] = useState<CardWithPricing | null>(null);
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
@@ -208,7 +211,7 @@ export default function CardDetailScreen() {
           setPriceHistoryError(
             error instanceof Error
               ? error.message
-              : "Price history is unavailable.",
+              : t('card.priceHistoryUnavailable'),
           );
         }
       } finally {
@@ -264,6 +267,7 @@ export default function CardDetailScreen() {
     lowPrice: pickNumber(cardmarket?.prices?.lowPrice, rawCardmarket?.lowPrice, rawCardmarket?.low),
   };
   const imageUrl = card ? resolveImageUrl(card) : null;
+  const displayName = card ? getDisplayCardName(card, locale) : "";
   const hasValidImage = Boolean(
     imageUrl && !imageUrl.includes("placeholder.png"),
   );
@@ -273,7 +277,7 @@ export default function CardDetailScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={themeColors.primary} />
-          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Loading card details...</Text>
+          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>{t('card.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -283,7 +287,7 @@ export default function CardDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
         <View style={styles.centerContainer}>
-          <Text style={[styles.errorText, { color: themeColors.error }]}>Card not found</Text>
+          <Text style={[styles.errorText, { color: themeColors.error }]}>{t('card.notFound')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -310,13 +314,13 @@ export default function CardDetailScreen() {
                 size={76}
                 color={themeColors.textSecondary}
               />
-              <Text style={[styles.fallbackImageText, { color: themeColors.textSecondary }]}>Image unavailable</Text>
+              <Text style={[styles.fallbackImageText, { color: themeColors.textSecondary }]}>{t('card.imageUnavailable')}</Text>
             </View>
           )}
         </View>
 
         <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
-          <Text style={[styles.cardName, { color: themeColors.textPrimary }]}>{card.name}</Text>
+          <Text style={[styles.cardName, { color: themeColors.textPrimary }]}>{displayName}</Text>
           {priceHistoryLoading ? (
             <View
               style={[
@@ -328,7 +332,7 @@ export default function CardDetailScreen() {
               ]}
             >
               <ActivityIndicator color={themeColors.primary} />
-              <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Loading market movement...</Text>
+              <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>{t('card.loadingMarket')}</Text>
             </View>
           ) : priceHistoryError ? (
             <View
@@ -345,7 +349,7 @@ export default function CardDetailScreen() {
           ) : (
             <PriceHistoryChart
               tcgdexId={card.id}
-              cardName={card.name}
+              cardName={displayName}
               priceHistory={priceHistory}
               displayCurrency={displayCurrency}
               locale={locale}
@@ -353,7 +357,7 @@ export default function CardDetailScreen() {
           )}
 
           <View style={[styles.pricingSection, { borderTopColor: themeColors.border }]}>
-            <Text style={[styles.pricingTitle, { color: themeColors.textPrimary }]}>Market Prices</Text>
+            <Text style={[styles.pricingTitle, { color: themeColors.textPrimary }]}>{t('card.marketPrices')}</Text>
 
             {variantData ? (
               <View
@@ -373,16 +377,16 @@ export default function CardDetailScreen() {
                   colors={themeColors}
                 />
                 <PriceRow
-                  label="Market"
+                  label={t('card.market')}
                   value={formatUsd(variantData.market)}
                   colors={themeColors}
                 />
-                <PriceRow label="Low" value={formatUsd(variantData.low)} colors={themeColors} />
-                <PriceRow label="Mid" value={formatUsd(variantData.mid)} colors={themeColors} />
-                <PriceRow label="High" value={formatUsd(variantData.high)} colors={themeColors} />
+                <PriceRow label={t('card.low')} value={formatUsd(variantData.low)} colors={themeColors} />
+                <PriceRow label={t('card.mid')} value={formatUsd(variantData.mid)} colors={themeColors} />
+                <PriceRow label={t('card.high')} value={formatUsd(variantData.high)} colors={themeColors} />
                 {tcg?.updatedAt ? (
                   <Text style={[styles.updatedAt, { color: themeColors.textMuted }]}>
-                    Updated: {new Date(tcg.updatedAt).toLocaleDateString()}
+                    {t('card.updated', { date: new Date(tcg.updatedAt).toLocaleDateString(locale) })}
                   </Text>
                 ) : null}
               </View>
@@ -400,7 +404,7 @@ export default function CardDetailScreen() {
               >
                 <Text style={[styles.marketName, { color: themeColors.primary }]}>CardMarket</Text>
                 <PriceRow
-                  label="30-Day Avg"
+                  label={t('card.avg30')}
                   colors={themeColors}
                   value={
                     typeof cardmarket?.prices?.avg30 === "number"
@@ -411,7 +415,7 @@ export default function CardDetailScreen() {
                   }
                 />
                 <PriceRow
-                  label="Lowest"
+                  label={t('card.lowest')}
                   colors={themeColors}
                   value={
                     typeof cardmarketPrices.lowPrice === "number"
@@ -421,14 +425,13 @@ export default function CardDetailScreen() {
                 />
                 {cardmarket.updatedAt ? (
                   <Text style={[styles.updatedAt, { color: themeColors.textMuted }]}>
-                    Updated:{" "}
-                    {new Date(cardmarket.updatedAt).toLocaleDateString()}
+                    {t('card.updated', { date: new Date(cardmarket.updatedAt).toLocaleDateString(locale) })}
                   </Text>
                 ) : null}
               </View>
             ) : (
               <Text style={[styles.noPricingText, { color: themeColors.textMuted }]}>
-                Pricing data not available
+                {t('card.noPricing')}
               </Text>
             )}
           </View>

@@ -1,4 +1,5 @@
 import { ThemeManagerProvider, useThemeManager } from '@/hooks/useThemeManager';
+import { useI18n } from '@/i18n';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -14,6 +15,7 @@ export default function RootLayout() {
 
 function RootStack() {
   const { colors } = useThemeManager();
+  const { t } = useI18n();
 
   return (
     <Stack
@@ -37,7 +39,7 @@ function RootStack() {
       <Stack.Screen
         name="card/[id]"
         options={{
-          title: 'Card Details',
+          title: t('tabs.cardDetails'),
           headerBackTitle: 'Back',
         }}
       />
