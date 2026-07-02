@@ -1,6 +1,6 @@
 import { useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
-import { LOCAL_API_BASE_URL } from '@/services/cardService';
+import { searchCard } from '@/services/cardService';
 import { CardPricing, PokemonCard } from '@/types/card';
 import { getDisplayCardName } from '@/utils/displayNames';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,35 +21,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type ResolutionCardBlueprint = {
-  id?: string;
-  tcgdex_id?: string | null;
-  name?: string | null;
-  local_id?: string | null;
-  card_code?: string | null;
-  rarity?: string | null;
-  image_url?: string | null;
-  projected_image_asset_path?: string | null;
-  set_id?: string | null;
-  hasEbay?: boolean;
-  hasKream?: boolean;
-  hasSnkrdunk?: boolean;
-  hasTcgplayer?: boolean;
-  hasCardmarket?: boolean;
-};
-
-type ResolutionSearchResponse = {
-  tcgdex_id?: string | null;
-  card?: ResolutionCardBlueprint | null;
-  candidates?: ResolutionCardBlueprint[];
-};
-
 type TcgDexCard = {
   id: string;
   name: string;
   localId?: string;
   image?: string;
   rarity?: string;
+  variants?: {
+    firstEdition?: boolean;
+    holo?: boolean;
+    normal?: boolean;
+    reverse?: boolean;
+    wPromo?: boolean;
+  };
   pricing?: CardPricing;
   set?: {
     id?: string;
@@ -58,7 +43,16 @@ type TcgDexCard = {
       total?: number;
     };
   };
+  [key: string]: unknown;
 };
+
+type TcgDexLanguage = 'en' | 'ja' | 'ko';
+
+const tcgDexLanguageOptions: Array<{ label: string; value: TcgDexLanguage }> = [
+  { label: 'EN', value: 'en' },
+  { label: 'JP', value: 'ja' },
+  { label: 'KOR', value: 'ko' },
+];
 
 function normalizeImageUrl(image?: string | null): string | undefined {
   if (!image || image.startsWith('/')) {
@@ -72,33 +66,8 @@ function normalizeImageUrl(image?: string | null): string | undefined {
   return `${image}/low.webp`;
 }
 
-function normalizeDisplayNumber(cardCode?: string | null, localId?: string | null): string {
-  const slashCode = cardCode?.match(/\b([A-Z]*\d+|SV\d+)\s*\/\s*(\d+)\b/i);
-  if (slashCode) {
-    return `${slashCode[1].toUpperCase()}/${slashCode[2]}`;
-  }
-
-  return localId ?? cardCode ?? '';
-}
-
-function mapResolutionCard(card: ResolutionCardBlueprint, fallbackId?: string | null): PokemonCard {
-  const tcgdexId = fallbackId ?? card.tcgdex_id ?? card.id ?? '';
-  const image = normalizeImageUrl(card.image_url ?? card.projected_image_asset_path);
-
-  return {
-    id: tcgdexId,
-    name: card.name ?? tcgdexId,
-    number: normalizeDisplayNumber(card.card_code, card.local_id),
-    rarity: card.rarity ?? undefined,
-    image,
-    images: image ? { small: image, large: image } : undefined,
-    set: card.set_id ? { id: card.set_id, name: card.set_id } : undefined,
-    hasEbay: Boolean(card.hasEbay),
-    hasKream: Boolean(card.hasKream),
-    hasSnkrdunk: Boolean(card.hasSnkrdunk),
-    hasTcgplayer: Boolean(card.hasTcgplayer),
-    hasCardmarket: Boolean(card.hasCardmarket),
-  };
+function formatSalesCount(value: number | null | undefined, locale: string): string {
+  return (value ?? 0).toLocaleString(locale);
 }
 
 function mapTcgDexCard(card: TcgDexCard): PokemonCard {
@@ -116,22 +85,6 @@ function mapTcgDexCard(card: TcgDexCard): PokemonCard {
     hasTcgplayer: Boolean(card.pricing?.tcgplayer),
     hasCardmarket: Boolean(card.pricing?.cardmarket),
   };
-}
-
-async function searchLocal(query: string): Promise<PokemonCard[]> {
-  const response = await fetch(`${LOCAL_API_BASE_URL}/api/resolution/search`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Local search failed with ${response.status}`);
-  }
-
-  const data = (await response.json()) as ResolutionSearchResponse;
-  const blueprints = data.card ? [data.card] : data.candidates ?? [];
-  return blueprints.map((card) => mapResolutionCard(card, data.tcgdex_id));
 }
 
 async function searchTcgDex(query: string): Promise<PokemonCard[]> {
@@ -172,6 +125,329 @@ async function searchTcgDex(query: string): Promise<PokemonCard[]> {
   return data.map(mapTcgDexCard);
 }
 
+async function fetchTcgDexCards(
+  params: URLSearchParams,
+  language: TcgDexLanguage,
+): Promise<TcgDexCard[]> {
+  const response = await fetch(`https://api.tcgdex.net/v2/${language}/cards?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`TCGdex search failed with ${response.status}`);
+  }
+
+  const data = (await response.json()) as TcgDexCard[];
+  return Array.isArray(data) ? data : [];
+}
+
+async function fetchTcgDexCard(
+  id: string,
+  language: TcgDexLanguage,
+): Promise<TcgDexCard | null> {
+  const response = await fetch(`https://api.tcgdex.net/v2/${language}/cards/${encodeURIComponent(id)}`);
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as TcgDexCard;
+}
+
+async function enrichTcgDexCards(
+  cards: TcgDexCard[],
+  language: TcgDexLanguage,
+): Promise<TcgDexCard[]> {
+  const detailedCards = await Promise.all(
+    cards.slice(0, 24).map(async (card) => (await fetchTcgDexCard(card.id, language)) ?? card),
+  );
+
+  return detailedCards;
+}
+
+function normalizeCardNumber(value?: string | null): string {
+  const fallback = value ?? '';
+  return String(Number(fallback) || fallback).trim().toLowerCase();
+}
+
+function formatCardNumber(card: TcgDexCard): string {
+  if (!card.localId) {
+    return card.id;
+  }
+
+  const printedTotal = card.set?.cardCount?.official ?? card.set?.cardCount?.total;
+  if (!printedTotal) {
+    return card.localId;
+  }
+
+  const width = Math.max(String(printedTotal).length, 3);
+  const localNumber = /^\d+$/.test(card.localId) ? card.localId.padStart(width, '0') : card.localId;
+  const totalNumber = String(printedTotal).padStart(width, '0');
+  return `${localNumber}/${totalNumber}`;
+}
+
+function formatCardFinish(card: TcgDexCard): string {
+  const variants = card.variants;
+  if (variants) {
+    const labels = [
+      variants.normal ? 'Normal' : null,
+      variants.holo ? 'Holo' : null,
+      variants.reverse ? 'Reverse Holo' : null,
+      variants.firstEdition ? 'First Edition' : null,
+      variants.wPromo ? 'Promo' : null,
+    ].filter(Boolean);
+
+    if (labels.length) {
+      return labels.join(', ');
+    }
+  }
+
+  return card.rarity ?? 'Normal';
+}
+
+function formatCardMeta(card: TcgDexCard): string {
+  return [formatCardNumber(card), card.set?.name, formatCardFinish(card)].filter(Boolean).join(' | ');
+}
+
+async function searchTcgDexTest(
+  query: string,
+  language: TcgDexLanguage,
+): Promise<TcgDexCard[]> {
+  const trimmed = query.trim();
+  const fractionMatch = trimmed.match(/\b(\d{1,4})\s*[/-]\s*(\d{1,4})\b/);
+  const numberToken = fractionMatch?.[1] ?? trimmed.match(/\b\d{1,4}\b/)?.[0];
+  const nameText = trimmed
+    .replace(/\b\d{1,4}\s*[/-]\s*\d{1,4}\b/g, '')
+    .replace(/\b\d{1,4}\b/g, '')
+    .trim();
+
+  const params = new URLSearchParams();
+  if (nameText) {
+    params.set('name', nameText);
+  } else if (numberToken) {
+    params.set('localId', String(Number(numberToken)));
+  } else {
+    params.set('name', trimmed);
+  }
+
+  const cards = await fetchTcgDexCards(params, language);
+  if (!numberToken) {
+    return enrichTcgDexCards(cards, language);
+  }
+
+  const normalizedNumber = normalizeCardNumber(numberToken);
+  const printedTotal = fractionMatch ? Number(fractionMatch[2]) : null;
+
+  const localIdMatches = cards.filter((card) => {
+    const localIdMatches = normalizeCardNumber(card.localId) === normalizedNumber;
+    if (!localIdMatches) {
+      return false;
+    }
+
+    if (!printedTotal) {
+      return true;
+    }
+
+    const official = card.set?.cardCount?.official;
+    const total = card.set?.cardCount?.total;
+    return official === printedTotal || total === printedTotal;
+  });
+
+  const detailedCards = await enrichTcgDexCards(localIdMatches, language);
+  if (!printedTotal) {
+    return detailedCards;
+  }
+
+  return detailedCards.filter((card) => {
+    const official = card.set?.cardCount?.official;
+    const total = card.set?.cardCount?.total;
+    return official === printedTotal || total === printedTotal;
+  });
+}
+
+function TcgDexTestSearch() {
+  const { colors } = useThemeManager();
+  const [testQuery, setTestQuery] = useState('');
+  const [testLanguage, setTestLanguage] = useState<TcgDexLanguage>('en');
+  const [testResults, setTestResults] = useState<TcgDexCard[]>([]);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [selectedCard, setSelectedCard] = useState<TcgDexCard | null>(null);
+  const hasTestQuery = Boolean(testQuery.trim());
+
+  async function performTestSearch() {
+    const currentQuery = testQuery.trim();
+    if (!currentQuery) {
+      setTestResults([]);
+      setTestError(null);
+      return;
+    }
+
+    setTestLoading(true);
+    setTestError(null);
+
+    try {
+      const nextResults = await searchTcgDexTest(currentQuery, testLanguage);
+      setTestResults(nextResults);
+    } catch (searchError) {
+      console.error(searchError);
+      setTestError('TCGdex test search failed.');
+      setTestResults([]);
+    } finally {
+      setTestLoading(false);
+    }
+  }
+
+  return (
+    <View style={[styles.testPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={Boolean(selectedCard)}
+        onRequestClose={() => setSelectedCard(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedCard(null)}>
+          <Pressable
+            style={[
+              styles.testDetailModal,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <ScrollView
+              contentContainerStyle={styles.testDetailContent}
+              persistentScrollbar
+              style={styles.testDetailScroll}
+            >
+              {selectedCard ? (
+                <>
+                  <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                    {selectedCard.name}
+                  </Text>
+                  <Text style={[styles.testDetailMeta, { color: colors.textSecondary }]}>
+                    {formatCardMeta(selectedCard)}
+                  </Text>
+                  <Image
+                    source={normalizeImageUrl(selectedCard.image) ?? 'https://images.tcgdex.net/placeholder.png'}
+                    style={[styles.testDetailImage, { backgroundColor: colors.surfaceMuted }]}
+                    contentFit="contain"
+                    transition={120}
+                  />
+                  <Text style={[styles.testJson, { color: colors.textPrimary }]}>
+                    {JSON.stringify(selectedCard, null, 2)}
+                  </Text>
+                </>
+              ) : null}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setSelectedCard(null)}
+              style={[styles.closeButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <Text style={[styles.testTitle, { color: colors.textPrimary }]}>TCGdex test search</Text>
+      <View style={styles.languageSelector}>
+        {tcgDexLanguageOptions.map((option) => {
+          const selected = option.value === testLanguage;
+          return (
+            <TouchableOpacity
+              key={option.value}
+              onPress={() => {
+                setTestLanguage(option.value);
+                setTestResults([]);
+                setTestError(null);
+              }}
+              style={[
+                styles.languageButton,
+                {
+                  backgroundColor: selected ? colors.primary : colors.background,
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.languageButtonText,
+                  { color: selected ? '#ffffff' : colors.textSecondary },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={styles.testSearchRow}>
+        <TextInput
+          value={testQuery}
+          onChangeText={setTestQuery}
+          onSubmitEditing={performTestSearch}
+          placeholder="Search card name or number"
+          placeholderTextColor={colors.textMuted}
+          returnKeyType="search"
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.background,
+              borderColor: colors.border,
+              color: colors.textPrimary,
+            },
+          ]}
+        />
+        <TouchableOpacity
+          onPress={performTestSearch}
+          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+        >
+          <Text style={styles.submitText}>Submit</Text>
+        </TouchableOpacity>
+      </View>
+
+      {testLoading ? (
+        <View style={styles.testStateRow}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.testStateText, { color: colors.textSecondary }]}>Searching TCGdex</Text>
+        </View>
+      ) : testError ? (
+        <Text style={[styles.testStateText, { color: colors.error }]}>{testError}</Text>
+      ) : hasTestQuery && testResults.length === 0 ? (
+        <Text style={[styles.testStateText, { color: colors.textSecondary }]}>No TCGdex results</Text>
+      ) : testResults.length ? (
+        <View style={styles.testResults}>
+          {testResults.slice(0, 12).map((item) => {
+            const image = normalizeImageUrl(item.image);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => setSelectedCard(item)}
+                style={[styles.testResultRow, { borderColor: colors.border }]}
+              >
+                <Image
+                  source={image ?? 'https://images.tcgdex.net/placeholder.png'}
+                  style={[styles.testResultImage, { backgroundColor: colors.surfaceMuted }]}
+                  contentFit="cover"
+                  transition={120}
+                />
+                <View style={styles.testResultBody}>
+                  <Text style={[styles.testResultName, { color: colors.textPrimary }]} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+                  <Text style={[styles.testResultMeta, { color: colors.textSecondary }]}>
+                    {formatCardMeta(item)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          {testResults.length > 12 ? (
+            <Text style={[styles.testStateText, { color: colors.textSecondary }]}>
+              Showing 12 of {testResults.length} results
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function SearchTab() {
   const router = useRouter();
   const { colors, searchMode, locale } = useThemeManager();
@@ -197,7 +473,7 @@ export default function SearchTab() {
     try {
       const nextResults =
         searchMode === 'local'
-          ? await searchLocal(currentQuery)
+          ? await searchCard(currentQuery)
           : await searchTcgDex(currentQuery);
       setResults(nextResults);
     } catch (searchError) {
@@ -295,6 +571,8 @@ export default function SearchTab() {
         </TouchableOpacity>
       </View>
 
+      <TcgDexTestSearch />
+
       <View style={styles.statusRow}>
         <Text style={[styles.statusText, { color: colors.textSecondary }]}>
           {searchMode === 'local' ? t('search.localBackend') : t('search.externalTcgdex')}
@@ -337,6 +615,43 @@ export default function SearchTab() {
             windowSize={7}
             renderItem={({ item }) => {
               const displayName = getDisplayCardName(item, locale);
+              const badges = [
+                item.hasKream
+                  ? {
+                      key: 'kream',
+                      label: 'KREAM',
+                      count: formatSalesCount(item.kreamSales, locale),
+                      color: colors.marketplaces.kream,
+                    }
+                  : null,
+                item.hasEbay
+                  ? {
+                      key: 'ebay',
+                      label: 'eBay',
+                      count: formatSalesCount(item.ebaySales, locale),
+                      color: colors.marketplaces.ebay,
+                    }
+                  : null,
+                item.hasSnkrdunk
+                  ? {
+                      key: 'snkrdunk',
+                      label: 'SNK',
+                      count: formatSalesCount(item.snkrdunkSales, locale),
+                      color: colors.marketplaces.snkrdunk,
+                    }
+                  : null,
+                item.hasTcgplayer
+                  ? { key: 'tcgplayer', label: 'TCGplayer', count: null, color: colors.primary }
+                  : null,
+                item.hasCardmarket
+                  ? { key: 'cardmarket', label: 'Cardmarket', count: null, color: colors.success }
+                  : null,
+              ].filter(Boolean) as Array<{
+                key: string;
+                label: string;
+                count: string | null;
+                color: string;
+              }>;
 
               return (
                 <TouchableOpacity
@@ -371,87 +686,29 @@ export default function SearchTab() {
                   {item.rarity ? (
                     <Text style={[styles.rarity, { color: colors.primary }]}>{item.rarity}</Text>
                   ) : null}
-                  {item.hasEbay ||
-                  item.hasKream ||
-                  item.hasSnkrdunk ||
-                  item.hasTcgplayer ||
-                  item.hasCardmarket ? (
+                  {badges.length ? (
                     <View style={styles.marketBadgeRow}>
-                      {item.hasEbay ? (
+                      {badges.map((badge) => (
                         <View
+                          key={badge.key}
                           style={[
                             styles.marketBadge,
                             {
-                              borderColor: colors.marketplaces.ebay,
-                              backgroundColor: `${colors.marketplaces.ebay}22`,
+                              borderColor: badge.color,
+                              backgroundColor: `${badge.color}22`,
                             },
                           ]}
                         >
-                          <Text style={[styles.marketBadgeText, { color: colors.marketplaces.ebay }]}>
-                            eBay
+                          <Text style={[styles.marketBadgeText, { color: badge.color }]}>
+                            {badge.label}
                           </Text>
+                          {badge.count ? (
+                            <Text style={[styles.marketBadgeCount, { color: badge.color }]}>
+                              {badge.count}
+                            </Text>
+                          ) : null}
                         </View>
-                      ) : null}
-                      {item.hasKream ? (
-                        <View
-                          style={[
-                            styles.marketBadge,
-                            {
-                              borderColor: colors.marketplaces.kream,
-                              backgroundColor: `${colors.marketplaces.kream}22`,
-                            },
-                          ]}
-                        >
-                          <Text style={[styles.marketBadgeText, { color: colors.marketplaces.kream }]}>
-                            KREAM
-                          </Text>
-                        </View>
-                      ) : null}
-                      {item.hasSnkrdunk ? (
-                        <View
-                          style={[
-                            styles.marketBadge,
-                            {
-                              borderColor: colors.marketplaces.snkrdunk,
-                              backgroundColor: `${colors.marketplaces.snkrdunk}22`,
-                            },
-                          ]}
-                        >
-                          <Text style={[styles.marketBadgeText, { color: colors.marketplaces.snkrdunk }]}>
-                            SNKRDUNK
-                          </Text>
-                        </View>
-                      ) : null}
-                      {item.hasTcgplayer ? (
-                        <View
-                          style={[
-                            styles.marketBadge,
-                            {
-                              borderColor: colors.primary,
-                              backgroundColor: `${colors.primary}22`,
-                            },
-                          ]}
-                        >
-                          <Text style={[styles.marketBadgeText, { color: colors.primary }]}>
-                            TCGplayer
-                          </Text>
-                        </View>
-                      ) : null}
-                      {item.hasCardmarket ? (
-                        <View
-                          style={[
-                            styles.marketBadge,
-                            {
-                              borderColor: colors.success,
-                              backgroundColor: `${colors.success}22`,
-                            },
-                          ]}
-                        >
-                          <Text style={[styles.marketBadgeText, { color: colors.success }]}>
-                            Cardmarket
-                          </Text>
-                        </View>
-                      ) : null}
+                      ))}
                     </View>
                   ) : null}
                 </View>
@@ -517,6 +774,39 @@ const styles = StyleSheet.create({
     padding: 18,
     width: '100%',
   },
+  testDetailModal: {
+    borderRadius: 8,
+    borderWidth: 1,
+    maxHeight: '92%',
+    maxWidth: 560,
+    padding: 14,
+    width: '100%',
+  },
+  testDetailContent: {
+    gap: 12,
+    paddingBottom: 14,
+  },
+  testDetailScroll: {
+    flexShrink: 1,
+  },
+  testDetailImage: {
+    alignSelf: 'center',
+    aspectRatio: 5 / 7,
+    borderRadius: 8,
+    maxWidth: 300,
+    width: '100%',
+  },
+  testDetailMeta: {
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  testJson: {
+    borderRadius: 8,
+    fontFamily: 'monospace',
+    fontSize: 11,
+    lineHeight: 16,
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: '900',
@@ -575,6 +865,75 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '800',
+  },
+  testPanel: {
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 10,
+  },
+  testTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  testSearchRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  languageSelector: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  languageButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  languageButtonText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  testStateRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  testStateText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  testResults: {
+    gap: 8,
+  },
+  testResultRow: {
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 8,
+  },
+  testResultImage: {
+    borderRadius: 6,
+    height: 64,
+    width: 46,
+  },
+  testResultBody: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  testResultName: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  testResultMeta: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
   },
   statusRow: {
     flexDirection: 'row',
@@ -698,13 +1057,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   marketBadge: {
+    alignItems: 'center',
     borderRadius: 999,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   marketBadgeText: {
     fontSize: 10,
     fontWeight: '800',
+  },
+  marketBadgeCount: {
+    fontSize: 10,
+    fontWeight: '900',
   },
 });

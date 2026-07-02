@@ -35,6 +35,10 @@ function formatUsd(value?: number): string | null {
   return typeof value === "number" ? `$${value.toFixed(2)}` : null;
 }
 
+function formatSalesCount(value: number | null | undefined, locale: string): string {
+  return (value ?? 0).toLocaleString(locale);
+}
+
 function pickNumber(...values: unknown[]): number | undefined {
   for (const value of values) {
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -271,6 +275,34 @@ export default function CardDetailScreen() {
   const hasValidImage = Boolean(
     imageUrl && !imageUrl.includes("placeholder.png"),
   );
+  const marketBadges = card
+    ? [
+        card.hasKream
+          ? {
+              key: "kream",
+              label: "KREAM",
+              count: formatSalesCount(card.kreamSales, locale),
+              color: themeColors.marketplaces.kream,
+            }
+          : null,
+        card.hasEbay
+          ? {
+              key: "ebay",
+              label: "eBay",
+              count: formatSalesCount(card.ebaySales, locale),
+              color: themeColors.marketplaces.ebay,
+            }
+          : null,
+        card.hasSnkrdunk
+          ? {
+              key: "snkrdunk",
+              label: "SNK",
+              count: formatSalesCount(card.snkrdunkSales, locale),
+              color: themeColors.marketplaces.snkrdunk,
+            }
+          : null,
+      ].filter(Boolean) as Array<{ key: string; label: string; count: string; color: string }>
+    : [];
 
   if (loading) {
     return (
@@ -321,6 +353,26 @@ export default function CardDetailScreen() {
 
         <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
           <Text style={[styles.cardName, { color: themeColors.textPrimary }]}>{displayName}</Text>
+          {marketBadges.length ? (
+            <View style={styles.marketBadgeRow}>
+              {marketBadges.map((badge) => (
+                <View
+                  key={badge.key}
+                  style={[
+                    styles.marketBadge,
+                    { borderColor: badge.color, backgroundColor: `${badge.color}22` },
+                  ]}
+                >
+                  <Text style={[styles.marketBadgeText, { color: badge.color }]}>
+                    {badge.label}
+                  </Text>
+                  <Text style={[styles.marketBadgeCount, { color: badge.color }]}>
+                    {badge.count}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
           {priceHistoryLoading ? (
             <View
               style={[
@@ -500,6 +552,30 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     textAlign: "center",
+  },
+  marketBadgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "center",
+    marginTop: -6,
+  },
+  marketBadge: {
+    alignItems: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  marketBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  marketBadgeCount: {
+    fontSize: 10,
+    fontWeight: "900",
   },
   pricingSection: {
     borderTopColor: colors.border,

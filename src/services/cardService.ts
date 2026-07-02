@@ -53,6 +53,7 @@ interface TCGdexSet {
 
 interface ResolutionCardBlueprint {
   id?: string;
+  canonical_id?: string | null;
   tcgdex_id?: string | null;
   name?: string | null;
   local_id?: string | null;
@@ -61,6 +62,15 @@ interface ResolutionCardBlueprint {
   image_url?: string | null;
   projected_image_asset_path?: string | null;
   set_id?: string | null;
+  hasEbay?: boolean;
+  hasKream?: boolean;
+  hasSnkrdunk?: boolean;
+  hasTcgplayer?: boolean;
+  hasCardmarket?: boolean;
+  totalSales?: number;
+  ebaySales?: number;
+  kreamSales?: number;
+  snkrdunkSales?: number;
 }
 
 interface ResolutionSearchResponse {
@@ -399,7 +409,7 @@ export const clearCache = (): void => {
   cacheTimestamp = 0;
 };
 
-export const searchCard = async (searchTerm: string): Promise<any[]> => {
+export const searchCard = async (searchTerm: string): Promise<PokemonCard[]> => {
   try {
     const response = await fetch(
       `${LOCAL_API_BASE_URL}/api/resolution/search`,
@@ -420,13 +430,16 @@ export const searchCard = async (searchTerm: string): Promise<any[]> => {
     const blueprints = data.card ? [data.card] : (data.candidates ?? []);
 
     return blueprints.map((card) => {
-      const tcgdexId = data.tcgdex_id ?? card.tcgdex_id ?? card.id ?? "";
-      const image =
+      const cardId = card.canonical_id ?? card.tcgdex_id ?? card.id ?? data.tcgdex_id ?? "";
+      const rawImage =
         card.image_url ?? card.projected_image_asset_path ?? undefined;
+      const image = rawImage && !rawImage.startsWith("/")
+        ? resolveTcgdexImageUrl(rawImage, "low")
+        : undefined;
 
       return {
-        id: tcgdexId,
-        name: card.name ?? tcgdexId,
+        id: cardId,
+        name: card.name ?? cardId,
         number: normalizeDisplayNumber(card.card_code, card.local_id),
         rarity: card.rarity ?? undefined,
         image,
@@ -442,6 +455,15 @@ export const searchCard = async (searchTerm: string): Promise<any[]> => {
               name: card.set_id,
             }
           : undefined,
+        hasEbay: Boolean(card.hasEbay),
+        hasKream: Boolean(card.hasKream),
+        hasSnkrdunk: Boolean(card.hasSnkrdunk),
+        hasTcgplayer: Boolean(card.hasTcgplayer),
+        hasCardmarket: Boolean(card.hasCardmarket),
+        totalSales: typeof card.totalSales === "number" ? card.totalSales : undefined,
+        ebaySales: typeof card.ebaySales === "number" ? card.ebaySales : undefined,
+        kreamSales: typeof card.kreamSales === "number" ? card.kreamSales : undefined,
+        snkrdunkSales: typeof card.snkrdunkSales === "number" ? card.snkrdunkSales : undefined,
       };
     });
   } catch (error) {
