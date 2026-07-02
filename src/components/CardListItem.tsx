@@ -1,6 +1,7 @@
 import { useThemeManager } from '@/hooks/useThemeManager';
 import { PokemonCard } from '@/types/card';
 import { getDisplayCardName } from '@/utils/displayNames';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -9,20 +10,51 @@ interface CardListItemProps {
   onPress: () => void;
 }
 
+function formatSalesCount(value: number | null | undefined, locale: string): string {
+  return (value ?? 0).toLocaleString(locale);
+}
+
 export const CardListItem: React.FC<CardListItemProps> = ({ card, onPress }) => {
   const { colors, locale } = useThemeManager();
+  const [imageFailed, setImageFailed] = React.useState(false);
   const imageUrl =
     card.image || card.images?.small || 'https://images.pokemontcg.io/base1/1/high.png';
   const displayName = getDisplayCardName(card, locale);
+  const hasValidImage = Boolean(
+    imageUrl && !imageFailed && !imageUrl.includes('placeholder.png'),
+  );
+
+  React.useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
   const badges = [
-    card.hasEbay ? { key: 'ebay', label: 'eBay', color: colors.marketplaces.ebay } : null,
-    card.hasKream ? { key: 'kream', label: 'KREAM', color: colors.marketplaces.kream } : null,
-    card.hasSnkrdunk
-      ? { key: 'snkrdunk', label: 'SNKRDUNK', color: colors.marketplaces.snkrdunk }
+    card.hasKream
+      ? {
+          key: 'kream',
+          label: 'KREAM',
+          count: formatSalesCount(card.kreamSales, locale),
+          color: colors.marketplaces.kream,
+        }
       : null,
-    card.hasTcgplayer ? { key: 'tcgplayer', label: 'TCGplayer', color: colors.primary } : null,
-    card.hasCardmarket ? { key: 'cardmarket', label: 'Cardmarket', color: colors.success } : null,
-  ].filter(Boolean) as Array<{ key: string; label: string; color: string }>;
+    card.hasEbay
+      ? {
+          key: 'ebay',
+          label: 'eBay',
+          count: formatSalesCount(card.ebaySales, locale),
+          color: colors.marketplaces.ebay,
+        }
+      : null,
+    card.hasSnkrdunk
+      ? {
+          key: 'snkrdunk',
+          label: 'SNK',
+          count: formatSalesCount(card.snkrdunkSales, locale),
+          color: colors.marketplaces.snkrdunk,
+        }
+      : null,
+    card.hasTcgplayer ? { key: 'tcgplayer', label: 'TCGplayer', count: null, color: colors.primary } : null,
+    card.hasCardmarket ? { key: 'cardmarket', label: 'Cardmarket', count: null, color: colors.success } : null,
+  ].filter(Boolean) as Array<{ key: string; label: string; count: string | null; color: string }>;
 
   return (
     <TouchableOpacity
@@ -35,11 +67,22 @@ export const CardListItem: React.FC<CardListItemProps> = ({ card, onPress }) => 
       ]}
       onPress={onPress}
     >
-      <Image
-        source={{ uri: imageUrl }}
-        style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
-        resizeMode="cover"
-      />
+      {hasValidImage ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <View style={[styles.imageFallback, { backgroundColor: colors.surfaceMuted }]}>
+          <MaterialCommunityIcons
+            name="cards-outline"
+            size={34}
+            color={colors.textSecondary}
+          />
+        </View>
+      )}
       <View style={styles.content}>
         <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={2}>
           {displayName}
@@ -66,6 +109,11 @@ export const CardListItem: React.FC<CardListItemProps> = ({ card, onPress }) => 
                 <Text style={[styles.marketBadgeText, { color: badge.color }]}>
                   {badge.label}
                 </Text>
+                {badge.count ? (
+                  <Text style={[styles.marketBadgeCount, { color: badge.color }]}>
+                    {badge.count}
+                  </Text>
+                ) : null}
               </View>
             ))}
           </View>
@@ -91,6 +139,12 @@ const styles = StyleSheet.create({
   },
   image: {
     height: 140,
+    width: 100,
+  },
+  imageFallback: {
+    alignItems: 'center',
+    height: 140,
+    justifyContent: 'center',
     width: 100,
   },
   content: {
@@ -122,13 +176,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   marketBadge: {
+    alignItems: 'center',
     borderRadius: 999,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   marketBadgeText: {
     fontSize: 10,
     fontWeight: '800',
+  },
+  marketBadgeCount: {
+    fontSize: 10,
+    fontWeight: '900',
   },
 });

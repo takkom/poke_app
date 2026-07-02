@@ -24,7 +24,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type HomeTranslator = (
   key:
     | "home.kreamSales"
-    | "home.breakdown"
     | "home.avgUnavailable"
     | "home.trendUnknown",
   values?: Record<string, string | number>,
@@ -125,6 +124,10 @@ function getSafeTrendDisplay(
   return { color: "#ca8a04", label, symbol: "\u25cf" };
 }
 
+function formatSalesCount(value: number | null | undefined, locale: AppLocale): string {
+  return (value ?? 0).toLocaleString(locale);
+}
+
 const TopSellerRow = memo(function TopSellerRow({
   colors,
   item,
@@ -135,14 +138,9 @@ const TopSellerRow = memo(function TopSellerRow({
 }: TopSellerRowProps) {
   const displayName =
     locale === "ko-KR"
-      ? getDisplayCardName(item, locale)
-      : (cleanMarketplaceTitle(item.kreamTitle) ??
-        getDisplayCardName(item, locale));
-  const kreamSales = (item.kreamSales ?? 0).toLocaleString(locale);
-  const ebaySales = (item.ebaySales ?? 0).toLocaleString(locale);
-  const snkrdunkSales = item.hasSnkrdunk
-    ? (item.snkrdunkSales ?? 0).toLocaleString(locale)
-    : "-";
+      ? (cleanMarketplaceTitle(item.kreamTitle) ??
+        getDisplayCardName(item, locale))
+      : getDisplayCardName(item, locale);
   const printedNumber = formatCardNumber(item);
   const metadata = [
     printedNumber,
@@ -157,6 +155,37 @@ const TopSellerRow = memo(function TopSellerRow({
     locale,
   );
   const trend = getSafeTrendDisplay(item.trendDirection, item.trendPercent);
+  const marketBadges = [
+    item.hasKream
+      ? {
+          key: "kream",
+          label: "KREAM",
+          count: formatSalesCount(item.kreamSales, locale),
+          color: colors.marketplaces.kream,
+        }
+      : null,
+    item.hasEbay
+      ? {
+          key: "ebay",
+          label: "eBay",
+          count: formatSalesCount(item.ebaySales, locale),
+          color: colors.marketplaces.ebay,
+        }
+      : null,
+    item.hasSnkrdunk
+      ? {
+          key: "snkrdunk",
+          label: "SNK",
+          count: formatSalesCount(item.snkrdunkSales, locale),
+          color: colors.marketplaces.snkrdunk,
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    key: string;
+    label: string;
+    count: string;
+    color: string;
+  }>;
 
   return (
     <TouchableOpacity
@@ -208,79 +237,39 @@ const TopSellerRow = memo(function TopSellerRow({
           </Text>
         </View>
 
-        <Text
-          style={[styles.salesBreakdown, { color: colors.textSecondary }]}
-          numberOfLines={1}
-        >
-          {t("home.breakdown", {
-            kream: kreamSales,
-            ebay: ebaySales,
-            snkrdunk: snkrdunkSales,
-          })}
-        </Text>
-
-        <View style={styles.marketBadgeRow}>
-          {item.hasEbay ? (
-            <View
-              style={[
-                styles.marketBadge,
-                {
-                  borderColor: colors.marketplaces.ebay,
-                  backgroundColor: `${colors.marketplaces.ebay}22`,
-                },
-              ]}
-            >
-              <Text
+        {marketBadges.length ? (
+          <View style={styles.marketBadgeRow}>
+            {marketBadges.map((badge) => (
+              <View
+                key={badge.key}
                 style={[
-                  styles.marketBadgeText,
-                  { color: colors.marketplaces.ebay },
+                  styles.marketBadge,
+                  {
+                    borderColor: badge.color,
+                    backgroundColor: `${badge.color}22`,
+                  },
                 ]}
               >
-                eBay
-              </Text>
-            </View>
-          ) : null}
-          {item.hasKream ? (
-            <View
-              style={[
-                styles.marketBadge,
-                {
-                  borderColor: colors.marketplaces.kream,
-                  backgroundColor: `${colors.marketplaces.kream}22`,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.marketBadgeText,
-                  { color: colors.marketplaces.kream },
-                ]}
-              >
-                KREAM
-              </Text>
-            </View>
-          ) : null}
-          {item.hasSnkrdunk ? (
-            <View
-              style={[
-                styles.marketBadge,
-                {
-                  borderColor: colors.marketplaces.snkrdunk,
-                  backgroundColor: `${colors.marketplaces.snkrdunk}22`,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.marketBadgeText,
-                  { color: colors.marketplaces.snkrdunk },
-                ]}
-              >
-                SNKRDUNK
-              </Text>
-            </View>
-          ) : null}
-        </View>
+                <Text
+                  style={[
+                    styles.marketBadgeLabel,
+                    { color: badge.color },
+                  ]}
+                >
+                  {badge.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.marketBadgeCount,
+                    { color: badge.color },
+                  ]}
+                >
+                  {badge.count}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -483,25 +472,27 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     lineHeight: 28,
   },
-  salesBreakdown: {
-    fontSize: 11,
-    fontWeight: "700",
-    marginTop: 2,
-  },
   marketBadgeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginTop: 8,
+    marginTop: 6,
   },
   marketBadge: {
+    alignItems: "center",
     borderRadius: 999,
     borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  marketBadgeText: {
+  marketBadgeLabel: {
     fontSize: 10,
     fontWeight: "800",
+  },
+  marketBadgeCount: {
+    fontSize: 10,
+    fontWeight: "900",
   },
 });

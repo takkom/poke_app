@@ -183,6 +183,8 @@ export function cleanMarketplaceTitle(title: string | null | undefined): string 
   return normalizeSpaces(
     title
       .replace(/^pokemon\s+tcg\s*[-:|]?\s*/i, "")
-      .replace(/^pokemon\s+card\s*[-:|]?\s*/i, ""),
+      .replace(/^pokemon\s+card\s*[-:|]?\s*/i, "")
+      .replace(/^\uD3EC\uCF13\uBAAC\s*tcg\s*[-:|]?\s*/i, "")
+      .replace(/^\uD3EC\uCF13\uBAAC\s*\uCE74\uB4DC\s*[-:|]?\s*/i, "")
   );
 }
