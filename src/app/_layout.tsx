@@ -1,13 +1,18 @@
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeManagerProvider, useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeManagerProvider>
-        <RootStack />
+        <AuthProvider>
+          <RootStack />
+        </AuthProvider>
       </ThemeManagerProvider>
     </SafeAreaProvider>
   );
@@ -16,33 +21,71 @@ export default function RootLayout() {
 function RootStack() {
   const { colors } = useThemeManager();
   const { t } = useI18n();
+  const { token, isLoading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+  const isAuthRoute = segments[0] === '(auth)';
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (!token && !isAuthRoute) {
+      router.replace('/(auth)/login');
+      return;
+    }
+
+    if (token && isAuthRoute) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthRoute, isLoading, router, token]);
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.surface,
-        },
-        headerTintColor: colors.textPrimary,
-        headerTitleStyle: {
-          color: colors.textPrimary,
-          fontSize: 18,
-          fontWeight: '700',
-        },
-        headerShadowVisible: false,
-        contentStyle: {
-          backgroundColor: colors.background,
-        },
-      }}
-    >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="card/[id]"
-        options={{
-          title: t('tabs.cardDetails'),
-          headerBackTitle: 'Back',
+    <>
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.surface,
+          },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: {
+            color: colors.textPrimary,
+            fontSize: 18,
+            fontWeight: '700',
+          },
+          headerShadowVisible: false,
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
         }}
-      />
-    </Stack>
+      >
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="card/[id]"
+          options={{
+            title: t('tabs.cardDetails'),
+            headerBackTitle: 'Back',
+          }}
+        />
+      </Stack>
+      {isLoading ? (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            top: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.background,
+          }}
+        >
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : null}
+    </>
   );
 }

@@ -55,12 +55,15 @@ interface ResolutionCardBlueprint {
   id?: string;
   canonical_id?: string | null;
   tcgdex_id?: string | null;
+  language?: string | null;
   name?: string | null;
   local_id?: string | null;
   card_code?: string | null;
   rarity?: string | null;
   image_url?: string | null;
   projected_image_asset_path?: string | null;
+  avgPrice?: number | null;
+  displayCurrency?: "KRW" | "USD" | "JPY";
   set_id?: string | null;
   hasEbay?: boolean;
   hasKream?: boolean;
@@ -439,10 +442,15 @@ export const searchCard = async (searchTerm: string): Promise<PokemonCard[]> => 
 
       return {
         id: cardId,
+        db_id: card.id,
+        canonical_id: card.canonical_id ?? null,
+        tcgdex_id: card.tcgdex_id ?? null,
+        language: card.language ?? null,
         name: card.name ?? cardId,
         number: normalizeDisplayNumber(card.card_code, card.local_id),
         rarity: card.rarity ?? undefined,
         image,
+        image_url: image,
         images: image
           ? {
               small: image,
@@ -464,6 +472,8 @@ export const searchCard = async (searchTerm: string): Promise<PokemonCard[]> => 
         ebaySales: typeof card.ebaySales === "number" ? card.ebaySales : undefined,
         kreamSales: typeof card.kreamSales === "number" ? card.kreamSales : undefined,
         snkrdunkSales: typeof card.snkrdunkSales === "number" ? card.snkrdunkSales : undefined,
+        avgPrice: typeof card.avgPrice === "number" ? card.avgPrice : null,
+        displayCurrency: card.displayCurrency ?? undefined,
       };
     });
   } catch (error) {

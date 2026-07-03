@@ -14,6 +14,11 @@ export interface PriceHistoryPoint {
 
 export interface PokemonCard {
   id: string;
+  db_id?: string;
+  canonical_id?: string | null;
+  tcgdex_id?: string | null;
+  language?: string | null;
+  image_url?: string | null;
   name: string;
   number: string;
   hasEbay?: boolean;
