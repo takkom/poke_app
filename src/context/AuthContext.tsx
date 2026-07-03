@@ -13,6 +13,7 @@ import {
 type AuthUser = {
   id: string;
   email: string;
+  username: string;
   created_at?: string;
 };
 
@@ -26,21 +27,24 @@ type AuthContextValue = {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, username: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUsername: (username: string) => Promise<AuthUser>;
+  deleteAccount: () => Promise<void>;
+  checkUsernameAvailability: (username: string) => Promise<boolean>;
 };
 
 const TOKEN_KEY = "xmon.auth.accessToken";
 const USER_KEY = "xmon.auth.user";
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function requestAuth(path: "login" | "signup", email: string, password: string) {
+async function requestAuth(path: "login" | "signup", email: string, password: string, username?: string) {
   const response = await fetch(`${LOCAL_API_BASE_URL}/api/auth/${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, username }),
   });
 
   const data = (await response.json().catch(() => null)) as
@@ -118,8 +122,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const registerWithSession = useCallback(
-    async (email: string, password: string) => {
-      const auth = await requestAuth("signup", email, password);
+    async (email: string, password: string, username: string) => {
+      const auth = await requestAuth("signup", email, password, username);
       await persistSession(auth);
     },
     [persistSession],
@@ -135,6 +139,87 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(null);
   }, []);
 
+  const updateStoredUser = useCallback(async (nextUser: AuthUser) => {
+    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
+
+  const checkUsernameAvailability = useCallback(
+    async (username: string) => {
+      if (!token) {
+        throw new Error("You need to sign in first.");
+      }
+
+      const response = await fetch(
+        `${LOCAL_API_BASE_URL}/api/users/username-availability?username=${encodeURIComponent(username)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const data = (await response.json().catch(() => null)) as
+        | { available?: boolean; message?: string }
+        | null;
+
+      if (!response.ok || typeof data?.available !== "boolean") {
+        throw new Error(data?.message ?? "Could not check username.");
+      }
+
+      return data.available;
+    },
+    [token],
+  );
+
+  const updateUsername = useCallback(
+    async (username: string) => {
+      if (!token) {
+        throw new Error("You need to sign in first.");
+      }
+
+      const response = await fetch(`${LOCAL_API_BASE_URL}/api/users/me`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | (Partial<AuthUser> & { message?: string })
+        | null;
+
+      if (!response.ok || !data?.id || !data.email || !data.username) {
+        throw new Error(data?.message ?? "Could not update username.");
+      }
+
+      const nextUser = data as AuthUser;
+      await updateStoredUser(nextUser);
+      return nextUser;
+    },
+    [token, updateStoredUser],
+  );
+
+  const deleteAccount = useCallback(async () => {
+    if (!token) {
+      throw new Error("You need to sign in first.");
+    }
+
+    const response = await fetch(`${LOCAL_API_BASE_URL}/api/users/me`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = (await response.json().catch(() => null)) as { message?: string } | null;
+
+    if (!response.ok) {
+      throw new Error(data?.message ?? "Could not delete account.");
+    }
+
+    await logout();
+  }, [logout, token]);
+
   const value = useMemo(
     () => ({
       user,
@@ -143,8 +228,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
       login,
       register: registerWithSession,
       logout,
+      updateUsername,
+      deleteAccount,
+      checkUsernameAvailability,
     }),
-    [isLoading, login, logout, registerWithSession, token, user],
+    [
+      checkUsernameAvailability,
+      deleteAccount,
+      isLoading,
+      login,
+      logout,
+      registerWithSession,
+      token,
+      updateUsername,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -160,6 +258,6 @@ export function useAuth() {
   return context;
 }
 
-export async function register(email: string, password: string) {
-  return requestAuth("signup", email, password);
+export async function register(email: string, password: string, username: string) {
+  return requestAuth("signup", email, password, username);
 }

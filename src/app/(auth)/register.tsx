@@ -1,11 +1,11 @@
 import { useAuth } from "@/context/AuthContext";
+import { TermsOfServiceModal } from "@/components/TermsOfServiceModal";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Button,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -13,18 +13,55 @@ import {
   View,
 } from "react-native";
 
+const USERNAME_PATTERN = /^[a-zA-Z0-9가-힣]+$/;
+
+function usernameFromEmail(email: string): string {
+  return email.split("@")[0]?.replace(/[^a-zA-Z0-9가-힣]/g, "") ?? "";
+}
+
 export default function RegisterScreen() {
   const { register } = useAuth();
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [isUsernameTouched, setIsUsernameTouched] = useState(false);
   const [password, setPassword] = useState("");
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTermsVisible, setIsTermsVisible] = useState(false);
 
+  function handleEmailChange(value: string) {
+    setEmail(value);
+
+    if (!isUsernameTouched) {
+      setUsername(usernameFromEmail(value));
+    }
+  }
+
+  function handleUsernameChange(value: string) {
+    setIsUsernameTouched(true);
+    setUsername(value);
+  }
+
   async function handleRegister() {
+    const trimmedUsername = username.trim();
+
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
+      Alert.alert(
+        "Invalid username",
+        "Use only English letters, numbers, and Korean Hangul.",
+      );
+      return;
+    }
+
+    if (!hasAcceptedTerms) {
+      Alert.alert("Terms required", "Please agree to the Terms of Service before creating an account.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      await register(email.trim(), password);
+      await register(email.trim(), password, trimmedUsername);
     } catch (error) {
       Alert.alert("Registration failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
@@ -39,10 +76,18 @@ export default function RegisterScreen() {
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
-        onChangeText={setEmail}
+        onChangeText={handleEmailChange}
         placeholder="Email"
         style={styles.input}
         value={email}
+      />
+      <TextInput
+        autoCapitalize="none"
+        autoCorrect={false}
+        onChangeText={handleUsernameChange}
+        placeholder="Username"
+        style={styles.input}
+        value={username}
       />
       <TextInput
         autoComplete="new-password"
@@ -52,8 +97,17 @@ export default function RegisterScreen() {
         style={styles.input}
         value={password}
       />
-      <Pressable onPress={() => setIsTermsVisible(true)}>
-        <Text style={styles.link}>View Terms of Service</Text>
+      <Pressable
+        onPress={() => setHasAcceptedTerms((accepted) => !accepted)}
+        style={styles.termsRow}
+      >
+        <View style={[styles.checkbox, hasAcceptedTerms && styles.checkboxChecked]}>
+          {hasAcceptedTerms ? <View style={styles.checkmark} /> : null}
+        </View>
+        <Text style={styles.termsText}>I agree to the </Text>
+        <Pressable onPress={() => setIsTermsVisible(true)}>
+          <Text style={styles.termsLink}>Terms of Service</Text>
+        </Pressable>
       </Pressable>
       {isSubmitting ? (
         <ActivityIndicator />
@@ -64,23 +118,10 @@ export default function RegisterScreen() {
         Already have an account?
       </Link>
 
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setIsTermsVisible(false)}
-        transparent
+      <TermsOfServiceModal
+        onClose={() => setIsTermsVisible(false)}
         visible={isTermsVisible}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Terms of Service</Text>
-            <Text style={styles.modalText}>
-              By creating an account, you agree to use this app responsibly and follow the
-              posted service terms.
-            </Text>
-            <Button title="Close" onPress={() => setIsTermsVisible(false)} />
-          </View>
-        </View>
-      </Modal>
+      />
     </View>
   );
 }
@@ -102,26 +143,37 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
   },
-  modalBackdrop: {
+  checkbox: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-    flex: 1,
+    borderColor: "#7a7a7a",
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 22,
     justifyContent: "center",
-    padding: 24,
+    width: 22,
   },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 8,
-    gap: 12,
-    padding: 24,
-    width: "100%",
+  checkboxChecked: {
+    backgroundColor: "#2563eb",
+    borderColor: "#2563eb",
   },
-  modalText: {
-    lineHeight: 20,
+  checkmark: {
+    backgroundColor: "#ffffff",
+    borderRadius: 3,
+    height: 8,
+    width: 8,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+  termsLink: {
+    color: "#2563eb",
+    fontWeight: "800",
+  },
+  termsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  termsText: {
+    color: "#333333",
   },
   title: {
     fontSize: 28,
