@@ -2,7 +2,6 @@ import axios from "axios";
 import { CardWithPricing, PokemonCard, PriceHistoryPoint } from "../types/card";
 
 const API_BASE_URL = "https://api.tcgdex.net/v2/en";
-export const LOCAL_API_BASE_URL = "http://10.0.2.2:3000";
 
 interface TCGdexCard {
   id: string;
@@ -86,7 +85,10 @@ let cardCache: PokemonCard[] = [];
 let cacheTimestamp = 0;
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
-function resolveTcgdexImageUrl(value?: string | null, quality: "low" | "high" = "low"): string {
+function resolveTcgdexImageUrl(
+  value?: string | null,
+  quality: "low" | "high" = "low",
+): string {
   const fallback = "https://images.tcgdex.net/placeholder.png";
   if (!value) {
     return fallback;
@@ -103,7 +105,10 @@ function resolveTcgdexImageUrl(value?: string | null, quality: "low" | "high" = 
   return value;
 }
 
-function normalizeDisplayNumber(cardCode?: string | null, localId?: string | null): string {
+function normalizeDisplayNumber(
+  cardCode?: string | null,
+  localId?: string | null,
+): string {
   const slashCode = cardCode?.match(/\b([A-Z]*\d+|SV\d+)\s*\/\s*(\d+)\b/i);
   if (slashCode) {
     return `${slashCode[1].toUpperCase()}/${slashCode[2]}`;
@@ -120,8 +125,14 @@ const transformCard = (tcgCard: any): CardWithPricing => {
     tcgCard.images?.large ||
     tcgCard.images?.small ||
     "https://images.tcgdex.net/placeholder.png";
-  const smallImage = resolveTcgdexImageUrl(tcgCard.images?.small || imageBase, "low");
-  const largeImage = resolveTcgdexImageUrl(tcgCard.images?.large || imageBase, "high");
+  const smallImage = resolveTcgdexImageUrl(
+    tcgCard.images?.small || imageBase,
+    "low",
+  );
+  const largeImage = resolveTcgdexImageUrl(
+    tcgCard.images?.large || imageBase,
+    "high",
+  );
 
   const types = Array.isArray(tcgCard.types)
     ? tcgCard.types
@@ -172,16 +183,29 @@ const transformCard = (tcgCard: any): CardWithPricing => {
     hasSnkrdunk: Boolean(tcgCard.hasSnkrdunk),
     hasTcgplayer: Boolean(tcgCard.hasTcgplayer),
     hasCardmarket: Boolean(tcgCard.hasCardmarket),
-    totalSales: typeof tcgCard.totalSales === "number" ? tcgCard.totalSales : undefined,
-    ebaySales: typeof tcgCard.ebaySales === "number" ? tcgCard.ebaySales : undefined,
-    kreamSales: typeof tcgCard.kreamSales === "number" ? tcgCard.kreamSales : undefined,
-    snkrdunkSales: typeof tcgCard.snkrdunkSales === "number" ? tcgCard.snkrdunkSales : undefined,
+    totalSales:
+      typeof tcgCard.totalSales === "number" ? tcgCard.totalSales : undefined,
+    ebaySales:
+      typeof tcgCard.ebaySales === "number" ? tcgCard.ebaySales : undefined,
+    kreamSales:
+      typeof tcgCard.kreamSales === "number" ? tcgCard.kreamSales : undefined,
+    snkrdunkSales:
+      typeof tcgCard.snkrdunkSales === "number"
+        ? tcgCard.snkrdunkSales
+        : undefined,
     latestSoldAt: tcgCard.latestSoldAt ?? null,
-    kreamTitle: typeof tcgCard.kreamTitle === "string" ? tcgCard.kreamTitle : null,
+    kreamTitle:
+      typeof tcgCard.kreamTitle === "string" ? tcgCard.kreamTitle : null,
     avgPrice: typeof tcgCard.avgPrice === "number" ? tcgCard.avgPrice : null,
-    previousAvgPrice: typeof tcgCard.previousAvgPrice === "number" ? tcgCard.previousAvgPrice : null,
-    trendPercent: typeof tcgCard.trendPercent === "number" ? tcgCard.trendPercent : null,
-    trendDirection: ["up", "down", "flat", "unknown"].includes(tcgCard.trendDirection)
+    previousAvgPrice:
+      typeof tcgCard.previousAvgPrice === "number"
+        ? tcgCard.previousAvgPrice
+        : null,
+    trendPercent:
+      typeof tcgCard.trendPercent === "number" ? tcgCard.trendPercent : null,
+    trendDirection: ["up", "down", "flat", "unknown"].includes(
+      tcgCard.trendDirection,
+    )
       ? tcgCard.trendDirection
       : "unknown",
     displayCurrency: tcgCard.displayCurrency ?? undefined,
@@ -412,7 +436,9 @@ export const clearCache = (): void => {
   cacheTimestamp = 0;
 };
 
-export const searchCard = async (searchTerm: string): Promise<PokemonCard[]> => {
+export const searchCard = async (
+  searchTerm: string,
+): Promise<PokemonCard[]> => {
   try {
     const response = await fetch(
       `${LOCAL_API_BASE_URL}/api/resolution/search`,
@@ -433,12 +459,14 @@ export const searchCard = async (searchTerm: string): Promise<PokemonCard[]> => 
     const blueprints = data.card ? [data.card] : (data.candidates ?? []);
 
     return blueprints.map((card) => {
-      const cardId = card.canonical_id ?? card.tcgdex_id ?? card.id ?? data.tcgdex_id ?? "";
+      const cardId =
+        card.canonical_id ?? card.tcgdex_id ?? card.id ?? data.tcgdex_id ?? "";
       const rawImage =
         card.image_url ?? card.projected_image_asset_path ?? undefined;
-      const image = rawImage && !rawImage.startsWith("/")
-        ? resolveTcgdexImageUrl(rawImage, "low")
-        : undefined;
+      const image =
+        rawImage && !rawImage.startsWith("/")
+          ? resolveTcgdexImageUrl(rawImage, "low")
+          : undefined;
 
       return {
         id: cardId,
@@ -468,10 +496,16 @@ export const searchCard = async (searchTerm: string): Promise<PokemonCard[]> => 
         hasSnkrdunk: Boolean(card.hasSnkrdunk),
         hasTcgplayer: Boolean(card.hasTcgplayer),
         hasCardmarket: Boolean(card.hasCardmarket),
-        totalSales: typeof card.totalSales === "number" ? card.totalSales : undefined,
-        ebaySales: typeof card.ebaySales === "number" ? card.ebaySales : undefined,
-        kreamSales: typeof card.kreamSales === "number" ? card.kreamSales : undefined,
-        snkrdunkSales: typeof card.snkrdunkSales === "number" ? card.snkrdunkSales : undefined,
+        totalSales:
+          typeof card.totalSales === "number" ? card.totalSales : undefined,
+        ebaySales:
+          typeof card.ebaySales === "number" ? card.ebaySales : undefined,
+        kreamSales:
+          typeof card.kreamSales === "number" ? card.kreamSales : undefined,
+        snkrdunkSales:
+          typeof card.snkrdunkSales === "number"
+            ? card.snkrdunkSales
+            : undefined,
         avgPrice: typeof card.avgPrice === "number" ? card.avgPrice : null,
         displayCurrency: card.displayCurrency ?? undefined,
       };

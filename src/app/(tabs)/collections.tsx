@@ -1,6 +1,12 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,14 +23,17 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { useAuth } from '../../context/AuthContext';
-import { useThemeManager, type DisplayCurrency } from '../../hooks/useThemeManager';
-import { useI18n } from '../../i18n';
-import { LOCAL_API_BASE_URL } from '../../services/cardService';
+import { useAuth } from "../../context/AuthContext";
+import {
+  useThemeManager,
+  type DisplayCurrency,
+} from "../../hooks/useThemeManager";
+import { useI18n } from "../../i18n";
+import { XMON_API_URL } from "@/config";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? LOCAL_API_BASE_URL;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 const ROW_DRAG_HEIGHT = 108;
 
 type AuthState = {
@@ -49,22 +58,28 @@ type Collection = {
   display_currency?: DisplayCurrency | string | null;
 };
 
-type CollectionListResponse = Collection[] | { collections?: Collection[]; data?: Collection[] };
+type CollectionListResponse =
+  | Collection[]
+  | { collections?: Collection[]; data?: Collection[] };
 
 function getAuthToken(auth: AuthState): string | null {
   return auth.accessToken ?? auth.authToken ?? auth.token ?? null;
 }
 
-function currency(value: number, locale: string, displayCurrency: DisplayCurrency): string {
+function currency(
+  value: number,
+  locale: string,
+  displayCurrency: DisplayCurrency,
+): string {
   return new Intl.NumberFormat(locale, {
     currency: displayCurrency,
-    maximumFractionDigits: displayCurrency === 'KRW' ? 0 : 2,
-    style: 'currency',
+    maximumFractionDigits: displayCurrency === "KRW" ? 0 : 2,
+    style: "currency",
   }).format(value);
 }
 
 function toNumber(value: unknown): number {
-  const parsed = typeof value === 'number' ? value : Number(value);
+  const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -101,9 +116,9 @@ async function requestJson<T>(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
-      Accept: 'application/json',
+      Accept: "application/json",
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...options.headers,
     },
   });
@@ -113,9 +128,9 @@ async function requestJson<T>(
 
   if (!response.ok) {
     const message =
-      body && typeof body === 'object' && 'message' in body
+      body && typeof body === "object" && "message" in body
         ? String(body.message)
-        : 'Request failed. Please try again.';
+        : "Request failed. Please try again.";
     throw new Error(message);
   }
 
@@ -147,7 +162,7 @@ function CollectionPlate({
   onMenu: (collection: Collection) => void;
   onOpen: (collection: Collection) => void;
   targetIndex: number | null;
-  t: ReturnType<typeof useI18n>['t'];
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   const [dragging, setDragging] = useState(false);
   const originIndexRef = useRef(index);
@@ -193,14 +208,23 @@ function CollectionPlate({
       style={[
         styles.collectionPlate,
         dragging ? styles.collectionPlateDragging : null,
-        targetIndex === index && !dragging ? styles.collectionPlateTarget : null,
+        targetIndex === index && !dragging
+          ? styles.collectionPlateTarget
+          : null,
       ]}
     >
       <View style={styles.dragHandle} {...panResponder.panHandlers}>
-        <MaterialCommunityIcons name="drag-vertical" color="#64748b" size={24} />
+        <MaterialCommunityIcons
+          name="drag-vertical"
+          color="#64748b"
+          size={24}
+        />
       </View>
 
-      <Pressable onPress={() => onOpen(collection)} style={styles.collectionText}>
+      <Pressable
+        onPress={() => onOpen(collection)}
+        style={styles.collectionText}
+      >
         <View style={styles.collectionTitleRow}>
           <Text numberOfLines={1} style={styles.collectionName}>
             {collection.name}
@@ -213,15 +237,23 @@ function CollectionPlate({
           </Text>
         ) : null}
         <Text style={styles.mutedText}>
-          {t('collections.cardLine', {
+          {t("collections.cardLine", {
             count: collectionCardCount(collection),
-            value: currency(collectionValue(collection), locale, displayCurrency),
+            value: currency(
+              collectionValue(collection),
+              locale,
+              displayCurrency,
+            ),
           })}
         </Text>
       </Pressable>
 
       <Pressable onPress={() => onMenu(collection)} style={styles.iconButton}>
-        <MaterialCommunityIcons name="dots-vertical" color="#0f172a" size={22} />
+        <MaterialCommunityIcons
+          name="dots-vertical"
+          color="#0f172a"
+          size={22}
+        />
       </Pressable>
     </View>
   );
@@ -234,12 +266,14 @@ export default function CollectionsScreen() {
   const { locale, t } = useI18n();
   const token = getAuthToken(auth);
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [orderPosition, setOrderPosition] = useState(1);
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [menuCollection, setMenuCollection] = useState<Collection | null>(null);
-  const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
+  const [editingCollection, setEditingCollection] = useState<Collection | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -254,12 +288,20 @@ export default function CollectionsScreen() {
   collectionsRef.current = collections;
 
   const totalCards = useMemo(
-    () => collections.reduce((sum, collection) => sum + collectionCardCount(collection), 0),
+    () =>
+      collections.reduce(
+        (sum, collection) => sum + collectionCardCount(collection),
+        0,
+      ),
     [collections],
   );
 
   const totalValue = useMemo(
-    () => collections.reduce((sum, collection) => sum + collectionValue(collection), 0),
+    () =>
+      collections.reduce(
+        (sum, collection) => sum + collectionValue(collection),
+        0,
+      ),
     [collections],
   );
 
@@ -286,10 +328,14 @@ export default function CollectionsScreen() {
         );
         const nextCollections = Array.isArray(body)
           ? body
-          : body.collections ?? body.data ?? [];
+          : (body.collections ?? body.data ?? []);
         setCollections(nextCollections);
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : t('collections.couldNotLoad'));
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : t("collections.couldNotLoad"),
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -328,11 +374,11 @@ export default function CollectionsScreen() {
   }, [modalMode]);
 
   function openCreateModal() {
-    setName('');
-    setDescription('');
+    setName("");
+    setDescription("");
     setOrderPosition(1);
     setEditingCollection(null);
-    setModalMode('create');
+    setModalMode("create");
     setError(null);
   }
 
@@ -341,19 +387,19 @@ export default function CollectionsScreen() {
       (item) => String(item.id) === String(collection.id),
     );
     setName(collection.name);
-    setDescription(collection.description ?? '');
+    setDescription(collection.description ?? "");
     setOrderPosition(currentIndex >= 0 ? currentIndex + 1 : 1);
     setEditingCollection(collection);
     setMenuCollection(null);
-    setModalMode('edit');
+    setModalMode("edit");
     setError(null);
   }
 
   function closeFormModal() {
     setModalMode(null);
     setEditingCollection(null);
-    setName('');
-    setDescription('');
+    setName("");
+    setDescription("");
     setOrderPosition(1);
   }
 
@@ -367,14 +413,18 @@ export default function CollectionsScreen() {
     setError(null);
 
     try {
-      if (modalMode === 'edit' && editingCollection) {
-        await requestJson<Collection>(`/api/collections/${editingCollection.id}`, token, {
-          body: JSON.stringify({
-            description: description.trim() || undefined,
-            name: trimmedName,
-          }),
-          method: 'PATCH',
-        });
+      if (modalMode === "edit" && editingCollection) {
+        await requestJson<Collection>(
+          `/api/collections/${editingCollection.id}`,
+          token,
+          {
+            body: JSON.stringify({
+              description: description.trim() || undefined,
+              name: trimmedName,
+            }),
+            method: "PATCH",
+          },
+        );
 
         const currentIndex = collectionsRef.current.findIndex(
           (item) => String(item.id) === String(editingCollection.id),
@@ -385,24 +435,32 @@ export default function CollectionsScreen() {
         );
 
         if (currentIndex >= 0 && currentIndex !== targetIndex) {
-          const reordered = moveItem(collectionsRef.current, currentIndex, targetIndex);
+          const reordered = moveItem(
+            collectionsRef.current,
+            currentIndex,
+            targetIndex,
+          );
           setCollections(reordered);
           await persistOrder(reordered);
         }
       } else {
-        await requestJson<Collection>('/api/collections', token, {
+        await requestJson<Collection>("/api/collections", token, {
           body: JSON.stringify({
             description: description.trim() || undefined,
             name: trimmedName,
           }),
-          method: 'POST',
+          method: "POST",
         });
       }
 
       closeFormModal();
       await loadCollections();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('collections.couldNotSave'));
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("collections.couldNotSave"),
+      );
     } finally {
       setSaving(false);
     }
@@ -415,14 +473,14 @@ export default function CollectionsScreen() {
 
     setMenuCollection(null);
     Alert.alert(
-      t('collections.deleteTitle'),
-      t('collections.deleteMessage', { name: collection.name }),
+      t("collections.deleteTitle"),
+      t("collections.deleteMessage", { name: collection.name }),
       [
-        { style: 'cancel', text: t('collections.cancel') },
+        { style: "cancel", text: t("collections.cancel") },
         {
           onPress: () => void deleteCollection(collection),
-          style: 'destructive',
-          text: t('collections.delete'),
+          style: "destructive",
+          text: t("collections.delete"),
         },
       ],
     );
@@ -436,44 +494,66 @@ export default function CollectionsScreen() {
     setError(null);
 
     try {
-      await requestJson<{ deleted: boolean }>(`/api/collections/${collection.id}`, token, {
-        method: 'DELETE',
-      });
-      setCollections((current) => current.filter((item) => item.id !== collection.id));
+      await requestJson<{ deleted: boolean }>(
+        `/api/collections/${collection.id}`,
+        token,
+        {
+          method: "DELETE",
+        },
+      );
+      setCollections((current) =>
+        current.filter((item) => item.id !== collection.id),
+      );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('collections.couldNotDelete'));
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("collections.couldNotDelete"),
+      );
     }
   }
 
-  const persistOrder = useCallback(async (orderedCollections: Collection[]) => {
-    setDragActive(false);
-    setDragTarget(null);
+  const persistOrder = useCallback(
+    async (orderedCollections: Collection[]) => {
+      setDragActive(false);
+      setDragTarget(null);
 
-    if (!token) {
-      return;
-    }
+      if (!token) {
+        return;
+      }
 
-    const orderedIds = orderedCollections.map((collection) => String(collection.id));
-    try {
-      await requestJson<Collection[]>('/api/collections/reorder', token, {
-        body: JSON.stringify({ collection_ids: orderedIds }),
-        method: 'PATCH',
-      });
-      await loadCollections();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('collections.couldNotUpdateOrder'));
-      await loadCollections();
-    }
-  }, [loadCollections, t, token]);
+      const orderedIds = orderedCollections.map((collection) =>
+        String(collection.id),
+      );
+      try {
+        await requestJson<Collection[]>("/api/collections/reorder", token, {
+          body: JSON.stringify({ collection_ids: orderedIds }),
+          method: "PATCH",
+        });
+        await loadCollections();
+      } catch (caught) {
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : t("collections.couldNotUpdateOrder"),
+        );
+        await loadCollections();
+      }
+    },
+    [loadCollections, t, token],
+  );
 
   const startCollectionDrag = useCallback(() => {
     setDragActive(true);
   }, []);
 
-  const previewCollectionDrop = useCallback((fromIndex: number, toIndex: number) => {
-    setDragActive(true);
-    setDragTarget({ fromIndex, toIndex });
-  }, []);
+  const previewCollectionDrop = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      setDragActive(true);
+      setDragTarget({ fromIndex, toIndex });
+    },
+    [],
+  );
 
   const finishCollectionDrag = useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -503,8 +583,8 @@ export default function CollectionsScreen() {
   if (!token) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.title}>{t('collections.title')}</Text>
-        <Text style={styles.mutedText}>{t('collections.signInManage')}</Text>
+        <Text style={styles.title}>{t("collections.title")}</Text>
+        <Text style={styles.mutedText}>{t("collections.signInManage")}</Text>
       </View>
     );
   }
@@ -520,16 +600,19 @@ export default function CollectionsScreen() {
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <View style={styles.headerText}>
-                <Text style={styles.title}>{t('collections.title')}</Text>
+                <Text style={styles.title}>{t("collections.title")}</Text>
                 <Text style={styles.summary}>
-                  {t('collections.summary', {
+                  {t("collections.summary", {
                     collections: collections.length,
                     cards: totalCards,
                     value: currency(totalValue, locale, displayCurrency),
                   })}
                 </Text>
               </View>
-              <Pressable onPress={openCreateModal} style={styles.primaryIconButton}>
+              <Pressable
+                onPress={openCreateModal}
+                style={styles.primaryIconButton}
+              >
                 <MaterialCommunityIcons name="plus" color="#ffffff" size={24} />
               </Pressable>
             </View>
@@ -540,10 +623,10 @@ export default function CollectionsScreen() {
           loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator />
-              <Text style={styles.mutedText}>{t('collections.loading')}</Text>
+              <Text style={styles.mutedText}>{t("collections.loading")}</Text>
             </View>
           ) : (
-            <Text style={styles.mutedText}>{t('collections.empty')}</Text>
+            <Text style={styles.mutedText}>{t("collections.empty")}</Text>
           )
         }
         refreshControl={
@@ -564,7 +647,9 @@ export default function CollectionsScreen() {
             onDragStart={startCollectionDrag}
             onDragTargetChange={previewCollectionDrop}
             onMenu={setMenuCollection}
-            onOpen={(collection) => router.push(`/collections/${collection.id}`)}
+            onOpen={(collection) =>
+              router.push(`/collections/${collection.id}`)
+            }
             targetIndex={dragTarget?.toIndex ?? null}
             t={t}
           />
@@ -573,7 +658,7 @@ export default function CollectionsScreen() {
 
       {modalMode ? (
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={24}
           style={styles.formOverlayHost}
         >
@@ -584,51 +669,67 @@ export default function CollectionsScreen() {
             >
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>
-                  {modalMode === 'edit' ? t('collections.editTitle') : t('collections.createTitle')}
+                  {modalMode === "edit"
+                    ? t("collections.editTitle")
+                    : t("collections.createTitle")}
                 </Text>
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>{t('collections.name')}</Text>
+                  <Text style={styles.fieldLabel}>{t("collections.name")}</Text>
                   <TextInput
                     autoFocus
                     ref={nameInputRef}
                     onChangeText={setName}
-                    placeholder={t('collections.namePlaceholder')}
-                    selectTextOnFocus={modalMode === 'edit'}
+                    placeholder={t("collections.namePlaceholder")}
+                    selectTextOnFocus={modalMode === "edit"}
                     showSoftInputOnFocus
                     style={styles.input}
                     value={name}
                   />
                 </View>
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>{t('collections.description')}</Text>
+                  <Text style={styles.fieldLabel}>
+                    {t("collections.description")}
+                  </Text>
                   <TextInput
                     multiline
                     onChangeText={setDescription}
-                    placeholder={t('collections.descriptionPlaceholder')}
+                    placeholder={t("collections.descriptionPlaceholder")}
                     style={[styles.input, styles.descriptionInput]}
                     value={description}
                   />
                 </View>
-                {modalMode === 'edit' ? (
+                {modalMode === "edit" ? (
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>{t('collections.position')}</Text>
+                    <Text style={styles.fieldLabel}>
+                      {t("collections.position")}
+                    </Text>
                     <View style={styles.positionControl}>
                       <Pressable
                         disabled={orderPosition <= 1}
                         onPress={() =>
-                          setOrderPosition((current) => Math.max(1, current - 1))
+                          setOrderPosition((current) =>
+                            Math.max(1, current - 1),
+                          )
                         }
                         style={[
                           styles.positionButton,
                           orderPosition <= 1 ? styles.disabledButton : null,
                         ]}
                       >
-                        <MaterialCommunityIcons name="minus" color="#0f172a" size={20} />
+                        <MaterialCommunityIcons
+                          name="minus"
+                          color="#0f172a"
+                          size={20}
+                        />
                       </Pressable>
                       <View style={styles.positionReadout}>
-                        <Text style={styles.positionNumber}>{orderPosition}</Text>
+                        <Text style={styles.positionNumber}>
+                          {orderPosition}
+                        </Text>
                         <Text style={styles.positionHint}>
-                          {t('collections.positionOf', { count: maxOrderPosition })}
+                          {t("collections.positionOf", {
+                            count: maxOrderPosition,
+                          })}
                         </Text>
                       </View>
                       <Pressable
@@ -640,17 +741,29 @@ export default function CollectionsScreen() {
                         }
                         style={[
                           styles.positionButton,
-                          orderPosition >= maxOrderPosition ? styles.disabledButton : null,
+                          orderPosition >= maxOrderPosition
+                            ? styles.disabledButton
+                            : null,
                         ]}
                       >
-                        <MaterialCommunityIcons name="plus" color="#0f172a" size={20} />
+                        <MaterialCommunityIcons
+                          name="plus"
+                          color="#0f172a"
+                          size={20}
+                        />
                       </Pressable>
                     </View>
                   </View>
                 ) : null}
                 <View style={styles.modalActions}>
-                  <Pressable disabled={saving} onPress={closeFormModal} style={styles.secondaryButton}>
-                    <Text style={styles.secondaryButtonText}>{t('collections.cancel')}</Text>
+                  <Pressable
+                    disabled={saving}
+                    onPress={closeFormModal}
+                    style={styles.secondaryButton}
+                  >
+                    <Text style={styles.secondaryButtonText}>
+                      {t("collections.cancel")}
+                    </Text>
                   </Pressable>
                   <Pressable
                     disabled={saving || !name.trim()}
@@ -662,10 +775,10 @@ export default function CollectionsScreen() {
                   >
                     <Text style={styles.primaryButtonText}>
                       {saving
-                        ? t('collections.saving')
-                        : modalMode === 'edit'
-                          ? t('collections.save')
-                          : t('collections.create')}
+                        ? t("collections.saving")
+                        : modalMode === "edit"
+                          ? t("collections.save")
+                          : t("collections.create")}
                     </Text>
                   </Pressable>
                 </View>
@@ -681,21 +794,34 @@ export default function CollectionsScreen() {
         transparent
         visible={Boolean(menuCollection)}
       >
-        <Pressable style={styles.menuOverlay} onPress={() => setMenuCollection(null)}>
+        <Pressable
+          style={styles.menuOverlay}
+          onPress={() => setMenuCollection(null)}
+        >
           <View style={styles.menuContent}>
             <Pressable
               onPress={() => menuCollection && openEditModal(menuCollection)}
               style={styles.menuItem}
             >
-              <MaterialCommunityIcons name="pencil-outline" color="#0f172a" size={20} />
-              <Text style={styles.menuText}>{t('collections.edit')}</Text>
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                color="#0f172a"
+                size={20}
+              />
+              <Text style={styles.menuText}>{t("collections.edit")}</Text>
             </Pressable>
             <Pressable
               onPress={() => menuCollection && confirmDelete(menuCollection)}
               style={styles.menuItem}
             >
-              <MaterialCommunityIcons name="trash-can-outline" color="#dc2626" size={20} />
-              <Text style={[styles.menuText, styles.deleteText]}>{t('collections.delete')}</Text>
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                color="#dc2626"
+                size={20}
+              />
+              <Text style={[styles.menuText, styles.deleteText]}>
+                {t("collections.delete")}
+              </Text>
             </Pressable>
           </View>
         </Pressable>
@@ -706,40 +832,40 @@ export default function CollectionsScreen() {
 
 const styles = StyleSheet.create({
   centered: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
     gap: 12,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: 20,
   },
   collectionName: {
-    color: '#0f172a',
+    color: "#0f172a",
     flex: 1,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   collectionPlate: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#d7dee8',
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#d7dee8",
     borderRadius: 8,
     borderWidth: 1,
     elevation: 2,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     minHeight: 96,
     padding: 12,
-    shadowColor: '#0f172a',
+    shadowColor: "#0f172a",
     shadowOffset: { height: 2, width: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
   },
   collectionPlateDragging: {
-    borderColor: '#007aff',
+    borderColor: "#007aff",
     opacity: 0.86,
   },
   collectionPlateTarget: {
-    borderColor: '#007aff',
+    borderColor: "#007aff",
     borderWidth: 2,
   },
   collectionText: {
@@ -747,8 +873,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   collectionTitleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 8,
   },
   container: {
@@ -756,36 +882,36 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   deleteText: {
-    color: '#dc2626',
+    color: "#dc2626",
   },
   descriptionInput: {
     minHeight: 84,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   disabledButton: {
     opacity: 0.5,
   },
   dragHandle: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    justifyContent: 'center',
+    alignItems: "center",
+    alignSelf: "stretch",
+    justifyContent: "center",
     width: 30,
   },
   errorText: {
-    color: '#b00020',
+    color: "#b00020",
   },
   fieldGroup: {
     gap: 6,
   },
   fieldLabel: {
-    color: '#334155',
+    color: "#334155",
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   formOverlayHost: {
     bottom: 0,
     left: 0,
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     top: 0,
   },
@@ -794,179 +920,179 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 12,
   },
   headerText: {
     flex: 1,
   },
   iconButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 8,
     height: 40,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 36,
   },
   input: {
-    borderColor: '#bbbbbb',
+    borderColor: "#bbbbbb",
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   loadingRow: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 12,
     paddingVertical: 24,
   },
   menuContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 8,
     minWidth: 180,
     paddingVertical: 6,
   },
   menuItem: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 10,
     minHeight: 46,
     paddingHorizontal: 16,
   },
   menuOverlay: {
-    alignItems: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.24)',
+    alignItems: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.24)",
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: 24,
   },
   menuText: {
-    color: '#0f172a',
+    color: "#0f172a",
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   modalActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 8,
     gap: 12,
     maxWidth: 420,
     padding: 20,
-    width: '100%',
+    width: "100%",
   },
   modalKeyboardView: {
     flex: 1,
   },
   modalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: 24,
   },
   modalScrollContent: {
-    alignItems: 'center',
+    alignItems: "center",
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   modalTitle: {
-    color: '#0f172a',
+    color: "#0f172a",
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   mutedText: {
-    color: '#666666',
+    color: "#666666",
     fontSize: 13,
   },
   orderChip: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: "#e2e8f0",
     borderRadius: 999,
-    color: '#334155',
+    color: "#334155",
     fontSize: 12,
-    fontWeight: '800',
-    overflow: 'hidden',
+    fontWeight: "800",
+    overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   positionButton: {
-    alignItems: 'center',
-    backgroundColor: '#e2e8f0',
+    alignItems: "center",
+    backgroundColor: "#e2e8f0",
     borderRadius: 8,
     height: 42,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 42,
   },
   positionControl: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 10,
   },
   positionHint: {
-    color: '#64748b',
+    color: "#64748b",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   positionNumber: {
-    color: '#0f172a',
+    color: "#0f172a",
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   positionReadout: {
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderColor: "#cbd5e1",
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 54,
   },
   primaryButton: {
-    alignItems: 'center',
-    backgroundColor: '#007aff',
+    alignItems: "center",
+    backgroundColor: "#007aff",
     borderRadius: 8,
     minHeight: 42,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 16,
   },
   primaryButtonText: {
-    color: '#ffffff',
-    fontWeight: '800',
+    color: "#ffffff",
+    fontWeight: "800",
   },
   primaryIconButton: {
-    alignItems: 'center',
-    backgroundColor: '#007aff',
+    alignItems: "center",
+    backgroundColor: "#007aff",
     borderRadius: 8,
     height: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 44,
   },
   screen: {
     flex: 1,
   },
   secondaryButton: {
-    alignItems: 'center',
-    borderColor: '#cbd5e1',
+    alignItems: "center",
+    borderColor: "#cbd5e1",
     borderRadius: 8,
     borderWidth: 1,
     minHeight: 42,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 16,
   },
   secondaryButtonText: {
-    color: '#334155',
-    fontWeight: '800',
+    color: "#334155",
+    fontWeight: "800",
   },
   summary: {
-    color: '#444444',
+    color: "#444444",
     marginTop: 6,
   },
   title: {
-    color: '#0f172a',
+    color: "#0f172a",
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 });

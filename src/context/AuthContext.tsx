@@ -1,4 +1,4 @@
-import { LOCAL_API_BASE_URL } from "@/services/cardService";
+import { XMON_API_URL } from "@/config";
 import * as SecureStore from "expo-secure-store";
 import {
   createContext,
@@ -27,7 +27,11 @@ type AuthContextValue = {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, username: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    username: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   updateUsername: (username: string) => Promise<AuthUser>;
   deleteAccount: () => Promise<void>;
@@ -38,8 +42,13 @@ const TOKEN_KEY = "xmon.auth.accessToken";
 const USER_KEY = "xmon.auth.user";
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function requestAuth(path: "login" | "signup", email: string, password: string, username?: string) {
-  const response = await fetch(`${LOCAL_API_BASE_URL}/api/auth/${path}`, {
+async function requestAuth(
+  path: "login" | "signup",
+  email: string,
+  password: string,
+  username?: string,
+) {
+  const response = await fetch(`${XMON_API_URL}/api/auth/${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -52,7 +61,9 @@ async function requestAuth(path: "login" | "signup", email: string, password: st
     | null;
 
   if (!response.ok || !data?.access_token || !data.user) {
-    throw new Error(data?.message ?? "Authentication failed. Please try again.");
+    throw new Error(
+      data?.message ?? "Authentication failed. Please try again.",
+    );
   }
 
   return data as AuthResponse;
@@ -151,16 +162,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       const response = await fetch(
-        `${LOCAL_API_BASE_URL}/api/users/username-availability?username=${encodeURIComponent(username)}`,
+        `${XMON_API_URL}/api/users/username-availability?username=${encodeURIComponent(username)}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         },
       );
-      const data = (await response.json().catch(() => null)) as
-        | { available?: boolean; message?: string }
-        | null;
+      const data = (await response.json().catch(() => null)) as {
+        available?: boolean;
+        message?: string;
+      } | null;
 
       if (!response.ok || typeof data?.available !== "boolean") {
         throw new Error(data?.message ?? "Could not check username.");
@@ -177,7 +189,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         throw new Error("You need to sign in first.");
       }
 
-      const response = await fetch(`${LOCAL_API_BASE_URL}/api/users/me`, {
+      const response = await fetch(`${XMON_API_URL}/api/users/me`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -205,13 +217,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       throw new Error("You need to sign in first.");
     }
 
-    const response = await fetch(`${LOCAL_API_BASE_URL}/api/users/me`, {
+    const response = await fetch(`${XMON_API_URL}/api/users/me`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    const data = (await response.json().catch(() => null)) as { message?: string } | null;
+    const data = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
 
     if (!response.ok) {
       throw new Error(data?.message ?? "Could not delete account.");
@@ -258,6 +272,10 @@ export function useAuth() {
   return context;
 }
 
-export async function register(email: string, password: string, username: string) {
+export async function register(
+  email: string,
+  password: string,
+  username: string,
+) {
   return requestAuth("signup", email, password, username);
 }

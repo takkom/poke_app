@@ -1,10 +1,16 @@
 import { useAuth } from "@/context/AuthContext";
 import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { LOCAL_API_BASE_URL } from "@/services/cardService";
+import { XMON_API_URL } from "@/config";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Button,
@@ -21,7 +27,7 @@ import {
   View,
 } from "react-native";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? LOCAL_API_BASE_URL;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 
 type AuthState = {
   token?: string | null;
@@ -66,7 +72,11 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatMoney(value: number, locale: string, displayCurrency: DisplayCurrency): string {
+function formatMoney(
+  value: number,
+  locale: string,
+  displayCurrency: DisplayCurrency,
+): string {
   return new Intl.NumberFormat(locale, {
     currency: displayCurrency,
     maximumFractionDigits: displayCurrency === "KRW" ? 0 : 2,
@@ -120,7 +130,8 @@ export default function CollectionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuCard, setMenuCard] = useState<CollectionCard | null>(null);
-  const [editingPriceCard, setEditingPriceCard] = useState<CollectionCard | null>(null);
+  const [editingPriceCard, setEditingPriceCard] =
+    useState<CollectionCard | null>(null);
   const [editedPrice, setEditedPrice] = useState("");
   const [updatingPrice, setUpdatingPrice] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -134,7 +145,10 @@ export default function CollectionDetailScreen() {
     () =>
       collection?.total_value !== undefined && collection?.total_value !== null
         ? toNumber(collection.total_value)
-        : cards.reduce((sum, card) => (card.sold_at ? sum : sum + cardValue(card)), 0),
+        : cards.reduce(
+            (sum, card) => (card.sold_at ? sum : sum + cardValue(card)),
+            0,
+          ),
     [cards, collection?.total_value],
   );
 
@@ -161,7 +175,11 @@ export default function CollectionDetailScreen() {
         setCollection(body.collection);
         setCards(body.cards);
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : t("collections.couldNotLoadCollection"));
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : t("collections.couldNotLoadCollection"),
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -239,7 +257,11 @@ export default function CollectionDetailScreen() {
       setSoldPrice("");
       await loadCollection();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t("collections.couldNotRemoveCard"));
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("collections.couldNotRemoveCard"),
+      );
     } finally {
       setRemoving(false);
     }
@@ -282,7 +304,11 @@ export default function CollectionDetailScreen() {
       setEditedPrice("");
       await loadCollection();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t("collections.couldNotUpdatePrice"));
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("collections.couldNotUpdatePrice"),
+      );
     } finally {
       setUpdatingPrice(false);
     }
@@ -339,7 +365,11 @@ export default function CollectionDetailScreen() {
                 <MaterialCommunityIcons name="plus" color="#ffffff" size={22} />
               </Pressable>
             </View>
-            {error ? <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text> : null}
+            {error ? (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {error}
+              </Text>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -361,7 +391,10 @@ export default function CollectionDetailScreen() {
             ]}
           >
             {item.image_url ? (
-              <Image source={{ uri: item.image_url }} style={styles.thumbnail} />
+              <Image
+                source={{ uri: item.image_url }}
+                style={styles.thumbnail}
+              />
             ) : (
               <View
                 style={[
@@ -381,11 +414,14 @@ export default function CollectionDetailScreen() {
                 {item.pokemon_name ?? t("collections.unknownCard")}
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                #{item.card_number ?? "-"} | {item.language ?? t("collections.unknown")}
+                #{item.card_number ?? "-"} |{" "}
+                {item.language ?? t("collections.unknown")}
                 {item.rarity ? ` | ${item.rarity}` : ""}
               </Text>
               {item.set_name ? (
-                <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.mutedText, { color: colors.textSecondary }]}
+                >
                   {item.set_name}
                 </Text>
               ) : null}
@@ -414,7 +450,9 @@ export default function CollectionDetailScreen() {
         visible={Boolean(menuCard)}
       >
         <Pressable style={styles.menuOverlay} onPress={() => setMenuCard(null)}>
-          <View style={[styles.menuContent, { backgroundColor: colors.surface }]}>
+          <View
+            style={[styles.menuContent, { backgroundColor: colors.surface }]}
+          >
             <Pressable
               onPress={() => menuCard && openEditPrice(menuCard)}
               style={styles.menuItem}
@@ -457,12 +495,17 @@ export default function CollectionDetailScreen() {
           style={styles.modalKeyboardView}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            <View
+              style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            >
+              <Text
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+              >
                 {t("collections.editPrice")}
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                {editingPriceCard?.pokemon_name ?? t("collections.collectionCard")}
+                {editingPriceCard?.pokemon_name ??
+                  t("collections.collectionCard")}
               </Text>
               <TextInput
                 autoFocus
@@ -493,7 +536,11 @@ export default function CollectionDetailScreen() {
                   color={colors.primary}
                   disabled={updatingPrice || !editedPrice.trim()}
                   onPress={() => void saveEditedPrice()}
-                  title={updatingPrice ? t("collections.saving") : t("collections.save")}
+                  title={
+                    updatingPrice
+                      ? t("collections.saving")
+                      : t("collections.save")
+                  }
                 />
               </View>
             </View>
@@ -513,8 +560,12 @@ export default function CollectionDetailScreen() {
           style={styles.modalKeyboardView}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            <View
+              style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            >
+              <Text
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+              >
                 {t("collections.removeCard")}
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
@@ -539,12 +590,18 @@ export default function CollectionDetailScreen() {
                 value={soldPrice}
               />
               <View style={styles.modalActions}>
-                <Button disabled={removing} onPress={() => setRemovingCard(null)} title={t("collections.cancel")} />
+                <Button
+                  disabled={removing}
+                  onPress={() => setRemovingCard(null)}
+                  title={t("collections.cancel")}
+                />
                 <Button
                   color={colors.error}
                   disabled={removing}
                   onPress={() => void confirmRemoveCard()}
-                  title={removing ? t("collections.remove") : t("collections.remove")}
+                  title={
+                    removing ? t("collections.remove") : t("collections.remove")
+                  }
                 />
               </View>
             </View>

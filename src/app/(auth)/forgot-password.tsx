@@ -1,4 +1,4 @@
-import { LOCAL_API_BASE_URL } from "@/services/cardService";
+import { XMON_API_URL } from "@/config";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
@@ -19,22 +19,32 @@ export default function ForgotPasswordScreen() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${LOCAL_API_BASE_URL}/api/auth/forgot-password`, {
+      const response = await fetch(`${XMON_API_URL}/api/auth/forgot-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email: email.trim() }),
       });
-      const data = (await response.json().catch(() => null)) as { message?: string } | null;
+      const data = (await response.json().catch(() => null)) as {
+        message?: string;
+      } | null;
 
       if (!response.ok) {
-        throw new Error(data?.message ?? "Unable to request a reset right now.");
+        throw new Error(
+          data?.message ?? "Unable to request a reset right now.",
+        );
       }
 
-      Alert.alert("Check your email", data?.message ?? "Password reset requested.");
+      Alert.alert(
+        "Check your email",
+        data?.message ?? "Password reset requested.",
+      );
     } catch (error) {
-      Alert.alert("Request failed", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(
+        "Request failed",
+        error instanceof Error ? error.message : "Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -55,7 +65,10 @@ export default function ForgotPasswordScreen() {
       {isSubmitting ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Send reset instructions" onPress={handleForgotPassword} />
+        <Button
+          title="Send reset instructions"
+          onPress={handleForgotPassword}
+        />
       )}
       <Link href="/(auth)/login" style={styles.link}>
         Back to login

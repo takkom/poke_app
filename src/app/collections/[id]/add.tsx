@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { LOCAL_API_BASE_URL } from "@/services/cardService";
+import { XMON_API_URL } from "@/config";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -15,8 +15,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? LOCAL_API_BASE_URL;
 
 type AuthState = {
   token?: string | null;
@@ -51,7 +49,9 @@ function getAuthToken(auth: AuthState): string | null {
 }
 
 function cardNumber(card: SearchCandidate): string {
-  const slashCode = card.card_code?.match(/\b([A-Z]*\d+|SV\d+)\s*\/\s*(\d+)\b/i);
+  const slashCode = card.card_code?.match(
+    /\b([A-Z]*\d+|SV\d+)\s*\/\s*(\d+)\b/i,
+  );
   if (slashCode) {
     return `${slashCode[1].toUpperCase()}/${slashCode[2]}`;
   }
@@ -71,7 +71,11 @@ function cardImage(card: SearchCandidate): string | null {
   return image;
 }
 
-function formatMoney(value: number, currency: DisplayCurrency | "JPY", locale: string) {
+function formatMoney(
+  value: number,
+  currency: DisplayCurrency | "JPY",
+  locale: string,
+) {
   return new Intl.NumberFormat(locale, {
     currency,
     maximumFractionDigits: currency === "KRW" ? 0 : 2,
@@ -84,7 +88,7 @@ async function requestJson<T>(
   token: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${XMON_API_URL}${path}`, {
     ...options,
     headers: {
       Accept: "application/json",
@@ -118,7 +122,9 @@ export default function AddCollectionCardScreen() {
   const { locale, t } = useI18n();
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<SearchCandidate[]>([]);
-  const [selectedCard, setSelectedCard] = useState<SearchCandidate | null>(null);
+  const [selectedCard, setSelectedCard] = useState<SearchCandidate | null>(
+    null,
+  );
   const [price, setPrice] = useState("");
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -138,7 +144,11 @@ export default function AddCollectionCardScreen() {
 
   function selectCard(card: SearchCandidate) {
     setSelectedCard(card);
-    setPrice(typeof card.avgPrice === "number" ? String(Math.floor(card.avgPrice)) : "");
+    setPrice(
+      typeof card.avgPrice === "number"
+        ? String(Math.floor(card.avgPrice))
+        : "",
+    );
     setMessage(null);
   }
 
@@ -153,16 +163,23 @@ export default function AddCollectionCardScreen() {
     setCandidates([]);
 
     try {
-      const body = await requestJson<SearchResponse>("/api/resolution/search", token, {
-        body: JSON.stringify({
-          display_currency: displayCurrency,
-          query: query.trim(),
-        }),
-        method: "POST",
-      });
+      const body = await requestJson<SearchResponse>(
+        "/api/resolution/search",
+        token,
+        {
+          body: JSON.stringify({
+            display_currency: displayCurrency,
+            query: query.trim(),
+          }),
+          method: "POST",
+        },
+      );
       const nextCandidates = body.candidates ?? [];
 
-      if ((body.status === "matched" || body.status === "manual_override") && body.card) {
+      if (
+        (body.status === "matched" || body.status === "manual_override") &&
+        body.card
+      ) {
         setCandidates([body.card]);
         selectCard(body.card);
         return;
@@ -175,7 +192,11 @@ export default function AddCollectionCardScreen() {
           : t("collections.noMatchingCards"),
       );
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : t("collections.searchFailed"));
+      setMessage(
+        caught instanceof Error
+          ? caught.message
+          : t("collections.searchFailed"),
+      );
     } finally {
       setSearching(false);
     }
@@ -206,7 +227,11 @@ export default function AddCollectionCardScreen() {
       });
       router.replace(`/collections/${collectionId}`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : t("collections.couldNotAddCard"));
+      setMessage(
+        caught instanceof Error
+          ? caught.message
+          : t("collections.couldNotAddCard"),
+      );
     } finally {
       setSaving(false);
     }
@@ -268,7 +293,11 @@ export default function AddCollectionCardScreen() {
                 {searching ? (
                   <ActivityIndicator color="#ffffff" />
                 ) : (
-                  <MaterialCommunityIcons name="magnify" color="#ffffff" size={22} />
+                  <MaterialCommunityIcons
+                    name="magnify"
+                    color="#ffffff"
+                    size={22}
+                  />
                 )}
               </Pressable>
             </View>
@@ -277,21 +306,31 @@ export default function AddCollectionCardScreen() {
               <View
                 style={[
                   styles.selectedPanel,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
                 ]}
               >
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                <Text
+                  style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                >
                   {t("collections.selected")}
                 </Text>
                 <Text style={[styles.cardName, { color: colors.textPrimary }]}>
                   {selectedCard.name ?? t("collections.unknownCard")}
                 </Text>
-                <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                  #{cardNumber(selectedCard)} | {selectedCard.language ?? t("collections.unknown")}
+                <Text
+                  style={[styles.mutedText, { color: colors.textSecondary }]}
+                >
+                  #{cardNumber(selectedCard)} |{" "}
+                  {selectedCard.language ?? t("collections.unknown")}
                   {selectedCard.rarity ? ` | ${selectedCard.rarity}` : ""}
                 </Text>
                 {selectedDefaultPrice ? (
-                  <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[styles.mutedText, { color: colors.textSecondary }]}
+                  >
                     {t("collections.avg30", { value: selectedDefaultPrice })}
                   </Text>
                 ) : null}
@@ -315,18 +354,25 @@ export default function AddCollectionCardScreen() {
                   onPress={() => void saveCard()}
                   style={[
                     styles.saveButton,
-                    { backgroundColor: colors.primary, opacity: saving ? 0.6 : 1 },
+                    {
+                      backgroundColor: colors.primary,
+                      opacity: saving ? 0.6 : 1,
+                    },
                   ]}
                 >
                   <Text style={styles.saveButtonText}>
-                    {saving ? t("collections.adding") : t("collections.addToCollection")}
+                    {saving
+                      ? t("collections.adding")
+                      : t("collections.addToCollection")}
                   </Text>
                 </Pressable>
               </View>
             ) : null}
 
             {message ? (
-              <Text style={[styles.messageText, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.messageText, { color: colors.textSecondary }]}
+              >
                 {message}
               </Text>
             ) : null}
@@ -340,7 +386,8 @@ export default function AddCollectionCardScreen() {
           )
         }
         renderItem={({ item }) => {
-          const selected = selectedCard && cardIdentity(selectedCard) === cardIdentity(item);
+          const selected =
+            selectedCard && cardIdentity(selectedCard) === cardIdentity(item);
           const image = cardImage(item);
           return (
             <Pressable
@@ -373,13 +420,22 @@ export default function AddCollectionCardScreen() {
                 <Text style={[styles.cardName, { color: colors.textPrimary }]}>
                   {item.name ?? t("collections.unknownCard")}
                 </Text>
-                <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                  #{cardNumber(item)} | {item.language ?? t("collections.unknown")}
+                <Text
+                  style={[styles.mutedText, { color: colors.textSecondary }]}
+                >
+                  #{cardNumber(item)} |{" "}
+                  {item.language ?? t("collections.unknown")}
                   {item.rarity ? ` | ${item.rarity}` : ""}
                 </Text>
                 {typeof item.avgPrice === "number" ? (
-                  <Text style={[styles.priceText, { color: colors.textPrimary }]}>
-                    {formatMoney(item.avgPrice, item.displayCurrency ?? displayCurrency, locale)}
+                  <Text
+                    style={[styles.priceText, { color: colors.textPrimary }]}
+                  >
+                    {formatMoney(
+                      item.avgPrice,
+                      item.displayCurrency ?? displayCurrency,
+                      locale,
+                    )}
                   </Text>
                 ) : null}
               </View>
