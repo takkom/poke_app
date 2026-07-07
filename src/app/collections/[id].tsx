@@ -348,7 +348,7 @@ export default function CollectionDetailScreen() {
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <View style={styles.titleText}>
-                <Text style={[styles.title, { color: colors.primary }]}>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>
                   {collection?.name ?? t("collections.collection")}
                 </Text>
                 <Text style={[styles.total, { color: colors.textSecondary }]}>
@@ -383,11 +383,15 @@ export default function CollectionDetailScreen() {
             refreshing={refreshing}
           />
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View
             style={[
               styles.cardRow,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              {
+                backgroundColor:
+                  index % 2 === 1 ? colors.surfaceAlternate : colors.background,
+                borderColor: "transparent",
+              },
             ]}
           >
             {item.image_url ? (
@@ -410,7 +414,7 @@ export default function CollectionDetailScreen() {
               </View>
             )}
             <View style={styles.cardText}>
-              <Text style={[styles.cardName, { color: colors.primary }]}>
+              <Text style={[styles.cardName, { color: colors.textPrimary }]}>
                 {item.pokemon_name ?? t("collections.unknownCard")}
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
@@ -499,7 +503,7 @@ export default function CollectionDetailScreen() {
               style={[styles.modalContent, { backgroundColor: colors.surface }]}
             >
               <Text
-                style={[styles.sectionTitle, { color: colors.primary }]}
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
               >
                 {t("collections.editPrice")}
               </Text>
@@ -564,7 +568,7 @@ export default function CollectionDetailScreen() {
               style={[styles.modalContent, { backgroundColor: colors.surface }]}
             >
               <Text
-                style={[styles.sectionTitle, { color: colors.primary }]}
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
               >
                 {t("collections.removeCard")}
               </Text>
@@ -626,8 +630,8 @@ const styles = StyleSheet.create({
   },
   cardRow: {
     alignItems: "center",
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 0,
+    borderWidth: 0,
     flexDirection: "row",
     gap: 12,
     padding: 10,

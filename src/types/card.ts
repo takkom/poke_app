@@ -12,6 +12,14 @@ export interface PriceHistoryPoint {
   snkrdunk_volume?: number;
 }
 
+export type MarketplaceKey = 'kream' | 'ebay' | 'snkrdunk';
+
+export interface MarketplaceAverage {
+  avgPrice?: number | null;
+  relativePercent?: number | null;
+  volume?: number | null;
+}
+
 export interface PokemonCard {
   id: string;
   db_id?: string;
@@ -37,6 +45,11 @@ export interface PokemonCard {
   trendPercent?: number | null;
   trendDirection?: 'up' | 'down' | 'flat' | 'unknown';
   displayCurrency?: 'KRW' | 'USD' | 'JPY';
+  baselineMarketplace?: MarketplaceKey;
+  baselineAvgPrice?: number | null;
+  arbitrageMarketplace?: MarketplaceKey;
+  arbitragePercent?: number | null;
+  marketplaceAverages?: Partial<Record<MarketplaceKey, MarketplaceAverage>>;
   priceHistory?: PriceHistoryPoint[];
   pricing?: CardPricing;
   rarity?: string;

@@ -2,9 +2,11 @@ import React, {
   createContext,
   PropsWithChildren,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
+import * as SystemUI from 'expo-system-ui';
 import { ColorSchemeName, useColorScheme } from 'react-native';
 
 import { AppColors, darkColors, lightColors, ThemeMode } from '@/theme/colors';
@@ -45,6 +47,10 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
   const mode = resolveMode(preference, systemScheme);
   const activeColors = mode === 'dark' ? darkColors : lightColors;
   const displayCurrency: DisplayCurrency = locale === 'ko-KR' ? 'KRW' : 'USD';
+
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(activeColors.background);
+  }, [activeColors.background]);
 
   const value = useMemo<ThemeManagerValue>(
     () => ({

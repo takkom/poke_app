@@ -259,7 +259,7 @@ export default function AddCollectionCardScreen() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.primary }]}>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>
               {t("collections.addCard")}
             </Text>
             <View style={styles.searchRow}>
@@ -272,7 +272,7 @@ export default function AddCollectionCardScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: colors.surface,
+                    backgroundColor: colors.surfaceAlternate,
                     borderColor: colors.border,
                     color: colors.textPrimary,
                   },
@@ -313,11 +313,11 @@ export default function AddCollectionCardScreen() {
                 ]}
               >
                 <Text
-                  style={[styles.sectionTitle, { color: colors.primary }]}
+                  style={[styles.sectionTitle, { color: colors.textSecondary }]}
                 >
                   {t("collections.selected")}
                 </Text>
-                <Text style={[styles.cardName, { color: colors.primary }]}>
+                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
                   {selectedCard.name ?? t("collections.unknownCard")}
                 </Text>
                 <Text
@@ -385,7 +385,7 @@ export default function AddCollectionCardScreen() {
             </Text>
           )
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const selected =
             selectedCard && cardIdentity(selectedCard) === cardIdentity(item);
           const image = cardImage(item);
@@ -395,8 +395,11 @@ export default function AddCollectionCardScreen() {
               style={[
                 styles.resultRow,
                 {
-                  backgroundColor: colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
+                  backgroundColor:
+                    index % 2 === 1
+                      ? colors.surfaceAlternate
+                      : colors.background,
+                  borderColor: selected ? colors.primary : "transparent",
                 },
               ]}
             >
@@ -417,7 +420,7 @@ export default function AddCollectionCardScreen() {
                 </View>
               )}
               <View style={styles.resultText}>
-                <Text style={[styles.cardName, { color: colors.primary }]}>
+                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
                   {item.name ?? t("collections.unknownCard")}
                 </Text>
                 <Text

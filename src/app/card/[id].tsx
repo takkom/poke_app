@@ -2,7 +2,7 @@ import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { getCardById, getPriceHistory } from "@/services/cardService";
-import { AppColors, colors } from "@/theme/colors";
+import { AppColors } from "@/theme/colors";
 import { CardPricing, CardWithPricing, PriceHistoryPoint } from "@/types/card";
 import { getDisplayCardName } from "@/utils/displayNames";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -495,7 +495,6 @@ export default function CardDetailScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
     flex: 1,
   },
   scrollContent: {
@@ -503,7 +502,6 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     alignItems: "center",
-    backgroundColor: colors.background,
     paddingVertical: 20,
   },
   cardImage: {
@@ -514,8 +512,6 @@ const styles = StyleSheet.create({
   fallbackCardImage: {
     alignItems: "center",
     aspectRatio: 300 / 420,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     height: 350,
@@ -523,15 +519,12 @@ const styles = StyleSheet.create({
     width: 250,
   },
   fallbackImageText: {
-    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: "700",
     marginTop: 12,
   },
   priceHistoryState: {
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     gap: 10,
@@ -540,7 +533,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   detailsContainer: {
-    backgroundColor: colors.surface,
     borderRadius: 8,
     gap: 18,
     marginHorizontal: 12,
@@ -548,7 +540,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   cardName: {
-    color: colors.textPrimary,
     fontSize: 28,
     fontWeight: "800",
     textAlign: "center",
@@ -578,25 +569,20 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   pricingSection: {
-    borderTopColor: colors.border,
     borderTopWidth: 1,
     gap: 12,
     paddingTop: 18,
   },
   pricingTitle: {
-    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: "800",
   },
   priceCard: {
-    backgroundColor: colors.background,
-    borderLeftColor: colors.primary,
     borderLeftWidth: 4,
     borderRadius: 8,
     padding: 12,
   },
   marketName: {
-    color: colors.primary,
     fontSize: 14,
     fontWeight: "800",
     marginBottom: 12,
@@ -608,7 +594,6 @@ const styles = StyleSheet.create({
   },
   variantButton: {
     alignItems: "center",
-    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
@@ -617,49 +602,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   variantButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   variantButtonDisabled: {
-    backgroundColor: colors.surfaceMuted,
     opacity: 0.5,
   },
   variantButtonText: {
-    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
   },
   variantButtonTextSelected: {
-    color: colors.onPrimary,
   },
   priceRow: {
     alignItems: "center",
-    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 8,
   },
   priceLabel: {
-    color: colors.textSecondary,
     flex: 1,
     fontSize: 13,
     fontWeight: "600",
   },
   priceValue: {
-    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: "800",
   },
   updatedAt: {
-    color: colors.textMuted,
     fontSize: 11,
     fontStyle: "italic",
     marginTop: 8,
   },
   noPricingText: {
-    color: colors.textMuted,
     fontSize: 14,
     paddingVertical: 12,
     textAlign: "center",
@@ -670,12 +645,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingText: {
-    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 12,
   },
   errorText: {
-    color: colors.error,
     fontSize: 16,
     fontWeight: "700",
   },

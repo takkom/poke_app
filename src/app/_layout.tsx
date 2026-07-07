@@ -1,6 +1,7 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeManagerProvider, useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
+import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -19,7 +20,7 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { colors } = useThemeManager();
+  const { colors, mode } = useThemeManager();
   const { t } = useI18n();
   const { token, isLoading } = useAuth();
   const router = useRouter();
@@ -43,6 +44,7 @@ function RootStack() {
 
   return (
     <>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerStyle: {
@@ -66,6 +68,20 @@ function RootStack() {
           name="card/[id]"
           options={{
             title: t('tabs.cardDetails'),
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
+          name="collections/[id]"
+          options={{
+            title: t('collections.collection'),
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
+          name="collections/[id]/add"
+          options={{
+            title: t('collections.addCard'),
             headerBackTitle: 'Back',
           }}
         />

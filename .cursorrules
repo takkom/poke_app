@@ -1,0 +1,7 @@
+# Environment Rules
+
+- This is a standalone Expo app running on Windows.
+- ALWAYS use Windows-compatible command execution paths if native wrappers fail.
+- DO NOT attempt to install new linting or formatting packages automatically.
+- If a global cache access error occurs (e.g., in C:\Users\radel\), abort the check instantly rather than trying to request permissions or loop through shims.
+- Prioritize code changes over environment verification tasks.

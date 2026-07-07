@@ -11,8 +11,9 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 
+import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { colors, Marketplace } from "@/theme/colors";
+import { AppColors, Marketplace } from "@/theme/colors";
 import { PriceHistoryPoint } from "@/types/card";
 
 type VisiblePlatforms = Record<Marketplace, boolean>;
@@ -201,6 +202,8 @@ export function PriceHistoryChart({
   locale = "ko-KR",
 }: PriceHistoryChartProps) {
   const { t } = useI18n();
+  const { colors } = useThemeManager();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [visiblePlatforms, setVisiblePlatforms] = useState<VisiblePlatforms>(
     () => initialVisiblePlatforms(priceHistory),
   );
@@ -603,7 +606,8 @@ export function PriceHistoryChart({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -732,4 +736,5 @@ const styles = StyleSheet.create({
     minHeight: 3,
     opacity: 0.9,
   },
-});
+  });
+}

@@ -1,6 +1,12 @@
 import axios from "axios";
 import { XMON_API_URL } from "../config";
-import { CardWithPricing, PokemonCard, PriceHistoryPoint } from "../types/card";
+import {
+  CardWithPricing,
+  MarketplaceAverage,
+  MarketplaceKey,
+  PokemonCard,
+  PriceHistoryPoint,
+} from "../types/card";
 
 const API_BASE_URL = "https://api.tcgdex.net/v2/en";
 const LOCAL_API_BASE_URL = XMON_API_URL;
@@ -213,6 +219,50 @@ const transformCard = (tcgCard: any): CardWithPricing => {
     displayCurrency: tcgCard.displayCurrency ?? undefined,
   };
 };
+
+function normalizeMarketplace(value: unknown): MarketplaceKey | undefined {
+  return value === "kream" || value === "ebay" || value === "snkrdunk"
+    ? value
+    : undefined;
+}
+
+function normalizeMarketplaceAverage(value: unknown): MarketplaceAverage {
+  const average = value as MarketplaceAverage | null | undefined;
+
+  return {
+    avgPrice:
+      typeof average?.avgPrice === "number" ? average.avgPrice : null,
+    relativePercent:
+      typeof average?.relativePercent === "number"
+        ? average.relativePercent
+        : null,
+    volume: typeof average?.volume === "number" ? average.volume : null,
+  };
+}
+
+function transformArbitrageCard(tcgCard: any): PokemonCard {
+  const card = transformCard(tcgCard);
+  const averages = tcgCard.marketplaceAverages ?? {};
+
+  return {
+    ...card,
+    baselineMarketplace: normalizeMarketplace(tcgCard.baselineMarketplace),
+    baselineAvgPrice:
+      typeof tcgCard.baselineAvgPrice === "number"
+        ? tcgCard.baselineAvgPrice
+        : null,
+    arbitrageMarketplace: normalizeMarketplace(tcgCard.arbitrageMarketplace),
+    arbitragePercent:
+      typeof tcgCard.arbitragePercent === "number"
+        ? tcgCard.arbitragePercent
+        : null,
+    marketplaceAverages: {
+      kream: normalizeMarketplaceAverage(averages.kream),
+      ebay: normalizeMarketplaceAverage(averages.ebay),
+      snkrdunk: normalizeMarketplaceAverage(averages.snkrdunk),
+    },
+  };
+}
 export const getAllCards = async (
   forceRefresh: boolean = false,
 ): Promise<PokemonCard[]> => {
@@ -388,6 +438,28 @@ export const getMostSoldCards = async (
 
   const data = (await response.json()) as PokemonCard[];
   return Array.isArray(data) ? data.map(transformCard) : [];
+};
+
+export const getMostSoldArbitrageCards = async (
+  limit: number = 30,
+  currency: "KRW" | "USD" = "KRW",
+  baseline: MarketplaceKey = "kream",
+): Promise<PokemonCard[]> => {
+  const params = new URLSearchParams({
+    baseline,
+    currency,
+    limit: String(limit),
+  });
+  const response = await fetch(
+    `${LOCAL_API_BASE_URL}/api/cards/most-sold-arbitrage?${params.toString()}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`Most sold arbitrage cards failed with ${response.status}`);
+  }
+
+  const data = (await response.json()) as PokemonCard[];
+  return Array.isArray(data) ? data.map(transformArbitrageCard) : [];
 };
 
 // export const getCardPricing = async (

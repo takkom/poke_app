@@ -1,12 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,13 +19,14 @@ import {
   View,
 } from "react-native";
 
+import { XMON_API_URL } from "@/config";
+import { darkColors, type AppColors } from "@/theme/colors";
 import { useAuth } from "../../context/AuthContext";
 import {
   useThemeManager,
   type DisplayCurrency,
 } from "../../hooks/useThemeManager";
 import { useI18n } from "../../i18n";
-import { XMON_API_URL } from "@/config";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 const ROW_DRAG_HEIGHT = 108;
@@ -87,10 +82,6 @@ function collectionValue(collection: Collection): number {
   return toNumber(collection.total_value ?? collection.totalValue);
 }
 
-function collectionOrder(collection: Collection): number {
-  return toNumber(collection.order_number ?? collection.orderNumber);
-}
-
 function collectionCardCount(collection: Collection): number {
   return toNumber(
     collection.active_card_count ??
@@ -139,7 +130,9 @@ async function requestJson<T>(
 
 function CollectionPlate({
   collection,
+  colors,
   index,
+  isAlternate,
   locale,
   displayCurrency,
   onDragEnd,
@@ -152,7 +145,9 @@ function CollectionPlate({
   t,
 }: {
   collection: Collection;
+  colors: AppColors;
   index: number;
+  isAlternate: boolean;
   itemCount: number;
   locale: string;
   displayCurrency: DisplayCurrency;
@@ -167,6 +162,12 @@ function CollectionPlate({
   const [dragging, setDragging] = useState(false);
   const originIndexRef = useRef(index);
   const targetIndexRef = useRef(index);
+  const cardCount = collectionCardCount(collection);
+  const valueText = currency(collectionValue(collection), locale, displayCurrency);
+  const cardCountText = t("collections.cardLine", {
+    count: cardCount,
+    value: "",
+  }).replace(/\s*\|\s*$/, "");
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -207,16 +208,23 @@ function CollectionPlate({
     <View
       style={[
         styles.collectionPlate,
-        dragging ? styles.collectionPlateDragging : null,
+        {
+          backgroundColor: isAlternate
+            ? colors.surfaceAlternate
+            : colors.background,
+        },
+        dragging
+          ? [styles.collectionPlateDragging, { borderColor: colors.primary }]
+          : null,
         targetIndex === index && !dragging
-          ? styles.collectionPlateTarget
+          ? [styles.collectionPlateTarget, { borderColor: colors.primary }]
           : null,
       ]}
     >
       <View style={styles.dragHandle} {...panResponder.panHandlers}>
         <MaterialCommunityIcons
           name="drag-vertical"
-          color="#64748b"
+          color={colors.textSecondary}
           size={24}
         />
       </View>
@@ -225,33 +233,47 @@ function CollectionPlate({
         onPress={() => onOpen(collection)}
         style={styles.collectionText}
       >
-        <View style={styles.collectionTitleRow}>
-          <Text numberOfLines={1} style={styles.collectionName}>
+        <View
+          style={[
+            styles.collectionNumberBlock,
+            { backgroundColor: colors.surfaceMuted },
+          ]}
+        >
+          <Text style={[styles.collectionNumber, { color: colors.textSecondary }]}>
+            {index + 1}
+          </Text>
+        </View>
+        <View style={styles.collectionIdentity}>
+          <Text
+            numberOfLines={1}
+            style={[styles.collectionName, { color: darkColors.primary }]}
+          >
             {collection.name}
           </Text>
-          <Text style={styles.orderChip}>#{collectionOrder(collection)}</Text>
+          {collection.description ? (
+            <Text
+              numberOfLines={1}
+              style={[styles.mutedText, { color: colors.textSecondary }]}
+            >
+              {collection.description}
+            </Text>
+          ) : null}
         </View>
-        {collection.description ? (
-          <Text numberOfLines={2} style={styles.mutedText}>
-            {collection.description}
+        <View style={styles.collectionStats}>
+          <Text
+            numberOfLines={1}
+            style={[styles.collectionValue, { color: darkColors.arbitragePositive }]}
+          >
+            {valueText}
+            <Text style={{ color: colors.textPrimary }}> ({cardCountText})</Text>
           </Text>
-        ) : null}
-        <Text style={styles.mutedText}>
-          {t("collections.cardLine", {
-            count: collectionCardCount(collection),
-            value: currency(
-              collectionValue(collection),
-              locale,
-              displayCurrency,
-            ),
-          })}
-        </Text>
+        </View>
       </Pressable>
 
       <Pressable onPress={() => onMenu(collection)} style={styles.iconButton}>
         <MaterialCommunityIcons
           name="dots-vertical"
-          color="#0f172a"
+          color={colors.textPrimary}
           size={22}
         />
       </Pressable>
@@ -262,7 +284,7 @@ function CollectionPlate({
 export default function CollectionsScreen() {
   const router = useRouter();
   const auth = useAuth() as AuthState;
-  const { displayCurrency } = useThemeManager();
+  const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
   const token = getAuthToken(auth);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -582,15 +604,19 @@ export default function CollectionsScreen() {
 
   if (!token) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.title}>{t("collections.title")}</Text>
-        <Text style={styles.mutedText}>{t("collections.signInManage")}</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          {t("collections.title")}
+        </Text>
+        <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
+          {t("collections.signInManage")}
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <FlatList
         contentContainerStyle={styles.container}
         data={collections}
@@ -600,8 +626,10 @@ export default function CollectionsScreen() {
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <View style={styles.headerText}>
-                <Text style={styles.title}>{t("collections.title")}</Text>
-                <Text style={styles.summary}>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>
+                  {t("collections.title")}
+                </Text>
+                <Text style={[styles.summary, { color: colors.textSecondary }]}>
                   {t("collections.summary", {
                     collections: collections.length,
                     cards: totalCards,
@@ -611,22 +639,37 @@ export default function CollectionsScreen() {
               </View>
               <Pressable
                 onPress={openCreateModal}
-                style={styles.primaryIconButton}
+                style={[
+                  styles.primaryIconButton,
+                  { backgroundColor: colors.primary },
+                ]}
               >
-                <MaterialCommunityIcons name="plus" color="#ffffff" size={24} />
+                <MaterialCommunityIcons
+                  name="plus"
+                  color={colors.onPrimary}
+                  size={24}
+                />
               </Pressable>
             </View>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {error}
+              </Text>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
           loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator />
-              <Text style={styles.mutedText}>{t("collections.loading")}</Text>
+              <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
+                {t("collections.loading")}
+              </Text>
             </View>
           ) : (
-            <Text style={styles.mutedText}>{t("collections.empty")}</Text>
+            <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
+              {t("collections.empty")}
+            </Text>
           )
         }
         refreshControl={
@@ -639,7 +682,9 @@ export default function CollectionsScreen() {
         renderItem={({ item, index }) => (
           <CollectionPlate
             collection={item}
+            colors={colors}
             index={index}
+            isAlternate={true}
             itemCount={collections.length}
             locale={locale}
             displayCurrency={displayCurrency}
@@ -667,40 +712,75 @@ export default function CollectionsScreen() {
               contentContainerStyle={styles.modalScrollContent}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>
+              <View
+                style={[
+                  styles.modalContent,
+                  { backgroundColor: colors.surface },
+                ]}
+              >
+                <Text
+                  style={[styles.modalTitle, { color: colors.textPrimary }]}
+                >
                   {modalMode === "edit"
                     ? t("collections.editTitle")
                     : t("collections.createTitle")}
                 </Text>
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>{t("collections.name")}</Text>
+                  <Text
+                    style={[styles.fieldLabel, { color: colors.textSecondary }]}
+                  >
+                    {t("collections.name")}
+                  </Text>
                   <TextInput
                     autoFocus
                     ref={nameInputRef}
                     onChangeText={setName}
                     placeholder={t("collections.namePlaceholder")}
+                    placeholderTextColor={colors.textMuted}
                     selectTextOnFocus={modalMode === "edit"}
                     showSoftInputOnFocus
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        color: colors.textPrimary,
+                      },
+                    ]}
                     value={name}
                   />
                 </View>
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>
+                  <Text
+                    style={[styles.fieldLabel, { color: colors.textSecondary }]}
+                  >
                     {t("collections.description")}
                   </Text>
                   <TextInput
                     multiline
                     onChangeText={setDescription}
                     placeholder={t("collections.descriptionPlaceholder")}
-                    style={[styles.input, styles.descriptionInput]}
+                    placeholderTextColor={colors.textMuted}
+                    style={[
+                      styles.input,
+                      styles.descriptionInput,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        color: colors.textPrimary,
+                      },
+                    ]}
                     value={description}
                   />
                 </View>
                 {modalMode === "edit" ? (
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>
+                    <Text
+                      style={[
+                        styles.fieldLabel,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {t("collections.position")}
                     </Text>
                     <View style={styles.positionControl}>
@@ -713,20 +793,39 @@ export default function CollectionsScreen() {
                         }
                         style={[
                           styles.positionButton,
+                          { backgroundColor: colors.surfaceMuted },
                           orderPosition <= 1 ? styles.disabledButton : null,
                         ]}
                       >
                         <MaterialCommunityIcons
                           name="minus"
-                          color="#0f172a"
+                          color={colors.textPrimary}
                           size={20}
                         />
                       </Pressable>
-                      <View style={styles.positionReadout}>
-                        <Text style={styles.positionNumber}>
+                      <View
+                        style={[
+                          styles.positionReadout,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.positionNumber,
+                            { color: colors.textPrimary },
+                          ]}
+                        >
                           {orderPosition}
                         </Text>
-                        <Text style={styles.positionHint}>
+                        <Text
+                          style={[
+                            styles.positionHint,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
                           {t("collections.positionOf", {
                             count: maxOrderPosition,
                           })}
@@ -741,6 +840,7 @@ export default function CollectionsScreen() {
                         }
                         style={[
                           styles.positionButton,
+                          { backgroundColor: colors.surfaceMuted },
                           orderPosition >= maxOrderPosition
                             ? styles.disabledButton
                             : null,
@@ -748,7 +848,7 @@ export default function CollectionsScreen() {
                       >
                         <MaterialCommunityIcons
                           name="plus"
-                          color="#0f172a"
+                          color={colors.textPrimary}
                           size={20}
                         />
                       </Pressable>
@@ -759,9 +859,17 @@ export default function CollectionsScreen() {
                   <Pressable
                     disabled={saving}
                     onPress={closeFormModal}
-                    style={styles.secondaryButton}
+                    style={[
+                      styles.secondaryButton,
+                      { borderColor: colors.border },
+                    ]}
                   >
-                    <Text style={styles.secondaryButtonText}>
+                    <Text
+                      style={[
+                        styles.secondaryButtonText,
+                        { color: colors.textPrimary },
+                      ]}
+                    >
                       {t("collections.cancel")}
                     </Text>
                   </Pressable>
@@ -770,10 +878,16 @@ export default function CollectionsScreen() {
                     onPress={() => void saveCollection()}
                     style={[
                       styles.primaryButton,
+                      { backgroundColor: colors.primary },
                       saving || !name.trim() ? styles.disabledButton : null,
                     ]}
                   >
-                    <Text style={styles.primaryButtonText}>
+                    <Text
+                      style={[
+                        styles.primaryButtonText,
+                        { color: colors.onPrimary },
+                      ]}
+                    >
                       {saving
                         ? t("collections.saving")
                         : modalMode === "edit"
@@ -798,17 +912,21 @@ export default function CollectionsScreen() {
           style={styles.menuOverlay}
           onPress={() => setMenuCollection(null)}
         >
-          <View style={styles.menuContent}>
+          <View
+            style={[styles.menuContent, { backgroundColor: colors.surface }]}
+          >
             <Pressable
               onPress={() => menuCollection && openEditModal(menuCollection)}
               style={styles.menuItem}
             >
               <MaterialCommunityIcons
                 name="pencil-outline"
-                color="#0f172a"
+                color={colors.textPrimary}
                 size={20}
               />
-              <Text style={styles.menuText}>{t("collections.edit")}</Text>
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>
+                {t("collections.edit")}
+              </Text>
             </Pressable>
             <Pressable
               onPress={() => menuCollection && confirmDelete(menuCollection)}
@@ -816,10 +934,10 @@ export default function CollectionsScreen() {
             >
               <MaterialCommunityIcons
                 name="trash-can-outline"
-                color="#dc2626"
+                color={colors.error}
                 size={20}
               />
-              <Text style={[styles.menuText, styles.deleteText]}>
+              <Text style={[styles.menuText, { color: colors.error }]}>
                 {t("collections.delete")}
               </Text>
             </Pressable>
@@ -840,28 +958,25 @@ const styles = StyleSheet.create({
   },
   collectionName: {
     color: "#0f172a",
-    flex: 1,
     fontSize: 16,
     fontWeight: "800",
+    minWidth: 0,
   },
   collectionPlate: {
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#d7dee8",
-    borderRadius: 8,
-    borderWidth: 1,
-    elevation: 2,
+    borderRadius: 0,
+    borderWidth: 0,
     flexDirection: "row",
     gap: 10,
-    minHeight: 96,
-    padding: 12,
-    shadowColor: "#0f172a",
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    marginTop: 2,
+    marginBottom: 2,
+    minHeight: 72,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   collectionPlateDragging: {
     borderColor: "#007aff",
+    borderWidth: 1,
     opacity: 0.86,
   },
   collectionPlateTarget: {
@@ -869,16 +984,43 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   collectionText: {
-    flex: 1,
-    gap: 4,
-  },
-  collectionTitleRow: {
     alignItems: "center",
+    flex: 1,
     flexDirection: "row",
-    gap: 8,
+    gap: 10,
+    minWidth: 0,
+  },
+  collectionNumberBlock: {
+    alignItems: "center",
+    borderRadius: 8,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
+  },
+  collectionNumber: {
+    color: "#64748b",
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "900",
+  },
+  collectionIdentity: {
+    flex: 1,
+    gap: 3,
+    minWidth: 0,
+  },
+  collectionStats: {
+    alignItems: "flex-start",
+    flex: 1,
+    minWidth: 0,
+  },
+  collectionValue: {
+    color: "#0f172a",
+    fontSize: 14,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "900",
   },
   container: {
-    gap: 12,
+    gap: 0,
     padding: 20,
   },
   deleteText: {
@@ -1006,16 +1148,6 @@ const styles = StyleSheet.create({
   mutedText: {
     color: "#666666",
     fontSize: 13,
-  },
-  orderChip: {
-    backgroundColor: "#e2e8f0",
-    borderRadius: 999,
-    color: "#334155",
-    fontSize: 12,
-    fontWeight: "800",
-    overflow: "hidden",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
   },
   positionButton: {
     alignItems: "center",

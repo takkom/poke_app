@@ -56,7 +56,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="collections"
         options={{
-          title: "Collections",
+          title: t("tabs.collections"),
           tabBarLabel: t("tabs.collections"),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons
