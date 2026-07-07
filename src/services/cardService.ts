@@ -1,7 +1,9 @@
 import axios from "axios";
+import { XMON_API_URL } from "../config";
 import { CardWithPricing, PokemonCard, PriceHistoryPoint } from "../types/card";
 
 const API_BASE_URL = "https://api.tcgdex.net/v2/en";
+const LOCAL_API_BASE_URL = XMON_API_URL;
 
 interface TCGdexCard {
   id: string;

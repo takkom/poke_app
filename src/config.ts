@@ -1,2 +1,9 @@
-export const XMON_API_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://10.0.2.2:3000";
+const DEFAULT_XMON_API_URL = "https://xmon-api-production.up.railway.app";
+
+function normalizeApiUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+export const XMON_API_URL = normalizeApiUrl(
+  process.env.EXPO_PUBLIC_API_URL || DEFAULT_XMON_API_URL,
+);
