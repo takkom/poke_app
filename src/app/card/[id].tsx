@@ -111,7 +111,7 @@ function VariantSelector({
                 styles.variantButtonText,
                 { color: colors.textSecondary },
                 selectedVariant && styles.variantButtonTextSelected,
-                selectedVariant && { color: colors.textPrimary },
+                selectedVariant && { color: colors.onPrimary },
               ]}
             >
               {variant.label}
@@ -352,7 +352,7 @@ export default function CardDetailScreen() {
         </View>
 
         <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
-          <Text style={[styles.cardName, { color: themeColors.textPrimary }]}>{displayName}</Text>
+          <Text style={[styles.cardName, { color: themeColors.primary }]}>{displayName}</Text>
           {marketBadges.length ? (
             <View style={styles.marketBadgeRow}>
               {marketBadges.map((badge) => (
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   variantButtonTextSelected: {
-    color: colors.textPrimary,
+    color: colors.onPrimary,
   },
   priceRow: {
     alignItems: "center",

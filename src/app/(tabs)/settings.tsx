@@ -147,7 +147,7 @@ export default function SettingsTab() {
                   selected && { backgroundColor: colors.primary, borderColor: colors.primary },
                 ]}
               >
-                <Text style={[styles.segmentText, { color: selected ? '#ffffff' : colors.textSecondary }]}>
+                <Text style={[styles.segmentText, { color: selected ? colors.onPrimary : colors.textSecondary }]}>
                   {t(option.labelKey)}
                 </Text>
               </TouchableOpacity>
@@ -177,10 +177,10 @@ export default function SettingsTab() {
                   selected && { backgroundColor: colors.primary, borderColor: colors.primary },
                 ]}
               >
-                <Text style={[styles.segmentText, { color: selected ? '#ffffff' : colors.textSecondary }]}>
+                <Text style={[styles.segmentText, { color: selected ? colors.onPrimary : colors.textSecondary }]}>
                   {t(option.labelKey)}
                 </Text>
-                <Text style={[styles.segmentMeta, { color: selected ? '#ffffff' : colors.textMuted }]}>
+                <Text style={[styles.segmentMeta, { color: selected ? colors.onPrimary : colors.textMuted }]}>
                   {option.meta}
                 </Text>
               </TouchableOpacity>
@@ -249,12 +249,15 @@ export default function SettingsTab() {
               <Pressable
                 disabled={isSavingUsername}
                 onPress={() => void saveUsername()}
-                style={[styles.modalButton, styles.primaryButton]}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
               >
                 {isSavingUsername ? (
-                  <ActivityIndicator color="#ffffff" />
+                  <ActivityIndicator color={colors.onPrimary} />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Save</Text>
+                  <Text style={[styles.primaryButtonText, { color: colors.onPrimary }]}>Save</Text>
                 )}
               </Pressable>
             </View>
@@ -348,12 +351,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
   },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
   primaryButtonText: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '900',
   },

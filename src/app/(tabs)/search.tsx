@@ -339,12 +339,12 @@ function TcgDexTestSearch() {
               onPress={() => setSelectedCard(null)}
               style={[styles.closeButton, { backgroundColor: colors.primary }]}
             >
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text style={[styles.closeButtonText, { color: colors.onPrimary }]}>Close</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
-      <Text style={[styles.testTitle, { color: colors.textPrimary }]}>TCGdex test search</Text>
+      <Text style={[styles.testTitle, { color: colors.primary }]}>TCGdex test search</Text>
       <View style={styles.languageSelector}>
         {tcgDexLanguageOptions.map((option) => {
           const selected = option.value === testLanguage;
@@ -367,7 +367,7 @@ function TcgDexTestSearch() {
               <Text
                 style={[
                   styles.languageButtonText,
-                  { color: selected ? '#ffffff' : colors.textSecondary },
+                  { color: selected ? colors.onPrimary : colors.textSecondary },
                 ]}
               >
                 {option.label}
@@ -397,7 +397,7 @@ function TcgDexTestSearch() {
           onPress={performTestSearch}
           style={[styles.submitButton, { backgroundColor: colors.primary }]}
         >
-          <Text style={styles.submitText}>Submit</Text>
+          <Text style={[styles.submitText, { color: colors.onPrimary }]}>Submit</Text>
         </TouchableOpacity>
       </View>
 
@@ -427,7 +427,7 @@ function TcgDexTestSearch() {
                   transition={120}
                 />
                 <View style={styles.testResultBody}>
-                  <Text style={[styles.testResultName, { color: colors.textPrimary }]} numberOfLines={2}>
+                  <Text style={[styles.testResultName, { color: colors.primary }]} numberOfLines={2}>
                     {item.name}
                   </Text>
                   <Text style={[styles.testResultMeta, { color: colors.textSecondary }]}>
@@ -489,7 +489,7 @@ export default function SearchTab() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <View>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('search.title')}</Text>
+          <Text style={[styles.headerTitle, { color: colors.primary }]}>{t('search.title')}</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             {t('search.subtitle')}
           </Text>
@@ -540,7 +540,7 @@ export default function SearchTab() {
               onPress={() => setInfoVisible(false)}
               style={[styles.closeButton, { backgroundColor: colors.primary }]}
             >
-              <Text style={styles.closeButtonText}>{t('search.close')}</Text>
+              <Text style={[styles.closeButtonText, { color: colors.onPrimary }]}>{t('search.close')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -567,7 +567,7 @@ export default function SearchTab() {
           onPress={performSearch}
           style={[styles.submitButton, { backgroundColor: colors.primary }]}
         >
-          <Text style={styles.submitText}>{t('search.submit')}</Text>
+          <Text style={[styles.submitText, { color: colors.onPrimary }]}>{t('search.submit')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -672,7 +672,7 @@ export default function SearchTab() {
                   transition={120}
                 />
                 <View style={styles.cardBody}>
-                  <Text style={[styles.cardName, { color: colors.textPrimary }]} numberOfLines={2}>
+                  <Text style={[styles.cardName, { color: colors.primary }]} numberOfLines={2}>
                     {displayName}
                   </Text>
                   <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>
@@ -842,7 +842,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeButtonText: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '900',
   },
@@ -862,7 +861,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   submitText: {
-    color: '#ffffff',
     fontSize: 13,
     fontWeight: '800',
   },

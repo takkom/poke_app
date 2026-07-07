@@ -348,7 +348,7 @@ export default function CollectionDetailScreen() {
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <View style={styles.titleText}>
-                <Text style={[styles.title, { color: colors.textPrimary }]}>
+                <Text style={[styles.title, { color: colors.primary }]}>
                   {collection?.name ?? t("collections.collection")}
                 </Text>
                 <Text style={[styles.total, { color: colors.textSecondary }]}>
@@ -362,7 +362,7 @@ export default function CollectionDetailScreen() {
                 onPress={() => router.push(`/collections/${collectionId}/add`)}
                 style={[styles.addButton, { backgroundColor: colors.primary }]}
               >
-                <MaterialCommunityIcons name="plus" color="#ffffff" size={22} />
+                <MaterialCommunityIcons name="plus" color={colors.onPrimary} size={22} />
               </Pressable>
             </View>
             {error ? (
@@ -410,7 +410,7 @@ export default function CollectionDetailScreen() {
               </View>
             )}
             <View style={styles.cardText}>
-              <Text style={[styles.cardName, { color: colors.textPrimary }]}>
+              <Text style={[styles.cardName, { color: colors.primary }]}>
                 {item.pokemon_name ?? t("collections.unknownCard")}
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
@@ -499,7 +499,7 @@ export default function CollectionDetailScreen() {
               style={[styles.modalContent, { backgroundColor: colors.surface }]}
             >
               <Text
-                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                style={[styles.sectionTitle, { color: colors.primary }]}
               >
                 {t("collections.editPrice")}
               </Text>
@@ -564,7 +564,7 @@ export default function CollectionDetailScreen() {
               style={[styles.modalContent, { backgroundColor: colors.surface }]}
             >
               <Text
-                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                style={[styles.sectionTitle, { color: colors.primary }]}
               >
                 {t("collections.removeCard")}
               </Text>

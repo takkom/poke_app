@@ -84,7 +84,7 @@ export const CardListItem: React.FC<CardListItemProps> = ({ card, onPress }) => 
         </View>
       )}
       <View style={styles.content}>
-        <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={2}>
+        <Text style={[styles.name, { color: colors.primary }]} numberOfLines={2}>
           {displayName}
         </Text>
         <Text style={[styles.number, { color: colors.textSecondary }]}>#{card.number}</Text>

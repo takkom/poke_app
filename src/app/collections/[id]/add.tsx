@@ -259,7 +259,7 @@ export default function AddCollectionCardScreen() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>
+            <Text style={[styles.title, { color: colors.primary }]}>
               {t("collections.addCard")}
             </Text>
             <View style={styles.searchRow}>
@@ -291,11 +291,11 @@ export default function AddCollectionCardScreen() {
                 ]}
               >
                 {searching ? (
-                  <ActivityIndicator color="#ffffff" />
+                  <ActivityIndicator color={colors.onPrimary} />
                 ) : (
                   <MaterialCommunityIcons
                     name="magnify"
-                    color="#ffffff"
+                    color={colors.onPrimary}
                     size={22}
                   />
                 )}
@@ -313,11 +313,11 @@ export default function AddCollectionCardScreen() {
                 ]}
               >
                 <Text
-                  style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                  style={[styles.sectionTitle, { color: colors.primary }]}
                 >
                   {t("collections.selected")}
                 </Text>
-                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
+                <Text style={[styles.cardName, { color: colors.primary }]}>
                   {selectedCard.name ?? t("collections.unknownCard")}
                 </Text>
                 <Text
@@ -360,7 +360,7 @@ export default function AddCollectionCardScreen() {
                     },
                   ]}
                 >
-                  <Text style={styles.saveButtonText}>
+                  <Text style={[styles.saveButtonText, { color: colors.onPrimary }]}>
                     {saving
                       ? t("collections.adding")
                       : t("collections.addToCollection")}
@@ -417,7 +417,7 @@ export default function AddCollectionCardScreen() {
                 </View>
               )}
               <View style={styles.resultText}>
-                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
+                <Text style={[styles.cardName, { color: colors.primary }]}>
                   {item.name ?? t("collections.unknownCard")}
                 </Text>
                 <Text
@@ -511,7 +511,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   saveButtonText: {
-    color: "#ffffff",
     fontSize: 15,
     fontWeight: "800",
   },

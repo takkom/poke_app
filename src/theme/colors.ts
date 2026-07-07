@@ -5,11 +5,12 @@ const marketplaceColors = {
 } as const;
 
 export const darkColors = {
-  primary: '#3b82f6',
-  background: '#0f172a',
-  surface: '#1e293b',
-  surfaceMuted: '#263449',
-  border: '#334155',
+  primary: '#FFBB00',
+  onPrimary: '#040404',
+  background: '#040404',
+  surface: '#111111',
+  surfaceMuted: '#1f1f1f',
+  border: '#2a2a2a',
   textPrimary: '#ffffff',
   textSecondary: '#94a3b8',
   textMuted: '#64748b',
@@ -20,6 +21,7 @@ export const darkColors = {
 
 export const lightColors = {
   primary: '#007aff',
+  onPrimary: '#ffffff',
   background: '#f8fafc',
   surface: '#ffffff',
   surfaceMuted: '#e2e8f0',

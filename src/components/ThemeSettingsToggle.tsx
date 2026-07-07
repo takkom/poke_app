@@ -55,7 +55,7 @@ export function ThemeSettingsToggle() {
               <Text
                 style={[
                   styles.segmentText,
-                  { color: selected ? '#ffffff' : colors.textSecondary },
+                  { color: selected ? colors.onPrimary : colors.textSecondary },
                 ]}
               >
                 {option.label}
