@@ -2,10 +2,8 @@ import { TermsOfServiceModal } from '@/components/TermsOfServiceModal';
 import { useAuth } from '@/context/AuthContext';
 import { AppLocale, ThemePreference, useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
-import Constants from 'expo-constants';
+import { APP_VERSION } from '@/constants/version';
 import { useEffect, useState } from 'react';
-
-const appVersion = Constants.expoConfig?.version ?? '0.0.2';
 import {
   ActivityIndicator,
   Alert,
@@ -219,7 +217,7 @@ export default function SettingsTab() {
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.versionText, { color: colors.textMuted }]}>v{appVersion}</Text>
+      <Text style={[styles.versionText, { color: colors.textMuted }]}>v{APP_VERSION}</Text>
 
       <TermsOfServiceModal
         onClose={() => setIsTermsVisible(false)}

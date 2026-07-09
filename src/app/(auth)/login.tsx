@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-import Constants from "expo-constants";
+import { APP_VERSION } from "@/constants/version";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
@@ -11,8 +11,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -63,7 +61,7 @@ export default function LoginScreen() {
       <Link href="/(auth)/forgot-password" style={styles.link}>
         Forgot password?
       </Link>
-      <Text style={styles.version}>v{appVersion}</Text>
+      <Text style={styles.version}>v{APP_VERSION}</Text>
     </View>
   );
 }
