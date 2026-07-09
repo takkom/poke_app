@@ -2,7 +2,7 @@
   "expo": {
     "name": "pokemon-tcg-app",
     "slug": "pokemon-tcg-app",
-    "version": "1.0.0",
+    "version": "0.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pokemontcgapp",
@@ -49,9 +49,7 @@
         "projectId": "ef2c3d75-b5b6-44ea-b1a6-cd92833c8e38"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1",
     "updates": {
       "url": "https://u.expo.dev/ef2c3d75-b5b6-44ea-b1a6-cd92833c8e38"
     }

@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import Constants from "expo-constants";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
@@ -10,6 +11,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -60,6 +63,7 @@ export default function LoginScreen() {
       <Link href="/(auth)/forgot-password" style={styles.link}>
         Forgot password?
       </Link>
+      <Text style={styles.version}>v{appVersion}</Text>
     </View>
   );
 }
@@ -85,5 +89,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     marginBottom: 8,
+  },
+  version: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    marginTop: 16,
+    textAlign: 'center',
   },
 });
