@@ -1,6 +1,7 @@
+import { XMON_API_URL } from '@/config';
 import { useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
-import { searchCard } from '@/services/cardService';
+import { searchCard, searchBox, type BoosterBoxBlueprint } from '@/services/cardService';
 import { CardPricing, PokemonCard } from '@/types/card';
 import { getDisplayCardName } from '@/utils/displayNames';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -448,21 +449,34 @@ function TcgDexTestSearch() {
   );
 }
 
+type SearchItemType = 'card' | 'box';
+
 export default function SearchTab() {
   const router = useRouter();
   const { colors, searchMode, locale } = useThemeManager();
   const { t } = useI18n();
   const [query, setQuery] = useState('');
+  const [itemType, setItemType] = useState<SearchItemType>('card');
   const [results, setResults] = useState<PokemonCard[]>([]);
+  const [boxResults, setBoxResults] = useState<BoosterBoxBlueprint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoVisible, setInfoVisible] = useState(false);
   const hasQuery = Boolean(query.trim());
 
+  function changeItemType(next: SearchItemType) {
+    if (next === itemType) return;
+    setItemType(next);
+    setResults([]);
+    setBoxResults([]);
+    setError(null);
+  }
+
   async function performSearch() {
     const currentQuery = query.trim();
     if (!currentQuery) {
       setResults([]);
+      setBoxResults([]);
       setError(null);
       return;
     }
@@ -471,15 +485,23 @@ export default function SearchTab() {
     setError(null);
 
     try {
-      const nextResults =
-        searchMode === 'local'
-          ? await searchCard(currentQuery)
-          : await searchTcgDex(currentQuery);
-      setResults(nextResults);
+      if (searchMode === 'local' && itemType === 'box') {
+        const nextBoxResults = await searchBox(currentQuery);
+        setBoxResults(nextBoxResults);
+        setResults([]);
+      } else {
+        const nextResults =
+          searchMode === 'local'
+            ? await searchCard(currentQuery)
+            : await searchTcgDex(currentQuery);
+        setResults(nextResults);
+        setBoxResults([]);
+      }
     } catch (searchError) {
       console.error(searchError);
       setError(t('search.failed'));
       setResults([]);
+      setBoxResults([]);
     } finally {
       setLoading(false);
     }
@@ -546,12 +568,48 @@ export default function SearchTab() {
         </Pressable>
       </Modal>
 
+      {searchMode === 'local' ? (
+        <View
+          style={[
+            styles.typeToggle,
+            { backgroundColor: colors.surfaceAlternate, borderColor: colors.border },
+          ]}
+        >
+          {(['card', 'box'] as const).map((type) => {
+            const active = itemType === type;
+            return (
+              <TouchableOpacity
+                key={type}
+                onPress={() => changeItemType(type)}
+                style={[
+                  styles.typeToggleButton,
+                  active ? { backgroundColor: colors.primary } : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.typeToggleText,
+                    { color: active ? colors.onPrimary : colors.textSecondary },
+                  ]}
+                >
+                  {type === 'box' ? t('collections.itemTypeBox') : t('collections.itemTypeCard')}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
+
       <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <TextInput
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={performSearch}
-          placeholder={t('search.placeholder')}
+          placeholder={
+            searchMode === 'local' && itemType === 'box'
+              ? t('collections.searchBoxPlaceholder')
+              : t('search.placeholder')
+          }
           placeholderTextColor={colors.textMuted}
           returnKeyType="search"
           style={[
@@ -592,7 +650,77 @@ export default function SearchTab() {
           <View style={styles.state}>
             <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           </View>
-        ) : hasQuery && results.length === 0 ? (
+        ) : hasQuery && searchMode === 'local' && itemType === 'box' && boxResults.length === 0 && !loading ? (
+          <View style={styles.state}>
+            <Text style={styles.emptyIcon}>📦</Text>
+            <Text style={[styles.stateText, { color: colors.textSecondary }]}>{t('collections.noMatchingBoxes')}</Text>
+          </View>
+        ) : hasQuery && searchMode === 'local' && itemType === 'box' && boxResults.length > 0 ? (
+          <FlatList
+            data={boxResults}
+            keyExtractor={(item, i) => item.canonical_id ?? item.id ?? String(i)}
+            contentContainerStyle={styles.listContent}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            removeClippedSubviews
+            windowSize={7}
+            renderItem={({ item }) => {
+              const rawUrl = item.image_url ?? undefined;
+              const image = rawUrl
+                ? rawUrl.startsWith('/') ? `${XMON_API_URL}${rawUrl}` : rawUrl
+                : undefined;
+              const name = item.display_name ?? item.name ?? t('collections.unknownBox');
+              const meta = [item.set_name, item.set_code].filter(Boolean).join(' · ');
+              const boxNavId = item.canonical_id ?? item.id;
+              return (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.cardRow,
+                    { backgroundColor: pressed ? colors.surfaceMuted : colors.surface, borderColor: colors.border },
+                  ]}
+                  onPress={boxNavId ? () => router.push(`/box/${boxNavId}`) : undefined}
+                >
+                  {image ? (
+                    <Image
+                      source={image}
+                      style={[styles.cardImage, { backgroundColor: colors.surfaceMuted }]}
+                      contentFit="cover"
+                      transition={120}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.cardImage,
+                        styles.boxImageFallback,
+                        { backgroundColor: colors.surfaceMuted },
+                      ]}
+                    >
+                      <MaterialCommunityIcons name="package-variant" color={colors.textSecondary} size={32} />
+                    </View>
+                  )}
+                  <View style={styles.cardBody}>
+                    <Text style={[styles.cardName, { color: colors.primary }]} numberOfLines={2}>
+                      {name}
+                    </Text>
+                    {meta ? (
+                      <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>{meta}</Text>
+                    ) : null}
+                    <Text style={[styles.cardMeta, { color: colors.textMuted }]}>{t('collections.boosterBox')}</Text>
+                    {typeof item.avgPrice === 'number' ? (
+                      <Text style={[styles.rarity, { color: colors.primary }]}>
+                        {new Intl.NumberFormat(locale, {
+                          currency: item.displayCurrency ?? 'USD',
+                          maximumFractionDigits: item.displayCurrency === 'KRW' ? 0 : 2,
+                          style: 'currency',
+                        }).format(item.avgPrice)}
+                      </Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            }}
+          />
+        ) : hasQuery && results.length === 0 && !loading ? (
           <View style={styles.state}>
             <Text style={styles.emptyIcon}>🔍</Text>
             <Text style={[styles.stateText, { color: colors.textSecondary }]}>{t('search.noCards')}</Text>
@@ -732,8 +860,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginHorizontal: 16,
-    marginTop: 14,
+    marginTop: 10,
     padding: 10,
+  },
+  typeToggle: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 4,
+  },
+  typeToggleButton: {
+    alignItems: 'center',
+    borderRadius: 6,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 36,
+    paddingHorizontal: 10,
+  },
+  typeToggleText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  boxImageFallback: {
+    alignItems: 'center',
+    borderRadius: 6,
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',

@@ -44,8 +44,12 @@ type Collection = {
   card_count?: number | string | null;
 };
 
+type CollectionItemType = "card" | "box" | "booster_box";
+
 type CollectionCard = {
   id: string | number;
+  item_type?: CollectionItemType | string | null;
+  box_canonical_id?: string | null;
   pokemon_name?: string | null;
   card_number?: string | null;
   language?: string | null;
@@ -57,6 +61,26 @@ type CollectionCard = {
   display_currency?: DisplayCurrency | string | null;
   sold_at?: string | null;
 };
+
+function isBoxItem(item: CollectionCard): boolean {
+  return item.item_type === "box" || item.item_type === "booster_box";
+}
+
+function itemMetaLine(
+  item: CollectionCard,
+  labels: { boosterBox: string; unknown: string },
+): string {
+  if (isBoxItem(item)) {
+    const parts = [labels.boosterBox, item.set_name, item.language].filter(
+      Boolean,
+    );
+    return parts.join(" | ");
+  }
+
+  return `#${item.card_number ?? "-"} | ${item.language ?? labels.unknown}${
+    item.rarity ? ` | ${item.rarity}` : ""
+  }`;
+}
 
 type CollectionDetailResponse = {
   collection: Collection;
@@ -127,6 +151,7 @@ export default function CollectionDetailScreen() {
   const { locale, t } = useI18n();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [cards, setCards] = useState<CollectionCard[]>([]);
+  const [itemFilter, setItemFilter] = useState<"all" | "card" | "box">("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuCard, setMenuCard] = useState<CollectionCard | null>(null);
@@ -140,6 +165,12 @@ export default function CollectionDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const editedPriceInputRef = useRef<TextInput>(null);
   const soldPriceInputRef = useRef<TextInput>(null);
+
+  const visibleCards = useMemo(() => {
+    if (itemFilter === "all") return cards;
+    if (itemFilter === "box") return cards.filter(isBoxItem);
+    return cards.filter((c) => !isBoxItem(c));
+  }, [cards, itemFilter]);
 
   const total = useMemo(
     () =>
@@ -342,7 +373,7 @@ export default function CollectionDetailScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <FlatList
         contentContainerStyle={styles.container}
-        data={cards}
+        data={visibleCards}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={
           <View style={styles.header}>
@@ -352,8 +383,8 @@ export default function CollectionDetailScreen() {
                   {collection?.name ?? t("collections.collection")}
                 </Text>
                 <Text style={[styles.total, { color: colors.textSecondary }]}>
-                  {t("collections.cardValueSummary", {
-                    cards: cards.length,
+                  {t("collections.itemValueSummary", {
+                    items: cards.length,
                     value: formatMoney(total, locale, displayCurrency),
                   })}
                 </Text>
@@ -365,6 +396,50 @@ export default function CollectionDetailScreen() {
                 <MaterialCommunityIcons name="plus" color={colors.onPrimary} size={22} />
               </Pressable>
             </View>
+              {cards.length > 0 ? (
+                <View
+                  style={[
+                    styles.filterToggle,
+                    {
+                      backgroundColor: colors.surfaceAlternate,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  {(["all", "card", "box"] as const).map((f) => {
+                    const active = itemFilter === f;
+                    const label =
+                      f === "all"
+                        ? t("collections.filterAll")
+                        : f === "box"
+                          ? t("collections.itemTypeBox")
+                          : t("collections.itemTypeCard");
+                    return (
+                      <Pressable
+                        key={f}
+                        onPress={() => setItemFilter(f)}
+                        style={[
+                          styles.filterToggleButton,
+                          active ? { backgroundColor: colors.primary } : null,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.filterToggleText,
+                            {
+                              color: active
+                                ? colors.onPrimary
+                                : colors.textSecondary,
+                            },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
             {error ? (
               <Text style={[styles.errorText, { color: colors.error }]}>
                 {error}
@@ -374,7 +449,11 @@ export default function CollectionDetailScreen() {
         }
         ListEmptyComponent={
           <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-            {t("collections.emptyCards")}
+            {itemFilter === "box"
+              ? t("collections.emptyFilterBoxes")
+              : itemFilter === "card"
+                ? t("collections.emptyFilterCards")
+                : t("collections.emptyItems")}
           </Text>
         }
         refreshControl={
@@ -397,17 +476,23 @@ export default function CollectionDetailScreen() {
             {item.image_url ? (
               <Image
                 source={{ uri: item.image_url }}
-                style={styles.thumbnail}
+                style={
+                  isBoxItem(item) ? styles.boxThumbnail : styles.thumbnail
+                }
               />
             ) : (
               <View
                 style={[
-                  styles.thumbnailFallback,
+                  isBoxItem(item)
+                    ? styles.boxThumbnailFallback
+                    : styles.thumbnailFallback,
                   { backgroundColor: colors.surfaceMuted },
                 ]}
               >
                 <MaterialCommunityIcons
-                  name="cards-outline"
+                  name={
+                    isBoxItem(item) ? "package-variant" : "cards-outline"
+                  }
                   color={colors.textSecondary}
                   size={24}
                 />
@@ -415,14 +500,18 @@ export default function CollectionDetailScreen() {
             )}
             <View style={styles.cardText}>
               <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                {item.pokemon_name ?? t("collections.unknownCard")}
+                {item.pokemon_name ??
+                  (isBoxItem(item)
+                    ? t("collections.unknownBox")
+                    : t("collections.unknownCard"))}
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                #{item.card_number ?? "-"} |{" "}
-                {item.language ?? t("collections.unknown")}
-                {item.rarity ? ` | ${item.rarity}` : ""}
+                {itemMetaLine(item, {
+                  boosterBox: t("collections.boosterBox"),
+                  unknown: t("collections.unknown"),
+                })}
               </Text>
-              {item.set_name ? (
+              {item.set_name && !isBoxItem(item) ? (
                 <Text
                   style={[styles.mutedText, { color: colors.textSecondary }]}
                 >
@@ -509,7 +598,9 @@ export default function CollectionDetailScreen() {
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
                 {editingPriceCard?.pokemon_name ??
-                  t("collections.collectionCard")}
+                  (editingPriceCard && isBoxItem(editingPriceCard)
+                    ? t("collections.collectionBox")
+                    : t("collections.collectionCard"))}
               </Text>
               <TextInput
                 autoFocus
@@ -570,10 +661,14 @@ export default function CollectionDetailScreen() {
               <Text
                 style={[styles.sectionTitle, { color: colors.textPrimary }]}
               >
-                {t("collections.removeCard")}
+                {removingCard && isBoxItem(removingCard)
+                  ? t("collections.removeItem")
+                  : t("collections.removeCard")}
               </Text>
               <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                {t("collections.removeCardHelp")}
+                {removingCard && isBoxItem(removingCard)
+                  ? t("collections.removeItemHelp")
+                  : t("collections.removeCardHelp")}
               </Text>
               <TextInput
                 autoFocus
@@ -659,6 +754,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+  filterToggle: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    padding: 4,
+  },
+  filterToggleButton: {
+    alignItems: "center",
+    borderRadius: 6,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 34,
+    paddingHorizontal: 10,
+  },
+  filterToggleText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
   header: {
     gap: 12,
     marginBottom: 4,
@@ -731,6 +844,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
+  },
+  boxThumbnail: {
+    borderRadius: 6,
+    height: 76,
+    resizeMode: "cover",
+    width: 76,
+  },
+  boxThumbnailFallback: {
+    alignItems: "center",
+    borderRadius: 6,
+    height: 76,
+    justifyContent: "center",
+    width: 76,
   },
   thumbnail: {
     borderRadius: 6,

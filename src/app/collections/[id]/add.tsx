@@ -22,15 +22,20 @@ type AuthState = {
   authToken?: string | null;
 };
 
+type SearchItemType = "card" | "box";
+
 type SearchCandidate = {
   id?: string;
   canonical_id?: string | null;
   tcgdex_id?: string | null;
   name?: string | null;
+  display_name?: string | null;
   local_id?: string | null;
   card_code?: string | null;
   language?: string | null;
   set_id?: string | null;
+  set_name?: string | null;
+  set_code?: string | null;
   rarity?: string | null;
   image_url?: string | null;
   projected_image_asset_path?: string | null;
@@ -39,13 +44,19 @@ type SearchCandidate = {
 };
 
 type SearchResponse = {
-  status: "matched" | "review" | "unresolved" | "manual_override";
+  status?: "matched" | "review" | "unresolved" | "manual_override";
+  item_type?: SearchItemType;
   card?: SearchCandidate | null;
+  box?: SearchCandidate | null;
   candidates?: SearchCandidate[];
 };
 
 function getAuthToken(auth: AuthState): string | null {
   return auth.accessToken ?? auth.authToken ?? auth.token ?? null;
+}
+
+function candidateName(item: SearchCandidate): string | null {
+  return item.display_name ?? item.name ?? null;
 }
 
 function cardNumber(card: SearchCandidate): string {
@@ -59,15 +70,14 @@ function cardNumber(card: SearchCandidate): string {
   return card.local_id ?? card.card_code ?? "-";
 }
 
-function cardIdentity(card: SearchCandidate): string {
-  return card.canonical_id ?? card.id ?? card.tcgdex_id ?? "";
+function itemIdentity(item: SearchCandidate): string {
+  return item.canonical_id ?? item.id ?? item.tcgdex_id ?? "";
 }
 
-function cardImage(card: SearchCandidate): string | null {
-  const image = card.image_url ?? card.projected_image_asset_path ?? null;
-  if (!image || image.startsWith("/")) {
-    return null;
-  }
+function itemImage(item: SearchCandidate): string | null {
+  const image = item.image_url ?? item.projected_image_asset_path ?? null;
+  if (!image) return null;
+  if (image.startsWith("/")) return `${XMON_API_URL}${image}`;
   return image;
 }
 
@@ -81,6 +91,24 @@ function formatMoney(
     maximumFractionDigits: currency === "KRW" ? 0 : 2,
     style: "currency",
   }).format(value);
+}
+
+function boxMetaLine(item: SearchCandidate, unknownLabel: string): string {
+  const parts = [
+    item.set_name,
+    item.set_code,
+    item.language,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" | ") : unknownLabel;
+}
+
+function cardMetaLine(
+  item: SearchCandidate,
+  unknownLabel: string,
+): string {
+  return `#${cardNumber(item)} | ${item.language ?? unknownLabel}${
+    item.rarity ? ` | ${item.rarity}` : ""
+  }`;
 }
 
 async function requestJson<T>(
@@ -120,9 +148,10 @@ export default function AddCollectionCardScreen() {
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
+  const [itemType, setItemType] = useState<SearchItemType>("card");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<SearchCandidate[]>([]);
-  const [selectedCard, setSelectedCard] = useState<SearchCandidate | null>(
+  const [selectedItem, setSelectedItem] = useState<SearchCandidate | null>(
     null,
   );
   const [price, setPrice] = useState("");
@@ -132,21 +161,36 @@ export default function AddCollectionCardScreen() {
 
   const selectedDefaultPrice = useMemo(
     () =>
-      typeof selectedCard?.avgPrice === "number"
+      typeof selectedItem?.avgPrice === "number"
         ? formatMoney(
-            selectedCard.avgPrice,
-            selectedCard.displayCurrency ?? displayCurrency,
+            selectedItem.avgPrice,
+            selectedItem.displayCurrency ?? displayCurrency,
             locale,
           )
         : null,
-    [displayCurrency, locale, selectedCard],
+    [displayCurrency, locale, selectedItem],
   );
 
-  function selectCard(card: SearchCandidate) {
-    setSelectedCard(card);
+  function resetResults() {
+    setSelectedItem(null);
+    setCandidates([]);
+    setPrice("");
+    setMessage(null);
+  }
+
+  function changeItemType(next: SearchItemType) {
+    if (next === itemType) {
+      return;
+    }
+    setItemType(next);
+    resetResults();
+  }
+
+  function selectItem(item: SearchCandidate) {
+    setSelectedItem(item);
     setPrice(
-      typeof card.avgPrice === "number"
-        ? String(Math.floor(card.avgPrice))
+      typeof item.avgPrice === "number"
+        ? String(Math.floor(item.avgPrice))
         : "",
     );
     setMessage(null);
@@ -159,7 +203,7 @@ export default function AddCollectionCardScreen() {
 
     setSearching(true);
     setMessage(null);
-    setSelectedCard(null);
+    setSelectedItem(null);
     setCandidates([]);
 
     try {
@@ -169,27 +213,36 @@ export default function AddCollectionCardScreen() {
         {
           body: JSON.stringify({
             display_currency: displayCurrency,
+            item_type: itemType,
             query: query.trim(),
           }),
           method: "POST",
         },
       );
+      const bestMatch =
+        itemType === "box" ? (body.box ?? null) : (body.card ?? null);
       const nextCandidates = body.candidates ?? [];
 
       if (
-        (body.status === "matched" || body.status === "manual_override") &&
-        body.card
+        (body.status === "matched" ||
+          body.status === "manual_override" ||
+          (!body.status && bestMatch)) &&
+        bestMatch
       ) {
-        setCandidates([body.card]);
-        selectCard(body.card);
+        setCandidates([bestMatch]);
+        selectItem(bestMatch);
         return;
       }
 
       setCandidates(nextCandidates);
       setMessage(
         nextCandidates.length
-          ? t("collections.chooseExactCard")
-          : t("collections.noMatchingCards"),
+          ? itemType === "box"
+            ? t("collections.chooseExactBox")
+            : t("collections.chooseExactCard")
+          : itemType === "box"
+            ? t("collections.noMatchingBoxes")
+            : t("collections.noMatchingCards"),
       );
     } catch (caught) {
       setMessage(
@@ -202,14 +255,18 @@ export default function AddCollectionCardScreen() {
     }
   }
 
-  async function saveCard() {
-    if (!token || !collectionId || !selectedCard) {
+  async function saveItem() {
+    if (!token || !collectionId || !selectedItem) {
       return;
     }
 
-    const selectedId = cardIdentity(selectedCard);
+    const selectedId = itemIdentity(selectedItem);
     if (!selectedId) {
-      setMessage(t("collections.cardMissingId"));
+      setMessage(
+        itemType === "box"
+          ? t("collections.boxMissingId")
+          : t("collections.cardMissingId"),
+      );
       return;
     }
 
@@ -217,12 +274,23 @@ export default function AddCollectionCardScreen() {
     setMessage(null);
 
     try {
+      const payload =
+        itemType === "box"
+          ? {
+              box_id: selectedId,
+              display_currency: displayCurrency,
+              item_type: "box" as const,
+              purchase_price: price.trim() ? Number(price) : undefined,
+            }
+          : {
+              card_id: selectedId,
+              display_currency: displayCurrency,
+              item_type: "card" as const,
+              purchase_price: price.trim() ? Number(price) : undefined,
+            };
+
       await requestJson(`/api/collections/${collectionId}/cards`, token, {
-        body: JSON.stringify({
-          card_id: selectedId,
-          display_currency: displayCurrency,
-          purchase_price: price.trim() ? Number(price) : undefined,
-        }),
+        body: JSON.stringify(payload),
         method: "POST",
       });
       router.replace(`/collections/${collectionId}`);
@@ -230,7 +298,9 @@ export default function AddCollectionCardScreen() {
       setMessage(
         caught instanceof Error
           ? caught.message
-          : t("collections.couldNotAddCard"),
+          : itemType === "box"
+            ? t("collections.couldNotAddBox")
+            : t("collections.couldNotAddCard"),
       );
     } finally {
       setSaving(false);
@@ -241,7 +311,7 @@ export default function AddCollectionCardScreen() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>
-          {t("collections.addCard")}
+          {t("collections.addItem")}
         </Text>
         <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
           {t("collections.signInAddCards")}
@@ -255,19 +325,67 @@ export default function AddCollectionCardScreen() {
       <FlatList
         contentContainerStyle={styles.container}
         data={candidates}
-        keyExtractor={(item, index) => `${cardIdentity(item)}-${index}`}
+        keyExtractor={(item, index) => `${itemIdentity(item)}-${index}`}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.textPrimary }]}>
-              {t("collections.addCard")}
+              {itemType === "box"
+                ? t("collections.addBox")
+                : t("collections.addCard")}
             </Text>
+
+            <View
+              style={[
+                styles.typeToggle,
+                {
+                  backgroundColor: colors.surfaceAlternate,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              {(["card", "box"] as const).map((type) => {
+                const active = itemType === type;
+                return (
+                  <Pressable
+                    key={type}
+                    onPress={() => changeItemType(type)}
+                    style={[
+                      styles.typeToggleButton,
+                      active
+                        ? { backgroundColor: colors.primary }
+                        : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.typeToggleText,
+                        {
+                          color: active
+                            ? colors.onPrimary
+                            : colors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {type === "box"
+                        ? t("collections.itemTypeBox")
+                        : t("collections.itemTypeCard")}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             <View style={styles.searchRow}>
               <TextInput
                 autoCapitalize="none"
                 onChangeText={setQuery}
                 onSubmitEditing={() => void search()}
-                placeholder={t("collections.searchPlaceholder")}
+                placeholder={
+                  itemType === "box"
+                    ? t("collections.searchBoxPlaceholder")
+                    : t("collections.searchPlaceholder")
+                }
                 placeholderTextColor={colors.textMuted}
                 style={[
                   styles.input,
@@ -302,7 +420,7 @@ export default function AddCollectionCardScreen() {
               </Pressable>
             </View>
 
-            {selectedCard ? (
+            {selectedItem ? (
               <View
                 style={[
                   styles.selectedPanel,
@@ -318,14 +436,17 @@ export default function AddCollectionCardScreen() {
                   {t("collections.selected")}
                 </Text>
                 <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                  {selectedCard.name ?? t("collections.unknownCard")}
+                  {candidateName(selectedItem) ??
+                    (itemType === "box"
+                      ? t("collections.unknownBox")
+                      : t("collections.unknownCard"))}
                 </Text>
                 <Text
                   style={[styles.mutedText, { color: colors.textSecondary }]}
                 >
-                  #{cardNumber(selectedCard)} |{" "}
-                  {selectedCard.language ?? t("collections.unknown")}
-                  {selectedCard.rarity ? ` | ${selectedCard.rarity}` : ""}
+                  {itemType === "box"
+                    ? boxMetaLine(selectedItem, t("collections.boosterBox"))
+                    : cardMetaLine(selectedItem, t("collections.unknown"))}
                 </Text>
                 {selectedDefaultPrice ? (
                   <Text
@@ -351,7 +472,7 @@ export default function AddCollectionCardScreen() {
                 />
                 <Pressable
                   disabled={saving}
-                  onPress={() => void saveCard()}
+                  onPress={() => void saveItem()}
                   style={[
                     styles.saveButton,
                     {
@@ -360,7 +481,9 @@ export default function AddCollectionCardScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.saveButtonText, { color: colors.onPrimary }]}>
+                  <Text
+                    style={[styles.saveButtonText, { color: colors.onPrimary }]}
+                  >
                     {saving
                       ? t("collections.adding")
                       : t("collections.addToCollection")}
@@ -381,17 +504,20 @@ export default function AddCollectionCardScreen() {
         ListEmptyComponent={
           searching ? null : (
             <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-              {t("collections.searchToBegin")}
+              {itemType === "box"
+                ? t("collections.searchBoxToBegin")
+                : t("collections.searchToBegin")}
             </Text>
           )
         }
         renderItem={({ item, index }) => {
           const selected =
-            selectedCard && cardIdentity(selectedCard) === cardIdentity(item);
-          const image = cardImage(item);
+            selectedItem &&
+            itemIdentity(selectedItem) === itemIdentity(item);
+          const image = itemImage(item);
           return (
             <Pressable
-              onPress={() => selectCard(item)}
+              onPress={() => selectItem(item)}
               style={[
                 styles.resultRow,
                 {
@@ -413,7 +539,7 @@ export default function AddCollectionCardScreen() {
                   ]}
                 >
                   <MaterialCommunityIcons
-                    name="cards-outline"
+                    name={itemType === "box" ? "package-variant" : "cards-outline"}
                     color={colors.textSecondary}
                     size={24}
                   />
@@ -421,14 +547,17 @@ export default function AddCollectionCardScreen() {
               )}
               <View style={styles.resultText}>
                 <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                  {item.name ?? t("collections.unknownCard")}
+                  {candidateName(item) ??
+                    (itemType === "box"
+                      ? t("collections.unknownBox")
+                      : t("collections.unknownCard"))}
                 </Text>
                 <Text
                   style={[styles.mutedText, { color: colors.textSecondary }]}
                 >
-                  #{cardNumber(item)} |{" "}
-                  {item.language ?? t("collections.unknown")}
-                  {item.rarity ? ` | ${item.rarity}` : ""}
+                  {itemType === "box"
+                    ? boxMetaLine(item, t("collections.boosterBox"))
+                    : cardMetaLine(item, t("collections.unknown"))}
                 </Text>
                 {typeof item.avgPrice === "number" ? (
                   <Text
@@ -551,5 +680,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
+  },
+  typeToggle: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    padding: 4,
+  },
+  typeToggleButton: {
+    alignItems: "center",
+    borderRadius: 6,
+    flex: 1,
+    minHeight: 38,
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  typeToggleText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

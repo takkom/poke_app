@@ -72,6 +72,13 @@ function RootStack() {
           }}
         />
         <Stack.Screen
+          name="box/[id]"
+          options={{
+            title: t('box.details'),
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
           name="collections/[id]"
           options={{
             title: t('collections.collection'),
@@ -81,7 +88,7 @@ function RootStack() {
         <Stack.Screen
           name="collections/[id]/add"
           options={{
-            title: t('collections.addCard'),
+            title: t('collections.addItem'),
             headerBackTitle: 'Back',
           }}
         />

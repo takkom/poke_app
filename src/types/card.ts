@@ -22,6 +22,7 @@ export interface MarketplaceAverage {
 
 export interface PokemonCard {
   id: string;
+  item_type?: 'card' | 'box';
   db_id?: string;
   canonical_id?: string | null;
   tcgdex_id?: string | null;

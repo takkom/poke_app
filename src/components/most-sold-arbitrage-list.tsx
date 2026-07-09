@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useThemeManager, type AppLocale } from "@/hooks/useThemeManager";
 import { getMostSoldArbitrageCards } from "@/services/cardService";
 import { AppColors } from "@/theme/colors";
@@ -17,8 +18,10 @@ import {
   View,
 } from "react-native";
 
+type ItemType = "card" | "box";
+
 type MostSoldArbitrageListProps = {
-  onPressCard: (id: string) => void;
+  onPressCard: (id: string, itemType: "card" | "box") => void;
   loadingLabel: string;
   unavailableLabel: string;
   avgUnavailableLabel: string;
@@ -163,7 +166,7 @@ type ArbitrageRowProps = {
   currency: "KRW" | "USD" | "JPY";
   item: PokemonCard;
   locale: AppLocale;
-  onPressCard: (id: string) => void;
+  onPressCard: (id: string, itemType: "card" | "box") => void;
   unavailableLabel: string;
 };
 
@@ -176,6 +179,7 @@ const ArbitrageRow = memo(function ArbitrageRow({
   onPressCard,
   unavailableLabel,
 }: ArbitrageRowProps) {
+  const isBox = item.item_type === "box";
   return (
     <Pressable
       style={({ pressed }) => [
@@ -185,18 +189,37 @@ const ArbitrageRow = memo(function ArbitrageRow({
           borderColor: colors.border,
         },
       ]}
-      onPress={() => onPressCard(item.id)}
+      onPress={() => onPressCard(item.id, item.item_type ?? "card")}
     >
       <View style={styles.cardCell}>
-        <Image
-          source={
-            item.image ??
-            item.images?.small ??
-            "https://images.tcgdex.net/placeholder.png"
-          }
-          style={[styles.thumbnail, { backgroundColor: colors.surfaceMuted }]}
-          contentFit="cover"
-        />
+        {isBox && !item.image && !item.images?.small ? (
+          <View
+            style={[
+              styles.boxThumbnail,
+              styles.imageFallback,
+              { backgroundColor: colors.surfaceMuted },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="package-variant"
+              color={colors.textSecondary}
+              size={26}
+            />
+          </View>
+        ) : (
+          <Image
+            source={
+              item.image ??
+              item.images?.small ??
+              "https://images.tcgdex.net/placeholder.png"
+            }
+            style={[
+              isBox ? styles.boxThumbnail : styles.thumbnail,
+              { backgroundColor: colors.surfaceMuted },
+            ]}
+            contentFit="cover"
+          />
+        )}
         <View style={styles.cardText}>
           <Text
             style={[styles.cardName, { color: colors.textPrimary }]}
@@ -204,12 +227,21 @@ const ArbitrageRow = memo(function ArbitrageRow({
           >
             {getDisplayName(item, locale)}
           </Text>
-          <Text
-            style={[styles.cardNumber, { color: colors.textSecondary }]}
-            numberOfLines={1}
-          >
-            {formatCardNumber(item)}
-          </Text>
+          {item.set?.name ? (
+            <Text
+              style={[styles.cardNumber, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {item.set.name}
+            </Text>
+          ) : formatCardNumber(item) ? (
+            <Text
+              style={[styles.cardNumber, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {formatCardNumber(item)}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -237,6 +269,7 @@ export function MostSoldArbitrageList({
 }: MostSoldArbitrageListProps) {
   const { colors, displayCurrency, locale } = useThemeManager();
   const [baseline, setBaseline] = useState<MarketplaceKey>("kream");
+  const [itemType, setItemType] = useState<ItemType>("card");
   const [cards, setCards] = useState<PokemonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -253,6 +286,7 @@ export function MostSoldArbitrageList({
           50,
           displayCurrency,
           baseline,
+          itemType,
         );
         if (!cancelled) {
           setCards(nextCards);
@@ -275,9 +309,9 @@ export function MostSoldArbitrageList({
     return () => {
       cancelled = true;
     };
-  }, [baseline, displayCurrency]);
+  }, [baseline, displayCurrency, itemType]);
 
-  const renderHeader = useCallback(
+  const renderColumnHeader = useCallback(
     () => (
       <View
         style={[
@@ -286,11 +320,10 @@ export function MostSoldArbitrageList({
         ]}
       >
         <Text style={[styles.cardHeader, { color: colors.textSecondary }]}>
-          Card
+          {itemType === "box" ? "Box" : "Card"}
         </Text>
         {MARKETPLACES.map((marketplace) => {
           const isSelected = baseline === marketplace.key;
-
           return (
             <Pressable
               key={marketplace.key}
@@ -319,55 +352,104 @@ export function MostSoldArbitrageList({
         })}
       </View>
     ),
-    [baseline, colors],
+    [baseline, colors, itemType],
+  );
+
+  const typeToggle = (
+    <View
+      style={[
+        styles.typeToggle,
+        {
+          backgroundColor: colors.surfaceAlternate,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      {(["card", "box"] as const).map((type) => {
+        const active = itemType === type;
+        return (
+          <Pressable
+            key={type}
+            onPress={() => {
+              if (type !== itemType) {
+                setItemType(type);
+                setCards([]);
+              }
+            }}
+            style={[
+              styles.typeToggleButton,
+              active ? { backgroundColor: colors.primary } : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.typeToggleText,
+                { color: active ? colors.onPrimary : colors.textSecondary },
+              ]}
+            >
+              {type === "box" ? "Box" : "Card"}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 
   if (loading) {
     return (
-      <View style={styles.state}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={[styles.stateText, { color: colors.textSecondary }]}>
-          {loadingLabel}
-        </Text>
+      <View style={styles.outerContainer}>
+        {typeToggle}
+        <View style={styles.state}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.stateText, { color: colors.textSecondary }]}>
+            {loadingLabel}
+          </Text>
+        </View>
       </View>
     );
   }
 
   if (hasError) {
     return (
-      <View style={styles.state}>
-        <Text style={[styles.errorText, { color: colors.error }]}>
-          {unavailableLabel}
-        </Text>
+      <View style={styles.outerContainer}>
+        {typeToggle}
+        <View style={styles.state}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {unavailableLabel}
+          </Text>
+        </View>
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={cards}
-      extraData={`${locale}-${baseline}`}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={renderHeader}
-      stickyHeaderIndices={[0]}
-      contentContainerStyle={styles.listContent}
-      initialNumToRender={10}
-      maxToRenderPerBatch={8}
-      removeClippedSubviews
-      updateCellsBatchingPeriod={80}
-      windowSize={7}
-      renderItem={({ item }) => (
-        <ArbitrageRow
-          baseline={baseline}
-          colors={colors}
-          currency={item.displayCurrency ?? displayCurrency}
-          item={item}
-          locale={locale}
-          onPressCard={onPressCard}
-          unavailableLabel={avgUnavailableLabel}
-        />
-      )}
-    />
+    <View style={styles.outerContainer}>
+      {typeToggle}
+      <FlatList
+        data={cards}
+        extraData={`${locale}-${baseline}-${itemType}`}
+        keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={renderColumnHeader}
+        stickyHeaderIndices={[0]}
+        contentContainerStyle={styles.listContent}
+        initialNumToRender={10}
+        maxToRenderPerBatch={8}
+        removeClippedSubviews
+        updateCellsBatchingPeriod={80}
+        windowSize={7}
+        renderItem={({ item }) => (
+          <ArbitrageRow
+            baseline={baseline}
+            colors={colors}
+            currency={item.displayCurrency ?? displayCurrency}
+            item={item}
+            locale={locale}
+            onPressCard={onPressCard}
+            unavailableLabel={avgUnavailableLabel}
+          />
+        )}
+      />
+    </View>
   );
 }
 
@@ -389,10 +471,31 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
   },
+  outerContainer: {
+    flex: 1,
+  },
   listContent: {
     gap: 8,
     paddingBottom: 18,
     paddingHorizontal: 10,
+  },
+  typeToggle: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    padding: 4,
+  },
+  typeToggleButton: {
+    alignItems: "center",
+    borderRadius: 6,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 36,
+    paddingHorizontal: 10,
+  },
+  typeToggleText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   headerRow: {
     alignItems: "center",
@@ -441,6 +544,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     height: 58,
     width: 42,
+  },
+  boxThumbnail: {
+    borderRadius: 4,
+    height: 58,
+    width: 58,
+  },
+  imageFallback: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   cardText: {
     flex: 1,

@@ -86,7 +86,21 @@ interface ResolutionCardBlueprint {
 interface ResolutionSearchResponse {
   tcgdex_id?: string | null;
   card?: ResolutionCardBlueprint | null;
+  box?: BoosterBoxBlueprint | null;
   candidates?: ResolutionCardBlueprint[];
+  item_type?: "card" | "box";
+}
+
+export interface BoosterBoxBlueprint {
+  id?: string;
+  canonical_id?: string | null;
+  name?: string | null;
+  display_name?: string | null;
+  set_name?: string | null;
+  set_code?: string | null;
+  image_url?: string | null;
+  avgPrice?: number | null;
+  displayCurrency?: "KRW" | "USD" | "JPY";
 }
 
 let cardCache: PokemonCard[] = [];
@@ -125,22 +139,30 @@ function normalizeDisplayNumber(
   return localId ?? cardCode ?? "";
 }
 
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/")) return `${LOCAL_API_BASE_URL}${url}`;
+  return url;
+}
+
 const transformCard = (tcgCard: any): CardWithPricing => {
   // Fall back gracefully across both local backend and TCGdex formats
   const imageBase =
-    tcgCard.image ||
-    tcgCard.image_url ||
-    tcgCard.images?.large ||
-    tcgCard.images?.small ||
-    "https://images.tcgdex.net/placeholder.png";
-  const smallImage = resolveTcgdexImageUrl(
-    tcgCard.images?.small || imageBase,
-    "low",
-  );
-  const largeImage = resolveTcgdexImageUrl(
-    tcgCard.images?.large || imageBase,
-    "high",
-  );
+    resolveImageUrl(tcgCard.image) ||
+    resolveImageUrl(tcgCard.image_url) ||
+    resolveImageUrl(tcgCard.thumbnail_url) ||
+    resolveImageUrl(tcgCard.thumbnail) ||
+    resolveImageUrl(tcgCard.box_image_url) ||
+    resolveImageUrl(tcgCard.photo_url) ||
+    resolveImageUrl(tcgCard.images?.large) ||
+    resolveImageUrl(tcgCard.images?.small) ||
+    null;
+  const smallImage = imageBase
+    ? resolveTcgdexImageUrl(tcgCard.images?.small || imageBase, "low")
+    : undefined;
+  const largeImage = imageBase
+    ? resolveTcgdexImageUrl(tcgCard.images?.large || imageBase, "high")
+    : undefined;
 
   const types = Array.isArray(tcgCard.types)
     ? tcgCard.types
@@ -149,8 +171,9 @@ const transformCard = (tcgCard: any): CardWithPricing => {
       : [];
 
   return {
-    id: tcgCard.id ?? "unknown",
-    name: tcgCard.name ?? "Unknown Card",
+    id: String(tcgCard.id ?? "unknown"),
+    item_type: (tcgCard.item_type === "box" || tcgCard.item_type === "booster_box") ? "box" : "card",
+    name: String(tcgCard.display_name || tcgCard.name || "Unknown"),
     number:
       tcgCard.number ??
       normalizeDisplayNumber(tcgCard.card_code, tcgCard.local_id),
@@ -162,8 +185,8 @@ const transformCard = (tcgCard: any): CardWithPricing => {
       large: largeImage,
     },
     set: {
-      id: tcgCard.set?.id || "unknown",
-      name: tcgCard.set?.name || "Unknown Set",
+      id: tcgCard.set?.id || tcgCard.set_code || undefined,
+      name: tcgCard.set?.name || tcgCard.set_name || undefined,
       releaseDate: tcgCard.set?.releaseDate,
       series: tcgCard.set?.series,
       cardCount: {
@@ -444,11 +467,13 @@ export const getMostSoldArbitrageCards = async (
   limit: number = 30,
   currency: "KRW" | "USD" = "KRW",
   baseline: MarketplaceKey = "kream",
+  itemType: "card" | "box" = "card",
 ): Promise<PokemonCard[]> => {
   const params = new URLSearchParams({
     baseline,
     currency,
     limit: String(limit),
+    ...(itemType === "box" ? { item_type: "box" } : {}),
   });
   const response = await fetch(
     `${LOCAL_API_BASE_URL}/api/cards/most-sold-arbitrage?${params.toString()}`,
@@ -537,10 +562,12 @@ export const searchCard = async (
         card.canonical_id ?? card.tcgdex_id ?? card.id ?? data.tcgdex_id ?? "";
       const rawImage =
         card.image_url ?? card.projected_image_asset_path ?? undefined;
-      const image =
-        rawImage && !rawImage.startsWith("/")
-          ? resolveTcgdexImageUrl(rawImage, "low")
-          : undefined;
+      const resolvedRaw = rawImage?.startsWith("/")
+        ? `${LOCAL_API_BASE_URL}${rawImage}`
+        : rawImage;
+      const image = resolvedRaw
+        ? resolveTcgdexImageUrl(resolvedRaw, "low")
+        : undefined;
 
       return {
         id: cardId,
@@ -586,6 +613,77 @@ export const searchCard = async (
     });
   } catch (error) {
     console.error("Search failed:", error);
+    return [];
+  }
+};
+
+export const getBoxById = async (
+  id: string,
+): Promise<CardWithPricing | null> => {
+  try {
+    const response = await fetch(
+      `${LOCAL_API_BASE_URL}/api/booster-boxes/${encodeURIComponent(id)}`,
+    );
+    if (!response.ok) throw new Error(`Box fetch failed with ${response.status}`);
+    const data = await response.json();
+    if (!data) return null;
+    return transformCard(data);
+  } catch (error) {
+    console.error(`Failed to fetch box ${id}:`, error);
+    return null;
+  }
+};
+
+export const getBoxPriceHistory = async (
+  boxId: string,
+  currency: "KRW" | "USD" = "KRW",
+): Promise<PriceHistoryPoint[]> => {
+  try {
+    const params = new URLSearchParams({ currency });
+    const response = await fetch(
+      `${LOCAL_API_BASE_URL}/api/booster-boxes/${encodeURIComponent(boxId)}/price-history?${params.toString()}`,
+    );
+    if (!response.ok) throw new Error(`Box price history failed with ${response.status}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error(`Failed to fetch box price history ${boxId}:`, error);
+    return [];
+  }
+};
+
+export const searchBox = async (
+  searchTerm: string,
+): Promise<BoosterBoxBlueprint[]> => {
+  try {
+    const response = await fetch(
+      `${LOCAL_API_BASE_URL}/api/resolution/search`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: searchTerm, item_type: "box" }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Box search failed with ${response.status}`);
+    }
+
+    const data = (await response.json()) as ResolutionSearchResponse;
+    const best = data.box ?? null;
+    const raw: BoosterBoxBlueprint[] = best
+      ? [best, ...((data.candidates as BoosterBoxBlueprint[]) ?? [])]
+      : ((data.candidates as BoosterBoxBlueprint[]) ?? []);
+    return raw.map((b) => ({
+      ...b,
+      image_url: b.image_url?.startsWith("/")
+        ? `${LOCAL_API_BASE_URL}${b.image_url}`
+        : b.image_url,
+    }));
+  } catch (error) {
+    console.error("Box search failed:", error);
     return [];
   }
 };

@@ -11,7 +11,13 @@ export default function HomeTab() {
   const { colors } = useThemeManager();
   const { t } = useI18n();
   const openCard = useCallback(
-    (id: string) => router.push(`/card/${id}`),
+    (id: string, itemType: "card" | "box") => {
+      if (itemType === "box") {
+        router.push(`/box/${id}`);
+      } else {
+        router.push(`/card/${id}`);
+      }
+    },
     [router],
   );
 
