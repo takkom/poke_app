@@ -8,6 +8,11 @@ export const Palette = {
   darkGrey: "#040404",
   mediumGrey: "#0B0B0B",
   lightGrey: "#585858",
+  // Lighter neutrals used for text so labels stay readable when they sit on
+  // top of `lightGrey` fills (e.g. inactive chip/button backgrounds), not
+  // just on the near-black background/surface colors.
+  silverGrey: "#D6D6D6",
+  steelGrey: "#B0B0B0",
   white: "#FFFFFF",
 } as const;
 
@@ -26,8 +31,11 @@ export const darkColors = {
   surfaceMuted: Palette.lightGrey,
   border: Palette.lightGrey,
   textPrimary: Palette.white,
-  textSecondary: Palette.lightGrey,
-  textMuted: Palette.lightGrey,
+  // Deliberately lighter than `lightGrey` (used for surfaceMuted/border) so
+  // secondary/muted labels remain legible when placed on a muted chip fill,
+  // not just on the background/surface colors.
+  textSecondary: Palette.silverGrey,
+  textMuted: Palette.steelGrey,
   error: "#ef4444",
   success: "#22c55e",
   arbitragePositive: "#5ECCA3",

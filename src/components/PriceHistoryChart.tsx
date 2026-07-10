@@ -482,25 +482,16 @@ export function PriceHistoryChart({
                   strokeWidth="3"
                 />
                 {dataset.points.map((point, index) => (
-                  <React.Fragment key={`${dataset.platform}-${point.date}-${index}`}>
-                    <Circle
-                      cx={point.x}
-                      cy={point.y}
-                      r={index === dataset.points.length - 1 ? 4 : 2.5}
-                      fill={colors.background}
-                      stroke={dataset.color}
-                      strokeWidth="2"
-                    />
-                    <Circle
-                      cx={point.x}
-                      cy={point.y}
-                      r="12"
-                      fill="transparent"
-                      onPress={() =>
-                        setSelectedPoint({ platform: dataset.platform, point })
-                      }
-                    />
-                  </React.Fragment>
+                  <Circle
+                    key={`${dataset.platform}-${point.date}-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r="12"
+                    fill="transparent"
+                    onPress={() =>
+                      setSelectedPoint({ platform: dataset.platform, point })
+                    }
+                  />
                 ))}
               </React.Fragment>
             ))}
