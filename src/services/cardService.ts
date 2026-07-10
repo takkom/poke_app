@@ -6,6 +6,8 @@ import {
   MarketplaceKey,
   PokemonCard,
   PriceHistoryPoint,
+  QualityBucket,
+  QualityBucketCode,
 } from "../types/card";
 
 const API_BASE_URL = "https://api.tcgdex.net/v2/en";
@@ -429,8 +431,12 @@ export const getCardById = async (
 export const getPriceHistory = async (
   cardId: string,
   currency: "KRW" | "USD" = "KRW",
+  qualities?: QualityBucketCode[],
 ): Promise<PriceHistoryPoint[]> => {
   const params = new URLSearchParams({ currency });
+  if (qualities?.length) {
+    params.set("qualities", qualities.join(","));
+  }
   const response = await fetch(
     `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history?${params.toString()}`,
   );
@@ -440,6 +446,21 @@ export const getPriceHistory = async (
   }
 
   const data = (await response.json()) as PriceHistoryPoint[];
+  return Array.isArray(data) ? data : [];
+};
+
+export const getPriceHistoryQualities = async (
+  cardId: string,
+): Promise<QualityBucket[]> => {
+  const response = await fetch(
+    `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history/qualities`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`Price history qualities failed with ${response.status}`);
+  }
+
+  const data = (await response.json()) as QualityBucket[];
   return Array.isArray(data) ? data : [];
 };
 

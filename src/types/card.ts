@@ -14,6 +14,26 @@ export interface PriceHistoryPoint {
 
 export type MarketplaceKey = 'kream' | 'ebay' | 'snkrdunk';
 
+/**
+ * Coarse card quality/grade bucket. Mirrors api/src/price-history/quality-bucket.ts
+ * on the backend - keep these in sync.
+ */
+export type QualityBucketCode =
+  | 'RAW'
+  | 'PSA_10'
+  | 'PSA_9'
+  | 'PSA_8_OR_LOWER'
+  | 'OTHER_GRADED';
+
+export interface QualityBucket {
+  code: QualityBucketCode;
+  label: string;
+  count: number;
+  avg_price_krw: number | null;
+  min_price_krw: number | null;
+  max_price_krw: number | null;
+}
+
 export interface MarketplaceAverage {
   avgPrice?: number | null;
   relativePercent?: number | null;

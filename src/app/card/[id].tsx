@@ -1,9 +1,20 @@
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
+import { QualitySelector } from "@/components/QualitySelector";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { getCardById, getPriceHistory } from "@/services/cardService";
+import {
+  getCardById,
+  getPriceHistory,
+  getPriceHistoryQualities,
+} from "@/services/cardService";
 import { AppColors } from "@/theme/colors";
-import { CardPricing, CardWithPricing, PriceHistoryPoint } from "@/types/card";
+import {
+  CardPricing,
+  CardWithPricing,
+  PriceHistoryPoint,
+  QualityBucket,
+  QualityBucketCode,
+} from "@/types/card";
 import { getDisplayCardName } from "@/utils/displayNames";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -46,6 +57,24 @@ function pickNumber(...values: unknown[]): number | undefined {
     }
   }
   return undefined;
+}
+
+const QUALITY_PREFERENCE_ORDER: QualityBucketCode[] = [
+  "PSA_10",
+  "RAW",
+  "PSA_9",
+  "OTHER_GRADED",
+  "PSA_8_OR_LOWER",
+];
+
+function pickDefaultQuality(options: QualityBucket[]): QualityBucketCode | null {
+  const byCode = new Map(options.map((option) => [option.code, option]));
+  for (const code of QUALITY_PREFERENCE_ORDER) {
+    if ((byCode.get(code)?.count ?? 0) > 0) {
+      return code;
+    }
+  }
+  return options.find((option) => option.count > 0)?.code ?? null;
 }
 
 function normalizeVariantPrice(value: unknown): TcgPrice | undefined {
@@ -154,6 +183,8 @@ export default function CardDetailScreen() {
   const [priceHistoryError, setPriceHistoryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<VariantKey>("normal");
+  const [qualityOptions, setQualityOptions] = useState<QualityBucket[]>([]);
+  const [selectedQualities, setSelectedQualities] = useState<QualityBucketCode[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,10 +222,56 @@ export default function CardDetailScreen() {
     let cancelled = false;
     const cardId = card?.id;
 
+    setQualityOptions([]);
+    setSelectedQualities([]);
+
     if (!cardId) {
-      setPriceHistory([]);
-      setPriceHistoryError(null);
-      setPriceHistoryLoading(false);
+      return;
+    }
+
+    async function loadQualities() {
+      try {
+        const options = await getPriceHistoryQualities(cardId as string);
+        if (cancelled) return;
+        setQualityOptions(options);
+        const defaultQuality = pickDefaultQuality(options);
+        setSelectedQualities(defaultQuality ? [defaultQuality] : []);
+      } catch (error) {
+        if (!cancelled) {
+          setQualityOptions([]);
+          setSelectedQualities([]);
+        }
+      }
+    }
+
+    loadQualities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [card?.id]);
+
+  const toggleQuality = (code: QualityBucketCode) => {
+    setSelectedQualities((current) => {
+      if (current.includes(code)) {
+        // Always keep at least one quality selected so the chart never
+        // silently falls back to showing every quality mixed together.
+        return current.length === 1 ? current : current.filter((item) => item !== code);
+      }
+      return [...current, code];
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const cardId = card?.id;
+
+    if (!cardId || !selectedQualities.length) {
+      if (!cardId) {
+        setPriceHistory([]);
+        setPriceHistoryError(null);
+        setPriceHistoryLoading(false);
+      }
       return;
     }
 
@@ -205,7 +282,11 @@ export default function CardDetailScreen() {
       setPriceHistoryError(null);
 
       try {
-        const history = await getPriceHistory(requestedCardId, displayCurrency);
+        const history = await getPriceHistory(
+          requestedCardId,
+          displayCurrency,
+          selectedQualities,
+        );
         if (!cancelled) {
           setPriceHistory(history);
         }
@@ -230,7 +311,8 @@ export default function CardDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [card?.id, displayCurrency]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.id, displayCurrency, selectedQualities.join(",")]);
 
   const tcg = card?.pricing?.tcgplayer;
   const rawTcg = tcg as Record<string, unknown> | undefined;
@@ -372,6 +454,14 @@ export default function CardDetailScreen() {
                 </View>
               ))}
             </View>
+          ) : null}
+          {qualityOptions.length ? (
+            <QualitySelector
+              qualities={qualityOptions}
+              selected={selectedQualities}
+              onToggle={toggleQuality}
+              locale={locale}
+            />
           ) : null}
           {priceHistoryLoading ? (
             <View
