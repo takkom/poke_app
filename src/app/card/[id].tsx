@@ -1,7 +1,7 @@
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { QualitySelector } from "@/components/QualitySelector";
 import { useThemeManager } from "@/hooks/useThemeManager";
-import { useI18n } from "@/i18n";
+import { useI18n, type TranslationKey } from "@/i18n";
 import {
   getCardById,
   getPriceHistory,
@@ -25,10 +25,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Text } from "@/components/ui/Text";
 
 type VariantKey = "normal" | "reverseHolofoil" | "holofoil";
 
@@ -59,23 +59,18 @@ function pickNumber(...values: unknown[]): number | undefined {
   return undefined;
 }
 
-const QUALITY_PREFERENCE_ORDER: QualityBucketCode[] = [
-  "PSA_10",
-  "RAW",
-  "PSA_9",
-  "OTHER_GRADED",
-  "PSA_8_OR_LOWER",
+// Coarse quality buckets, shown as chips regardless of whether the backend's
+// /price-history/qualities endpoint is available yet. Mirrors
+// api/src/price-history/quality-bucket.ts on the backend - keep in sync.
+const ALL_QUALITY_BUCKETS: Array<{ code: QualityBucketCode; labelKey: TranslationKey }> = [
+  { code: "PSA_10", labelKey: "quality.psa10" },
+  { code: "RAW", labelKey: "quality.raw" },
+  { code: "PSA_9", labelKey: "quality.psa9" },
+  { code: "OTHER_GRADED", labelKey: "quality.otherGraded" },
+  { code: "PSA_8_OR_LOWER", labelKey: "quality.psa8OrLower" },
 ];
 
-function pickDefaultQuality(options: QualityBucket[]): QualityBucketCode | null {
-  const byCode = new Map(options.map((option) => [option.code, option]));
-  for (const code of QUALITY_PREFERENCE_ORDER) {
-    if ((byCode.get(code)?.count ?? 0) > 0) {
-      return code;
-    }
-  }
-  return options.find((option) => option.count > 0)?.code ?? null;
-}
+const DEFAULT_QUALITY: QualityBucketCode = "PSA_10";
 
 function normalizeVariantPrice(value: unknown): TcgPrice | undefined {
   if (!value || typeof value !== "object") {
@@ -184,7 +179,9 @@ export default function CardDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<VariantKey>("normal");
   const [qualityOptions, setQualityOptions] = useState<QualityBucket[]>([]);
-  const [selectedQualities, setSelectedQualities] = useState<QualityBucketCode[]>([]);
+  const [selectedQualities, setSelectedQualities] = useState<QualityBucketCode[]>([
+    DEFAULT_QUALITY,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,24 +220,21 @@ export default function CardDetailScreen() {
     const cardId = card?.id;
 
     setQualityOptions([]);
-    setSelectedQualities([]);
+    // Default to PSA 10 immediately so the very first price-history fetch
+    // for this card already goes out with a quality filter, instead of
+    // waiting on the (optional) counts endpoint to resolve first.
+    setSelectedQualities([DEFAULT_QUALITY]);
 
     if (!cardId) {
       return;
     }
 
     async function loadQualities() {
-      try {
-        const options = await getPriceHistoryQualities(cardId as string);
-        if (cancelled) return;
+      // Fails soft (returns []) if the backend counts endpoint isn't live
+      // yet - the chips below still render from the static bucket list.
+      const options = await getPriceHistoryQualities(cardId as string);
+      if (!cancelled) {
         setQualityOptions(options);
-        const defaultQuality = pickDefaultQuality(options);
-        setSelectedQualities(defaultQuality ? [defaultQuality] : []);
-      } catch (error) {
-        if (!cancelled) {
-          setQualityOptions([]);
-          setSelectedQualities([]);
-        }
       }
     }
 
@@ -250,6 +244,21 @@ export default function CardDetailScreen() {
       cancelled = true;
     };
   }, [card?.id]);
+
+  const displayQualityOptions = useMemo<QualityBucket[]>(() => {
+    const byCode = new Map(qualityOptions.map((option) => [option.code, option]));
+    return ALL_QUALITY_BUCKETS.map(({ code, labelKey }) => {
+      const remote = byCode.get(code);
+      return {
+        code,
+        label: remote?.label ?? t(labelKey),
+        count: remote?.count ?? 0,
+        avg_price_krw: remote?.avg_price_krw ?? null,
+        min_price_krw: remote?.min_price_krw ?? null,
+        max_price_krw: remote?.max_price_krw ?? null,
+      };
+    });
+  }, [qualityOptions, t]);
 
   const toggleQuality = (code: QualityBucketCode) => {
     setSelectedQualities((current) => {
@@ -266,16 +275,20 @@ export default function CardDetailScreen() {
     let cancelled = false;
     const cardId = card?.id;
 
-    if (!cardId || !selectedQualities.length) {
-      if (!cardId) {
-        setPriceHistory([]);
-        setPriceHistoryError(null);
-        setPriceHistoryLoading(false);
-      }
+    if (!cardId) {
+      setPriceHistory([]);
+      setPriceHistoryError(null);
+      setPriceHistoryLoading(false);
       return;
     }
 
     const requestedCardId = cardId;
+    // Empty selection means "no quality filter yet" (e.g. qualities are
+    // still loading, or the bucket endpoint isn't available) - fall back to
+    // the old unfiltered behavior instead of blocking the chart entirely.
+    const requestedQualities = selectedQualities.length
+      ? selectedQualities
+      : undefined;
 
     async function loadPriceHistory() {
       setPriceHistoryLoading(true);
@@ -285,7 +298,7 @@ export default function CardDetailScreen() {
         const history = await getPriceHistory(
           requestedCardId,
           displayCurrency,
-          selectedQualities,
+          requestedQualities,
         );
         if (!cancelled) {
           setPriceHistory(history);
@@ -455,14 +468,12 @@ export default function CardDetailScreen() {
               ))}
             </View>
           ) : null}
-          {qualityOptions.length ? (
-            <QualitySelector
-              qualities={qualityOptions}
-              selected={selectedQualities}
-              onToggle={toggleQuality}
-              locale={locale}
-            />
-          ) : null}
+          <QualitySelector
+            qualities={displayQualityOptions}
+            selected={selectedQualities}
+            onToggle={toggleQuality}
+            locale={locale}
+          />
           {priceHistoryLoading ? (
             <View
               style={[

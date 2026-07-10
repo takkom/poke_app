@@ -13,11 +13,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 
 const themeOptions: Array<{ value: ThemePreference; labelKey: 'settings.light' | 'settings.dark' | 'settings.system' }> = [
   { value: 'light', labelKey: 'settings.light' },
@@ -223,12 +223,12 @@ export default function SettingsTab() {
         <TouchableOpacity
           disabled={isDeleting}
           onPress={confirmDeleteAccount}
-          style={[styles.actionButton, styles.dangerButton]}
+          style={[styles.actionButton, styles.dangerButton, { backgroundColor: colors.error, borderColor: colors.error }]}
         >
           {isDeleting ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color={colors.textPrimary} />
           ) : (
-            <Text style={styles.dangerButtonText}>Delete my account</Text>
+            <Text style={[styles.dangerButtonText, { color: colors.textPrimary }]}>Delete my account</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -332,12 +332,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  dangerButton: {
-    backgroundColor: '#dc2626',
-    borderColor: '#dc2626',
-  },
+  dangerButton: {},
   dangerButtonText: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '900',
   },

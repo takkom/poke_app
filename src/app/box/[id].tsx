@@ -12,10 +12,10 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Text } from "@/components/ui/Text";
 
 function formatSalesCount(value: number | null | undefined, locale: string): string {
   return (value ?? 0).toLocaleString(locale);

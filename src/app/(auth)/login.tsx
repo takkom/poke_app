@@ -1,19 +1,21 @@
 import { useAuth } from "@/context/AuthContext";
 import { APP_VERSION } from "@/constants/version";
+import { useThemeManager } from "@/hooks/useThemeManager";
+import { Text } from "@/components/ui/Text";
+import { TextInput } from "@/components/ui/TextInput";
 import { Link } from "expo-router";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
   Keyboard,
+  Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 
 export default function LoginScreen() {
+  const { colors } = useThemeManager();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,8 +36,8 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Log in</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Log in</Text>
       <TextInput
         autoCapitalize="none"
         autoComplete="email"
@@ -43,8 +45,9 @@ export default function LoginScreen() {
         onChangeText={setEmail}
         onSubmitEditing={() => passwordInputRef.current?.focus()}
         placeholder="Email"
+        placeholderTextColor={colors.textMuted}
         returnKeyType="next"
-        style={styles.input}
+        style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
         submitBehavior="submit"
         value={email}
       />
@@ -53,29 +56,46 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         onSubmitEditing={handleLogin}
         placeholder="Password"
+        placeholderTextColor={colors.textMuted}
         ref={passwordInputRef}
         returnKeyType="done"
         secureTextEntry
-        style={styles.input}
+        style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
         value={password}
       />
       {isSubmitting ? (
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary} />
       ) : (
-        <Button title="Log in" onPress={handleLogin} />
+        <Pressable
+          onPress={handleLogin}
+          style={[styles.button, { backgroundColor: colors.primary }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Log in</Text>
+        </Pressable>
       )}
-      <Link href="/(auth)/register" style={styles.link}>
+      <Link href="/(auth)/register" style={[styles.link, { color: colors.primary }]}>
         Create account
       </Link>
-      <Link href="/(auth)/forgot-password" style={styles.link}>
+      <Link href="/(auth)/forgot-password" style={[styles.link, { color: colors.primary }]}>
         Forgot password?
       </Link>
-      <Text style={styles.version}>v{APP_VERSION}</Text>
+      <Text style={[styles.version, { color: colors.textMuted }]}>v{APP_VERSION}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  button: {
+    alignItems: "center",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 14,
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
   container: {
     flex: 1,
     gap: 12,
@@ -83,7 +103,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   input: {
-    borderColor: "#c8c8c8",
     borderRadius: 6,
     borderWidth: 1,
     padding: 12,
@@ -98,9 +117,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   version: {
-    color: '#a0a0a0',
     fontSize: 12,
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

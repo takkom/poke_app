@@ -1,3 +1,16 @@
+/**
+ * Base brand palette. These are the only neutral/brand colors that should be
+ * used to build the dark theme below — keep dark mode consistent by pulling
+ * from this palette instead of introducing new hex values.
+ */
+export const Palette = {
+  jaruYellow: "#FFBB00",
+  darkGrey: "#040404",
+  mediumGrey: "#0B0B0B",
+  lightGrey: "#585858",
+  white: "#FFFFFF",
+} as const;
+
 const marketplaceColors = {
   ebay: "#0064d2",
   kream: "#ef4444",
@@ -5,16 +18,16 @@ const marketplaceColors = {
 } as const;
 
 export const darkColors = {
-  primary: "#FFBB00",
-  onPrimary: "#040404",
-  background: "#040404",
-  surface: "#111111",
-  surfaceAlternate: "#161616",
-  surfaceMuted: "#1f1f1f",
-  border: "#2a2a2a",
-  textPrimary: "#ffffff",
-  textSecondary: "#94a3b8",
-  textMuted: "#64748b",
+  primary: Palette.jaruYellow,
+  onPrimary: Palette.darkGrey,
+  background: Palette.darkGrey,
+  surface: Palette.mediumGrey,
+  surfaceAlternate: Palette.mediumGrey,
+  surfaceMuted: Palette.lightGrey,
+  border: Palette.lightGrey,
+  textPrimary: Palette.white,
+  textSecondary: Palette.lightGrey,
+  textMuted: Palette.lightGrey,
   error: "#ef4444",
   success: "#22c55e",
   arbitragePositive: "#5ECCA3",

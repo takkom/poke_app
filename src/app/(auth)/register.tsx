@@ -1,17 +1,17 @@
 import { useAuth } from "@/context/AuthContext";
 import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
 import { TermsOfServiceModal } from "@/components/TermsOfServiceModal";
+import { useThemeManager } from "@/hooks/useThemeManager";
+import { Text } from "@/components/ui/Text";
+import { TextInput } from "@/components/ui/TextInput";
 import { Link } from "expo-router";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
   Keyboard,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 
@@ -22,6 +22,7 @@ function usernameFromEmail(email: string): string {
 }
 
 export default function RegisterScreen() {
+  const { colors } = useThemeManager();
   const { register } = useAuth();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -82,8 +83,8 @@ export default function RegisterScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create account</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Create account</Text>
       <TextInput
         autoCapitalize="none"
         autoComplete="email"
@@ -91,8 +92,9 @@ export default function RegisterScreen() {
         onChangeText={handleEmailChange}
         onSubmitEditing={() => usernameInputRef.current?.focus()}
         placeholder="Email"
+        placeholderTextColor={colors.textMuted}
         returnKeyType="next"
-        style={styles.input}
+        style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
         submitBehavior="submit"
         value={email}
       />
@@ -102,9 +104,10 @@ export default function RegisterScreen() {
         onChangeText={handleUsernameChange}
         onSubmitEditing={() => passwordInputRef.current?.focus()}
         placeholder="Username"
+        placeholderTextColor={colors.textMuted}
         ref={usernameInputRef}
         returnKeyType="next"
-        style={styles.input}
+        style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
         submitBehavior="submit"
         value={username}
       />
@@ -113,42 +116,60 @@ export default function RegisterScreen() {
         onChangeText={setPassword}
         onSubmitEditing={handleRegister}
         placeholder="Password"
+        placeholderTextColor={colors.textMuted}
         ref={passwordInputRef}
         returnKeyType="done"
         secureTextEntry
-        style={styles.input}
+        style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
         value={password}
       />
       <Pressable
         onPress={() => setHasAcceptedTerms((accepted) => !accepted)}
         style={styles.termsRow}
       >
-        <View style={[styles.checkbox, hasAcceptedTerms && styles.checkboxChecked]}>
-          {hasAcceptedTerms ? <View style={styles.checkmark} /> : null}
+        <View
+          style={[
+            styles.checkbox,
+            { borderColor: colors.border },
+            hasAcceptedTerms && { backgroundColor: colors.primary, borderColor: colors.primary },
+          ]}
+        >
+          {hasAcceptedTerms ? <View style={[styles.checkmark, { backgroundColor: colors.onPrimary }]} /> : null}
         </View>
-        <Text style={styles.termsText}>I agree to the </Text>
+        <Text style={[styles.termsText, { color: colors.textSecondary }]}>I agree to the </Text>
         <Pressable onPress={() => setIsTermsVisible(true)}>
-          <Text style={styles.termsLink}>Terms of Service</Text>
+          <Text style={[styles.termsLink, { color: colors.primary }]}>Terms of Service</Text>
         </Pressable>
       </Pressable>
       <Pressable
         onPress={() => setHasAcceptedPrivacy((accepted) => !accepted)}
         style={styles.termsRow}
       >
-        <View style={[styles.checkbox, hasAcceptedPrivacy && styles.checkboxChecked]}>
-          {hasAcceptedPrivacy ? <View style={styles.checkmark} /> : null}
+        <View
+          style={[
+            styles.checkbox,
+            { borderColor: colors.border },
+            hasAcceptedPrivacy && { backgroundColor: colors.primary, borderColor: colors.primary },
+          ]}
+        >
+          {hasAcceptedPrivacy ? <View style={[styles.checkmark, { backgroundColor: colors.onPrimary }]} /> : null}
         </View>
-        <Text style={styles.termsText}>I agree to the </Text>
+        <Text style={[styles.termsText, { color: colors.textSecondary }]}>I agree to the </Text>
         <Pressable onPress={() => setIsPrivacyVisible(true)}>
-          <Text style={styles.termsLink}>Privacy Policy</Text>
+          <Text style={[styles.termsLink, { color: colors.primary }]}>Privacy Policy</Text>
         </Pressable>
       </Pressable>
       {isSubmitting ? (
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary} />
       ) : (
-        <Button title="Create account" onPress={handleRegister} />
+        <Pressable
+          onPress={handleRegister}
+          style={[styles.button, { backgroundColor: colors.primary }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Create account</Text>
+        </Pressable>
       )}
-      <Link href="/(auth)/login" style={styles.link}>
+      <Link href="/(auth)/login" style={[styles.link, { color: colors.primary }]}>
         Already have an account?
       </Link>
 
@@ -165,6 +186,17 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
+  button: {
+    alignItems: "center",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 14,
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
   container: {
     flex: 1,
     gap: 12,
@@ -172,7 +204,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   input: {
-    borderColor: "#c8c8c8",
     borderRadius: 6,
     borderWidth: 1,
     padding: 12,
@@ -183,25 +214,18 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     alignItems: "center",
-    borderColor: "#7a7a7a",
     borderRadius: 4,
     borderWidth: 1,
     height: 22,
     justifyContent: "center",
     width: 22,
   },
-  checkboxChecked: {
-    backgroundColor: "#2563eb",
-    borderColor: "#2563eb",
-  },
   checkmark: {
-    backgroundColor: "#ffffff",
     borderRadius: 3,
     height: 8,
     width: 8,
   },
   termsLink: {
-    color: "#2563eb",
     fontWeight: "800",
   },
   termsRow: {
@@ -210,9 +234,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
   },
-  termsText: {
-    color: "#333333",
-  },
+  termsText: {},
   title: {
     fontSize: 28,
     fontWeight: "700",

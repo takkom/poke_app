@@ -2,7 +2,7 @@ import translations from "./translations.json";
 import { useThemeManager, type AppLocale } from "@/hooks/useThemeManager";
 import { useCallback, useMemo } from "react";
 
-type TranslationKey = keyof typeof translations["en-US"];
+export type TranslationKey = keyof typeof translations["en-US"];
 type TranslationValues = Record<string, string | number>;
 
 export function translate(

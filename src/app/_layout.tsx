@@ -2,13 +2,45 @@ import { JaruLogo } from '@/components/JaruLogo';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeManagerProvider, useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
+import { FontFamily } from '@/theme/typography';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  Inter_900Black,
+  useFonts,
+} from '@expo-google-fonts/inter';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Inter_900Black,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeManagerProvider>
@@ -55,7 +87,7 @@ function RootStack() {
           headerTitleStyle: {
             color: colors.textPrimary,
             fontSize: 18,
-            fontWeight: '700',
+            fontFamily: FontFamily.bold,
           },
           headerShadowVisible: false,
           headerTitleAlign: 'left',

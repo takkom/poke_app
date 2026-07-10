@@ -452,16 +452,28 @@ export const getPriceHistory = async (
 export const getPriceHistoryQualities = async (
   cardId: string,
 ): Promise<QualityBucket[]> => {
-  const response = await fetch(
-    `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history/qualities`,
-  );
+  // Quality buckets are an optional enhancement layered on top of price
+  // history. If the backend hasn't rolled the endpoint out yet (404) or it
+  // hiccups for any other reason, fail soft so the caller can fall back to
+  // the old unfiltered chart instead of showing nothing at all.
+  try {
+    const response = await fetch(
+      `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history/qualities`,
+    );
 
-  if (!response.ok) {
-    throw new Error(`Price history qualities failed with ${response.status}`);
+    if (!response.ok) {
+      console.warn(
+        `Price history qualities unavailable (${response.status}) for ${cardId}`,
+      );
+      return [];
+    }
+
+    const data = (await response.json()) as QualityBucket[];
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.warn(`Price history qualities request failed for ${cardId}:`, error);
+    return [];
   }
-
-  const data = (await response.json()) as QualityBucket[];
-  return Array.isArray(data) ? data : [];
 };
 
 export const getMostSoldCards = async (

@@ -1,18 +1,20 @@
 import { XMON_API_URL } from "@/config";
+import { useThemeManager } from "@/hooks/useThemeManager";
+import { Text } from "@/components/ui/Text";
+import { TextInput } from "@/components/ui/TextInput";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
   Keyboard,
+  Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 
 export default function ForgotPasswordScreen() {
+  const { colors } = useThemeManager();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,8 +55,8 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Reset password</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Reset password</Text>
       <TextInput
         autoCapitalize="none"
         autoComplete="email"
@@ -62,19 +64,24 @@ export default function ForgotPasswordScreen() {
         onChangeText={setEmail}
         onSubmitEditing={handleForgotPassword}
         placeholder="Email"
+        placeholderTextColor={colors.textMuted}
         returnKeyType="send"
-        style={styles.input}
+        style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
         value={email}
       />
       {isSubmitting ? (
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary} />
       ) : (
-        <Button
-          title="Send reset instructions"
+        <Pressable
           onPress={handleForgotPassword}
-        />
+          style={[styles.button, { backgroundColor: colors.primary }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.onPrimary }]}>
+            Send reset instructions
+          </Text>
+        </Pressable>
       )}
-      <Link href="/(auth)/login" style={styles.link}>
+      <Link href="/(auth)/login" style={[styles.link, { color: colors.primary }]}>
         Back to login
       </Link>
     </View>
@@ -82,6 +89,17 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
+  button: {
+    alignItems: "center",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 14,
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
   container: {
     flex: 1,
     gap: 12,
@@ -89,7 +107,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   input: {
-    borderColor: "#c8c8c8",
     borderRadius: 6,
     borderWidth: 1,
     padding: 12,

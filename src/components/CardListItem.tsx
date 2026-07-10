@@ -3,7 +3,8 @@ import { PokemonCard } from '@/types/card';
 import { getDisplayCardName } from '@/utils/displayNames';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 interface CardListItemProps {
   card: PokemonCard;

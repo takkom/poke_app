@@ -14,12 +14,12 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 
 import { XMON_API_URL } from "@/config";
+import { Text } from "@/components/ui/Text";
+import { TextInput } from "@/components/ui/TextInput";
 import { darkColors, type AppColors } from "@/theme/colors";
 import { useAuth } from "../../context/AuthContext";
 import {

@@ -1,5 +1,6 @@
 import { JaruLogo } from "@/components/JaruLogo";
 import { useThemeManager } from "@/hooks/useThemeManager";
+import { FontFamily } from "@/theme/typography";
 import { Stack } from "expo-router";
 
 export default function AuthLayout() {
@@ -14,7 +15,7 @@ export default function AuthLayout() {
         headerTintColor: colors.textPrimary,
         headerTitleStyle: {
           color: colors.textPrimary,
-          fontWeight: "800",
+          fontFamily: FontFamily.extraBold,
         },
         headerShadowVisible: false,
         headerTitleAlign: "left",

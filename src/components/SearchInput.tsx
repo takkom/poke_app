@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { TextInput } from "@/components/ui/TextInput";
 import { useThemeManager } from "@/hooks/useThemeManager";
 
 interface SearchInputProps {

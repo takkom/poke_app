@@ -14,9 +14,9 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/ui/Text";
 
 type ItemType = "card" | "box";
 

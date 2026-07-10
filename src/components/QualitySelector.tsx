@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Text";
 
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
@@ -23,8 +24,7 @@ export function QualitySelector({
   const { colors } = useThemeManager();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const available = qualities.filter((quality) => quality.count > 0);
-  if (!available.length) {
+  if (!qualities.length) {
     return null;
   }
 
@@ -32,7 +32,7 @@ export function QualitySelector({
     <View style={styles.container}>
       <Text style={styles.eyebrow}>{t("chart.selectQuality")}</Text>
       <View style={styles.row}>
-        {available.map((quality) => {
+        {qualities.map((quality) => {
           const active = selected.includes(quality.code);
           return (
             <Pressable
@@ -54,14 +54,16 @@ export function QualitySelector({
               >
                 {quality.label}
               </Text>
-              <Text
-                style={[
-                  styles.chipCount,
-                  { color: active ? colors.onPrimary : colors.textMuted },
-                ]}
-              >
-                {quality.count.toLocaleString(locale)}
-              </Text>
+              {quality.count > 0 ? (
+                <Text
+                  style={[
+                    styles.chipCount,
+                    { color: active ? colors.onPrimary : colors.textMuted },
+                  ]}
+                >
+                  {quality.count.toLocaleString(locale)}
+                </Text>
+              ) : null}
             </Pressable>
           );
         })}

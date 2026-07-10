@@ -13,10 +13,10 @@ import {
   ActivityIndicator,
   FlatList,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "@/components/ui/Text";
 
 type HomeTranslator = (
   key:
@@ -183,7 +183,7 @@ const TopSellerRow = memo(function TopSellerRow({
         contentFit="cover"
       />
       <View style={[styles.rankBadge, { backgroundColor: colors.primary }]}>
-        <Text style={styles.rankText}>{index + 1}</Text>
+        <Text style={[styles.rankText, { color: colors.onPrimary }]}>{index + 1}</Text>
       </View>
 
       <View style={styles.cardBody}>
@@ -382,7 +382,6 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   rankText: {
-    color: "#ffffff",
     fontSize: 12,
     fontWeight: "900",
   },

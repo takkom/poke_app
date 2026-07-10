@@ -1,6 +1,7 @@
 import { JaruLogo } from "@/components/JaruLogo";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
+import { FontFamily } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
@@ -17,12 +18,15 @@ export default function TabsLayout() {
         headerTintColor: colors.textPrimary,
         headerTitleStyle: {
           color: colors.textPrimary,
-          fontWeight: "800",
+          fontFamily: FontFamily.extraBold,
         },
         headerTitleAlign: "left",
         headerTitle: () => <JaruLogo />,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
+        tabBarLabelStyle: {
+          fontFamily: FontFamily.medium,
+        },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
