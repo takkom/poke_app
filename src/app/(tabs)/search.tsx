@@ -11,6 +11,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -273,6 +274,7 @@ function TcgDexTestSearch() {
   const hasTestQuery = Boolean(testQuery.trim());
 
   async function performTestSearch() {
+    Keyboard.dismiss();
     const currentQuery = testQuery.trim();
     if (!currentQuery) {
       setTestResults([]);
@@ -473,6 +475,7 @@ export default function SearchTab() {
   }
 
   async function performSearch() {
+    Keyboard.dismiss();
     const currentQuery = query.trim();
     if (!currentQuery) {
       setResults([]);

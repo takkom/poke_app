@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -201,6 +202,7 @@ export default function AddCollectionCardScreen() {
       return;
     }
 
+    Keyboard.dismiss();
     setSearching(true);
     setMessage(null);
     setSelectedItem(null);
@@ -387,6 +389,7 @@ export default function AddCollectionCardScreen() {
                     : t("collections.searchPlaceholder")
                 }
                 placeholderTextColor={colors.textMuted}
+                returnKeyType="search"
                 style={[
                   styles.input,
                   {

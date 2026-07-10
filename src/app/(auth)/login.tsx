@@ -1,11 +1,12 @@
 import { useAuth } from "@/context/AuthContext";
 import { APP_VERSION } from "@/constants/version";
 import { Link } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Button,
+  Keyboard,
   StyleSheet,
   Text,
   TextInput,
@@ -17,8 +18,10 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordInputRef = useRef<TextInput>(null);
 
   async function handleLogin() {
+    Keyboard.dismiss();
     setIsSubmitting(true);
 
     try {
@@ -38,14 +41,20 @@ export default function LoginScreen() {
         autoComplete="email"
         keyboardType="email-address"
         onChangeText={setEmail}
+        onSubmitEditing={() => passwordInputRef.current?.focus()}
         placeholder="Email"
+        returnKeyType="next"
         style={styles.input}
+        submitBehavior="submit"
         value={email}
       />
       <TextInput
         autoComplete="password"
         onChangeText={setPassword}
+        onSubmitEditing={handleLogin}
         placeholder="Password"
+        ref={passwordInputRef}
+        returnKeyType="done"
         secureTextEntry
         style={styles.input}
         value={password}

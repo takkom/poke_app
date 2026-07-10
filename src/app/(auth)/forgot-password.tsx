@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Button,
+  Keyboard,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +17,7 @@ export default function ForgotPasswordScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleForgotPassword() {
+    Keyboard.dismiss();
     setIsSubmitting(true);
 
     try {
@@ -58,7 +60,9 @@ export default function ForgotPasswordScreen() {
         autoComplete="email"
         keyboardType="email-address"
         onChangeText={setEmail}
+        onSubmitEditing={handleForgotPassword}
         placeholder="Email"
+        returnKeyType="send"
         style={styles.input}
         value={email}
       />

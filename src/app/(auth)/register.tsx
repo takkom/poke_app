@@ -1,11 +1,12 @@
 import { useAuth } from "@/context/AuthContext";
 import { TermsOfServiceModal } from "@/components/TermsOfServiceModal";
 import { Link } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Button,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -28,6 +29,8 @@ export default function RegisterScreen() {
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTermsVisible, setIsTermsVisible] = useState(false);
+  const usernameInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
 
   function handleEmailChange(value: string) {
     setEmail(value);
@@ -58,6 +61,7 @@ export default function RegisterScreen() {
       return;
     }
 
+    Keyboard.dismiss();
     setIsSubmitting(true);
 
     try {
@@ -77,22 +81,32 @@ export default function RegisterScreen() {
         autoComplete="email"
         keyboardType="email-address"
         onChangeText={handleEmailChange}
+        onSubmitEditing={() => usernameInputRef.current?.focus()}
         placeholder="Email"
+        returnKeyType="next"
         style={styles.input}
+        submitBehavior="submit"
         value={email}
       />
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
         onChangeText={handleUsernameChange}
+        onSubmitEditing={() => passwordInputRef.current?.focus()}
         placeholder="Username"
+        ref={usernameInputRef}
+        returnKeyType="next"
         style={styles.input}
+        submitBehavior="submit"
         value={username}
       />
       <TextInput
         autoComplete="new-password"
         onChangeText={setPassword}
+        onSubmitEditing={handleRegister}
         placeholder="Password"
+        ref={passwordInputRef}
+        returnKeyType="done"
         secureTextEntry
         style={styles.input}
         value={password}
