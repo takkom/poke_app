@@ -1,3 +1,4 @@
+import { JaruLogo } from "@/components/JaruLogo";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,6 +19,8 @@ export default function TabsLayout() {
           color: colors.textPrimary,
           fontWeight: "800",
         },
+        headerTitleAlign: "left",
+        headerTitle: () => <JaruLogo />,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {

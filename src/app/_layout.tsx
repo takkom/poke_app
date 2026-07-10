@@ -1,3 +1,4 @@
+import { JaruLogo } from '@/components/JaruLogo';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeManagerProvider, useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
@@ -57,6 +58,8 @@ function RootStack() {
             fontWeight: '700',
           },
           headerShadowVisible: false,
+          headerTitleAlign: 'left',
+          headerTitle: () => <JaruLogo />,
           contentStyle: {
             backgroundColor: colors.background,
           },
