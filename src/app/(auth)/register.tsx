@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { PrivacyPolicyModal } from "@/components/PrivacyPolicyModal";
 import { TermsOfServiceModal } from "@/components/TermsOfServiceModal";
 import { Link } from "expo-router";
 import { useRef, useState } from "react";
@@ -27,8 +28,10 @@ export default function RegisterScreen() {
   const [isUsernameTouched, setIsUsernameTouched] = useState(false);
   const [password, setPassword] = useState("");
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTermsVisible, setIsTermsVisible] = useState(false);
+  const [isPrivacyVisible, setIsPrivacyVisible] = useState(false);
   const usernameInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
@@ -58,6 +61,11 @@ export default function RegisterScreen() {
 
     if (!hasAcceptedTerms) {
       Alert.alert("Terms required", "Please agree to the Terms of Service before creating an account.");
+      return;
+    }
+
+    if (!hasAcceptedPrivacy) {
+      Alert.alert("Privacy Policy required", "Please agree to the Privacy Policy before creating an account.");
       return;
     }
 
@@ -123,6 +131,18 @@ export default function RegisterScreen() {
           <Text style={styles.termsLink}>Terms of Service</Text>
         </Pressable>
       </Pressable>
+      <Pressable
+        onPress={() => setHasAcceptedPrivacy((accepted) => !accepted)}
+        style={styles.termsRow}
+      >
+        <View style={[styles.checkbox, hasAcceptedPrivacy && styles.checkboxChecked]}>
+          {hasAcceptedPrivacy ? <View style={styles.checkmark} /> : null}
+        </View>
+        <Text style={styles.termsText}>I agree to the </Text>
+        <Pressable onPress={() => setIsPrivacyVisible(true)}>
+          <Text style={styles.termsLink}>Privacy Policy</Text>
+        </Pressable>
+      </Pressable>
       {isSubmitting ? (
         <ActivityIndicator />
       ) : (
@@ -135,6 +155,10 @@ export default function RegisterScreen() {
       <TermsOfServiceModal
         onClose={() => setIsTermsVisible(false)}
         visible={isTermsVisible}
+      />
+      <PrivacyPolicyModal
+        onClose={() => setIsPrivacyVisible(false)}
+        visible={isPrivacyVisible}
       />
     </View>
   );

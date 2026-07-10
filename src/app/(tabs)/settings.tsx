@@ -1,3 +1,5 @@
+import { ContactUsModal } from '@/components/ContactUsModal';
+import { PrivacyPolicyModal } from '@/components/PrivacyPolicyModal';
 import { TermsOfServiceModal } from '@/components/TermsOfServiceModal';
 import { useAuth } from '@/context/AuthContext';
 import { AppLocale, ThemePreference, useThemeManager } from '@/hooks/useThemeManager';
@@ -39,6 +41,8 @@ export default function SettingsTab() {
   } = useAuth();
   const { t } = useI18n();
   const [isTermsVisible, setIsTermsVisible] = useState(false);
+  const [isPrivacyVisible, setIsPrivacyVisible] = useState(false);
+  const [isContactVisible, setIsContactVisible] = useState(false);
   const [isEditVisible, setIsEditVisible] = useState(false);
   const [draftUsername, setDraftUsername] = useState(user?.username ?? user?.email ?? '');
   const [isSavingUsername, setIsSavingUsername] = useState(false);
@@ -191,12 +195,24 @@ export default function SettingsTab() {
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Legal and session</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Support and legal</Text>
+        <TouchableOpacity
+          onPress={() => setIsContactVisible(true)}
+          style={[styles.actionButton, { borderColor: colors.border }]}
+        >
+          <Text style={[styles.actionButtonText, { color: colors.textPrimary }]}>Contact Us</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setIsTermsVisible(true)}
           style={[styles.actionButton, { borderColor: colors.border }]}
         >
           <Text style={[styles.actionButtonText, { color: colors.textPrimary }]}>Review Terms of Service</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setIsPrivacyVisible(true)}
+          style={[styles.actionButton, { borderColor: colors.border }]}
+        >
+          <Text style={[styles.actionButtonText, { color: colors.textPrimary }]}>Review Privacy Policy</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => void logout()}
@@ -222,6 +238,16 @@ export default function SettingsTab() {
       <TermsOfServiceModal
         onClose={() => setIsTermsVisible(false)}
         visible={isTermsVisible}
+      />
+
+      <PrivacyPolicyModal
+        onClose={() => setIsPrivacyVisible(false)}
+        visible={isPrivacyVisible}
+      />
+
+      <ContactUsModal
+        onClose={() => setIsContactVisible(false)}
+        visible={isContactVisible}
       />
 
       <Modal
