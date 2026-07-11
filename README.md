@@ -94,7 +94,7 @@ eas update --branch production --message "describe change"
 
 ### App version display
 
-In-app version (`v0.1.0` on login/settings) comes from `src/constants/version.ts` — keep it in sync with `app.json` → `expo.version`. Bumping the visible version does not change channels or `runtimeVersion`.
+In-app version (`v0.1.1` on login/settings) comes from `src/constants/version.ts` — keep it in sync with `app.json` → `expo.version`. Bumping the visible version does not change channels or `runtimeVersion`.
 
 ### Related repos
 
