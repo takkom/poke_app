@@ -3,14 +3,13 @@ import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { getCardById, getPriceHistory } from "@/services/cardService";
-import { AppColors } from "@/theme/colors";
 import {
-  CardPricing,
   CardWithPricing,
   PriceHistoryPoint,
   QualityBucketCode,
 } from "@/types/card";
 import { getDisplayCardName } from "@/utils/displayNames";
+import { resolveCardDisplayNumber } from "@/utils/cardNumber";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -26,33 +25,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "@/components/ui/Text";
 
-type VariantKey = "normal" | "reverseHolofoil" | "holofoil";
-
-type Variant = {
-  key: VariantKey;
-  label: string;
-  enabled: boolean;
-};
-
-type TcgPrice = NonNullable<
-  NonNullable<NonNullable<CardPricing["tcgplayer"]>["prices"]>[VariantKey]
->;
-
-function formatUsd(value?: number): string | null {
-  return typeof value === "number" ? `$${value.toFixed(2)}` : null;
-}
-
 function formatSalesCount(value: number | null | undefined, locale: string): string {
   return (value ?? 0).toLocaleString(locale);
-}
-
-function pickNumber(...values: unknown[]): number | undefined {
-  for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-  }
-  return undefined;
 }
 
 function cardLanguageFlag(language: string | null | undefined): string | null {
@@ -65,20 +39,6 @@ function cardLanguageFlag(language: string | null | undefined): string | null {
 // PSA 10 KREAM/SNKRDUNK prices was misleading (e.g. Clefairy 86/80).
 const DEFAULT_QUALITY: QualityBucketCode = "PSA_10";
 
-function normalizeVariantPrice(value: unknown): TcgPrice | undefined {
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-
-  const row = value as Record<string, unknown>;
-  return {
-    low: pickNumber(row.low, row.lowPrice),
-    mid: pickNumber(row.mid, row.midPrice),
-    high: pickNumber(row.high, row.highPrice),
-    market: pickNumber(row.market, row.marketPrice),
-  };
-}
-
 function resolveImageUrl(card: CardWithPricing): string | null {
   if (card.images?.large) {
     return card.images.large;
@@ -89,76 +49,6 @@ function resolveImageUrl(card: CardWithPricing): string | null {
   }
 
   return card.image ?? null;
-}
-
-function VariantSelector({
-  variants,
-  selected,
-  onSelect,
-  colors,
-}: {
-  variants: readonly Variant[];
-  selected: VariantKey;
-  onSelect: (variant: VariantKey) => void;
-  colors: AppColors;
-}) {
-  return (
-    <View style={styles.variantContainer}>
-      {variants.map((variant) => {
-        const selectedVariant = selected === variant.key;
-        return (
-          <Pressable
-            key={variant.key}
-            disabled={!variant.enabled}
-            onPress={() => onSelect(variant.key)}
-            style={[
-              styles.variantButton,
-              { borderColor: colors.border },
-              selectedVariant && styles.variantButtonSelected,
-              selectedVariant && {
-                backgroundColor: colors.primary,
-                borderColor: colors.primary,
-              },
-              !variant.enabled && styles.variantButtonDisabled,
-              !variant.enabled && { backgroundColor: colors.surfaceMuted },
-            ]}
-          >
-            <Text
-              style={[
-                styles.variantButtonText,
-                { color: colors.textSecondary },
-                selectedVariant && styles.variantButtonTextSelected,
-                selectedVariant && { color: colors.onPrimary },
-              ]}
-            >
-              {variant.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-function PriceRow({
-  label,
-  value,
-  colors,
-}: {
-  label: string;
-  value: string | null;
-  colors: AppColors;
-}) {
-  if (!value) {
-    return null;
-  }
-
-  return (
-    <View style={[styles.priceRow, { borderBottomColor: colors.border }]}>
-      <Text style={[styles.priceLabel, { color: colors.textSecondary }]}>{label}</Text>
-      <Text style={[styles.priceValue, { color: colors.textPrimary }]}>{value}</Text>
-    </View>
-  );
 }
 
 const CARD_ASPECT_RATIO = 2.5 / 3.5;
@@ -173,7 +63,6 @@ export default function CardDetailScreen() {
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
   const [priceHistoryError, setPriceHistoryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedVariant, setSelectedVariant] = useState<VariantKey>("normal");
   const [collectionModalVisible, setCollectionModalVisible] = useState(false);
 
   useEffect(() => {
@@ -257,46 +146,9 @@ export default function CardDetailScreen() {
     };
   }, [card?.id, displayCurrency, t]);
 
-  const tcg = card?.pricing?.tcgplayer;
-  const rawTcg = tcg as Record<string, unknown> | undefined;
-  const tcgPrices = {
-    normal: normalizeVariantPrice(tcg?.prices?.normal ?? rawTcg?.normal),
-    reverseHolofoil: normalizeVariantPrice(
-      tcg?.prices?.reverseHolofoil ?? rawTcg?.["reverse-holofoil"],
-    ),
-    holofoil: normalizeVariantPrice(tcg?.prices?.holofoil ?? rawTcg?.holofoil),
-  };
-
-  const variants = useMemo(
-    () =>
-      [
-        { key: "normal", label: "Normal", enabled: !!tcgPrices?.normal },
-        {
-          key: "reverseHolofoil",
-          label: "Reverse Holo",
-          enabled: !!tcgPrices?.reverseHolofoil,
-        },
-        { key: "holofoil", label: "Holo", enabled: !!tcgPrices?.holofoil },
-      ] as const,
-    [tcgPrices],
-  );
-
-  useEffect(() => {
-    const firstAvailable = variants.find((variant) => variant.enabled)?.key;
-    if (firstAvailable) {
-      setSelectedVariant(firstAvailable);
-    }
-  }, [variants]);
-
-  const variantData = tcgPrices[selectedVariant] as TcgPrice | undefined;
-  // const cardmarket = card?.pricing?.cardmarket;
-  // const rawCardmarket = cardmarket as unknown as Record<string, unknown> | undefined;
-  // const cardmarketPrices = {
-  //   avg30: pickNumber(cardmarket?.prices?.avg30, rawCardmarket?.avg30),
-  //   lowPrice: pickNumber(cardmarket?.prices?.lowPrice, rawCardmarket?.lowPrice, rawCardmarket?.low),
-  // };
   const imageUrl = card ? resolveImageUrl(card) : null;
   const displayName = card ? getDisplayCardName(card, locale) : "";
+  const displayNumber = card ? resolveCardDisplayNumber(card) : "";
   const languageFlag = card ? cardLanguageFlag(card.language) : null;
   const hasValidImage = Boolean(
     imageUrl && !imageUrl.includes("placeholder.png"),
@@ -396,36 +248,24 @@ export default function CardDetailScreen() {
         </View>
 
         <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
-          <View style={styles.cardNameRow}>
-            <Text style={[styles.cardName, { color: themeColors.primary }]}>{displayName}</Text>
-            {languageFlag ? (
-              <Text
-                style={styles.languageFlag}
-                accessibilityLabel={card.language === "ja" ? "Japanese" : "English"}
-              >
-                {languageFlag}
+          <View style={styles.titleBlock}>
+            <View style={styles.cardNameRow}>
+              <Text style={[styles.cardName, { color: themeColors.primary }]}>{displayName}</Text>
+              {languageFlag ? (
+                <Text
+                  style={styles.languageFlag}
+                  accessibilityLabel={card.language === "ja" ? "Japanese" : "English"}
+                >
+                  {languageFlag}
+                </Text>
+              ) : null}
+            </View>
+            {displayNumber ? (
+              <Text style={[styles.cardNumber, { color: themeColors.textSecondary }]}>
+                #{displayNumber}
               </Text>
             ) : null}
           </View>
-          <Pressable
-            onPress={() => setCollectionModalVisible(true)}
-            style={[
-              styles.addToCollectionButton,
-              {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.border,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="folder-plus-outline"
-              size={18}
-              color={themeColors.primary}
-            />
-            <Text style={[styles.addToCollectionText, { color: themeColors.primary }]}>
-              {t("card.addToCollection")}
-            </Text>
-          </Pressable>
           {marketBadges.length ? (
             <View style={styles.marketBadgeRow}>
               {marketBadges.map((badge) => (
@@ -481,91 +321,37 @@ export default function CardDetailScreen() {
             />
           )}
 
-          <View style={[styles.pricingSection, { borderTopColor: themeColors.border }]}>
-            <Text style={[styles.pricingTitle, { color: themeColors.textPrimary }]}>{t('card.marketPrices')}</Text>
-
-            {variantData ? (
-              <View
-                style={[
-                  styles.priceCard,
-                  {
-                    backgroundColor: themeColors.background,
-                    borderLeftColor: themeColors.primary,
-                  },
-                ]}
-              >
-                <Text style={[styles.marketName, { color: themeColors.primary }]}>TCGPlayer</Text>
-                <VariantSelector
-                  variants={variants}
-                  selected={selectedVariant}
-                  onSelect={setSelectedVariant}
-                  colors={themeColors}
-                />
-                <PriceRow
-                  label={t('card.market')}
-                  value={formatUsd(variantData.market)}
-                  colors={themeColors}
-                />
-                <PriceRow label={t('card.low')} value={formatUsd(variantData.low)} colors={themeColors} />
-                <PriceRow label={t('card.mid')} value={formatUsd(variantData.mid)} colors={themeColors} />
-                <PriceRow label={t('card.high')} value={formatUsd(variantData.high)} colors={themeColors} />
-                {tcg?.updatedAt ? (
-                  <Text style={[styles.updatedAt, { color: themeColors.textMuted }]}>
-                    {t('card.updated', { date: new Date(tcg.updatedAt).toLocaleDateString(locale) })}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {/* CardMarket temporarily hidden
-            {cardmarket ? (
-              <View
-                style={[
-                  styles.priceCard,
-                  {
-                    backgroundColor: themeColors.background,
-                    borderLeftColor: themeColors.primary,
-                  },
-                ]}
-              >
-                <Text style={[styles.marketName, { color: themeColors.primary }]}>CardMarket</Text>
-                <PriceRow
-                  label={t('card.avg30')}
-                  colors={themeColors}
-                  value={
-                    typeof cardmarket?.prices?.avg30 === "number"
-                      ? `EUR ${cardmarket.prices.avg30.toFixed(2)}`
-                      : typeof cardmarketPrices.avg30 === "number"
-                        ? `EUR ${cardmarketPrices.avg30.toFixed(2)}`
-                      : null
-                  }
-                />
-                <PriceRow
-                  label={t('card.lowest')}
-                  colors={themeColors}
-                  value={
-                    typeof cardmarketPrices.lowPrice === "number"
-                      ? `EUR ${cardmarketPrices.lowPrice.toFixed(2)}`
-                      : null
-                  }
-                />
-                {cardmarket.updatedAt ? (
-                  <Text style={[styles.updatedAt, { color: themeColors.textMuted }]}>
-                    {t('card.updated', { date: new Date(cardmarket.updatedAt).toLocaleDateString(locale) })}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-            */}
-
-            {!variantData ? (
-              <Text style={[styles.noPricingText, { color: themeColors.textMuted }]}>
-                {t('card.noPricing')}
-              </Text>
-            ) : null}
-          </View>
         </View>
       </ScrollView>
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: themeColors.surface,
+            borderTopColor: themeColors.border,
+          },
+        ]}
+      >
+        <Pressable
+          onPress={() => setCollectionModalVisible(true)}
+          style={[
+            styles.addToCollectionButton,
+            {
+              backgroundColor: themeColors.primary,
+              borderColor: themeColors.primary,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="folder-plus-outline"
+            size={20}
+            color={themeColors.onPrimary}
+          />
+          <Text style={[styles.addToCollectionText, { color: themeColors.onPrimary }]}>
+            {t("card.addToCollection")}
+          </Text>
+        </Pressable>
+      </View>
       <AddToCollectionModal
         visible={collectionModalVisible}
         cardId={card.id}
@@ -580,7 +366,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 16,
   },
   imageContainer: {
     alignItems: "center",
@@ -621,6 +407,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
   },
+  titleBlock: {
+    alignItems: "center",
+    gap: 4,
+  },
   cardNameRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -632,18 +422,30 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
   },
+  cardNumber: {
+    fontSize: 15,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  bottomBar: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
   addToCollectionButton: {
     alignItems: "center",
-    alignSelf: "center",
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   addToCollectionText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "800",
   },
   marketBadgeRow: {
@@ -669,77 +471,6 @@ const styles = StyleSheet.create({
   marketBadgeCount: {
     fontSize: 10,
     fontWeight: "900",
-  },
-  pricingSection: {
-    borderTopWidth: 1,
-    gap: 12,
-    paddingTop: 18,
-  },
-  pricingTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  priceCard: {
-    borderLeftWidth: 4,
-    borderRadius: 8,
-    padding: 12,
-  },
-  marketName: {
-    fontSize: 14,
-    fontWeight: "800",
-    marginBottom: 12,
-  },
-  variantContainer: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-  },
-  variantButton: {
-    alignItems: "center",
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 38,
-    justifyContent: "center",
-    paddingHorizontal: 8,
-  },
-  variantButtonSelected: {
-  },
-  variantButtonDisabled: {
-    opacity: 0.5,
-  },
-  variantButtonText: {
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  variantButtonTextSelected: {
-  },
-  priceRow: {
-    alignItems: "center",
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  priceLabel: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  priceValue: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  updatedAt: {
-    fontSize: 11,
-    fontStyle: "italic",
-    marginTop: 8,
-  },
-  noPricingText: {
-    fontSize: 14,
-    paddingVertical: 12,
-    textAlign: "center",
   },
   centerContainer: {
     alignItems: "center",
