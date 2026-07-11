@@ -34,6 +34,7 @@ type AuthContextValue = {
   ) => Promise<void>;
   logout: () => Promise<void>;
   updateUsername: (username: string) => Promise<AuthUser>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   checkUsernameAvailability: (username: string) => Promise<boolean>;
 };
@@ -212,6 +213,36 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [token, updateStoredUser],
   );
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!token) {
+        throw new Error("You need to sign in first.");
+      }
+
+      const response = await fetch(`${XMON_API_URL}/api/auth/change-password`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | (Partial<AuthResponse> & { message?: string })
+        | null;
+
+      if (!response.ok || !data?.access_token || !data.user) {
+        throw new Error(data?.message ?? "Could not change password.");
+      }
+
+      await persistSession(data as AuthResponse);
+    },
+    [persistSession, token],
+  );
+
   const deleteAccount = useCallback(async () => {
     if (!token) {
       throw new Error("You need to sign in first.");
@@ -243,11 +274,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       register: registerWithSession,
       logout,
       updateUsername,
+      changePassword,
       deleteAccount,
       checkUsernameAvailability,
     }),
     [
       checkUsernameAvailability,
+      changePassword,
       deleteAccount,
       isLoading,
       login,
