@@ -1,3 +1,4 @@
+import { AddToCollectionModal } from "@/components/AddToCollectionModal";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
@@ -51,6 +52,12 @@ function pickNumber(...values: unknown[]): number | undefined {
     }
   }
   return undefined;
+}
+
+function cardLanguageFlag(language: string | null | undefined): string | null {
+  if (language === "ja") return "🇯🇵";
+  if (language === "en") return "🇺🇸";
+  return null;
 }
 
 // Price history is locked to PSA 10 for now. Comparing RAW eBay prices to
@@ -163,6 +170,7 @@ export default function CardDetailScreen() {
   const [priceHistoryError, setPriceHistoryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<VariantKey>("normal");
+  const [collectionModalVisible, setCollectionModalVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -277,14 +285,15 @@ export default function CardDetailScreen() {
   }, [variants]);
 
   const variantData = tcgPrices[selectedVariant] as TcgPrice | undefined;
-  const cardmarket = card?.pricing?.cardmarket;
-  const rawCardmarket = cardmarket as unknown as Record<string, unknown> | undefined;
-  const cardmarketPrices = {
-    avg30: pickNumber(cardmarket?.prices?.avg30, rawCardmarket?.avg30),
-    lowPrice: pickNumber(cardmarket?.prices?.lowPrice, rawCardmarket?.lowPrice, rawCardmarket?.low),
-  };
+  // const cardmarket = card?.pricing?.cardmarket;
+  // const rawCardmarket = cardmarket as unknown as Record<string, unknown> | undefined;
+  // const cardmarketPrices = {
+  //   avg30: pickNumber(cardmarket?.prices?.avg30, rawCardmarket?.avg30),
+  //   lowPrice: pickNumber(cardmarket?.prices?.lowPrice, rawCardmarket?.lowPrice, rawCardmarket?.low),
+  // };
   const imageUrl = card ? resolveImageUrl(card) : null;
   const displayName = card ? getDisplayCardName(card, locale) : "";
+  const languageFlag = card ? cardLanguageFlag(card.language) : null;
   const hasValidImage = Boolean(
     imageUrl && !imageUrl.includes("placeholder.png"),
   );
@@ -365,7 +374,36 @@ export default function CardDetailScreen() {
         </View>
 
         <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
-          <Text style={[styles.cardName, { color: themeColors.primary }]}>{displayName}</Text>
+          <View style={styles.cardNameRow}>
+            <Text style={[styles.cardName, { color: themeColors.primary }]}>{displayName}</Text>
+            {languageFlag ? (
+              <Text
+                style={styles.languageFlag}
+                accessibilityLabel={card.language === "ja" ? "Japanese" : "English"}
+              >
+                {languageFlag}
+              </Text>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={() => setCollectionModalVisible(true)}
+            style={[
+              styles.addToCollectionButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="folder-plus-outline"
+              size={18}
+              color={themeColors.primary}
+            />
+            <Text style={[styles.addToCollectionText, { color: themeColors.primary }]}>
+              {t("card.addToCollection")}
+            </Text>
+          </Pressable>
           {marketBadges.length ? (
             <View style={styles.marketBadgeRow}>
               {marketBadges.map((badge) => (
@@ -457,6 +495,7 @@ export default function CardDetailScreen() {
               </View>
             ) : null}
 
+            {/* CardMarket temporarily hidden
             {cardmarket ? (
               <View
                 style={[
@@ -494,14 +533,22 @@ export default function CardDetailScreen() {
                   </Text>
                 ) : null}
               </View>
-            ) : (
+            ) : null}
+            */}
+
+            {!variantData ? (
               <Text style={[styles.noPricingText, { color: themeColors.textMuted }]}>
                 {t('card.noPricing')}
               </Text>
-            )}
+            ) : null}
           </View>
         </View>
       </ScrollView>
+      <AddToCollectionModal
+        visible={collectionModalVisible}
+        cardId={card.id}
+        onClose={() => setCollectionModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -556,6 +603,31 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     textAlign: "center",
+  },
+  cardNameRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
+  },
+  languageFlag: {
+    fontSize: 24,
+    lineHeight: 30,
+  },
+  addToCollectionButton: {
+    alignItems: "center",
+    alignSelf: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  addToCollectionText: {
+    fontSize: 13,
+    fontWeight: "800",
   },
   marketBadgeRow: {
     flexDirection: "row",

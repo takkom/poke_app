@@ -160,6 +160,29 @@ function getPlatformRows(
     .filter((row) => Number.isFinite(row.value) && row.value > 0);
 }
 
+function extendPlatformRowsToEnd(
+  rows: RawMarketPoint[],
+  endDate: string | undefined,
+): RawMarketPoint[] {
+  if (!rows.length || !endDate) {
+    return rows;
+  }
+
+  const lastRow = rows[rows.length - 1];
+  if (lastRow.date >= endDate) {
+    return rows;
+  }
+
+  return [
+    ...rows,
+    {
+      date: endDate,
+      value: lastRow.value,
+      volume: 0,
+    },
+  ];
+}
+
 function platformHasRecords(
   history: PriceHistoryPoint[],
   platform: Marketplace,
@@ -235,9 +258,11 @@ export function PriceHistoryChart({
   const hasVisiblePlatforms = activePlatforms.length > 0;
 
   const allDates = useMemo(
-    () => [...new Set(priceHistory.map((row) => row.date))],
+    () => [...new Set(priceHistory.map((row) => row.date))].sort(),
     [priceHistory],
   );
+
+  const chartEndDate = allDates.length ? allDates[allDates.length - 1] : undefined;
 
   const rawDatasets = useMemo(
     () =>
@@ -245,9 +270,12 @@ export function PriceHistoryChart({
         platform: item.key,
         label: item.label,
         color: colors.marketplaces[item.key],
-        rawPoints: getPlatformRows(priceHistory, item.key),
+        rawPoints: extendPlatformRowsToEnd(
+          getPlatformRows(priceHistory, item.key),
+          chartEndDate,
+        ),
       })),
-    [activePlatforms, priceHistory],
+    [activePlatforms, chartEndDate, priceHistory],
   );
 
   const allValues = rawDatasets.flatMap((dataset) =>
