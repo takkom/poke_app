@@ -3,7 +3,7 @@ import { MarketplaceArbitragePanel } from "@/components/MarketplaceArbitragePane
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { getCardById, getPriceHistory, applyBaselineArbitrage } from "@/services/cardService";
+import { getCardById, getPriceHistory, applyBaselineArbitrage, deriveMarketplaceAveragesFromPriceHistory } from "@/services/cardService";
 import {
   CardWithPricing,
   MarketplaceKey,
@@ -174,12 +174,43 @@ export default function CardDetailScreen() {
     imageUrl && !imageUrl.includes("placeholder.png"),
   );
   const cardImageSize = useMemo(() => {
-    const contentWidth = screenWidth - 24 - 32;
-    const imageWidth = Math.min(contentWidth * 0.48, 200);
+    const imageWidth = Math.round(screenWidth * 0.3);
     const imageHeight = imageWidth / CARD_ASPECT_RATIO;
 
     return { width: imageWidth, height: imageHeight };
   }, [screenWidth]);
+
+  const cardForArbitrage = useMemo(() => {
+    if (!card) {
+      return null;
+    }
+
+    const hasApiAverages = MARKETPLACE_COLUMN_ORDER.some(
+      (marketplace) =>
+        cardWithBaseline?.marketplaceAverages?.[marketplace]?.avgPrice != null,
+    );
+
+    if (hasApiAverages && cardWithBaseline) {
+      return cardWithBaseline;
+    }
+
+    const derivedAverages = deriveMarketplaceAveragesFromPriceHistory(priceHistory);
+    const hasDerivedAverages = MARKETPLACE_COLUMN_ORDER.some(
+      (marketplace) => derivedAverages[marketplace]?.avgPrice != null,
+    );
+
+    if (!hasDerivedAverages) {
+      return cardWithBaseline ?? card;
+    }
+
+    return applyBaselineArbitrage(
+      {
+        ...card,
+        marketplaceAverages: derivedAverages,
+      },
+      baseline,
+    );
+  }, [baseline, card, cardWithBaseline, priceHistory]);
 
   const marketplaceSales = card
     ? MARKETPLACE_SALES_ORDER.flatMap((key) => {
@@ -301,7 +332,7 @@ export default function CardDetailScreen() {
 
           <MarketplaceArbitragePanel
             baseline={baseline}
-            card={cardWithBaseline ?? card}
+            card={cardForArbitrage ?? card}
             currency={card.displayCurrency ?? displayCurrency}
             onBaselineChange={setBaseline}
           />
@@ -428,9 +459,9 @@ const styles = StyleSheet.create({
   detailsContainer: {
     borderRadius: 8,
     gap: 18,
-    marginHorizontal: 12,
+    marginHorizontal: 8,
     marginTop: 12,
-    padding: 16,
+    padding: 12,
   },
   cardName: {
     flex: 1,

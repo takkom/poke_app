@@ -309,6 +309,61 @@ function transformArbitrageCard(tcgCard: any): PokemonCard {
   };
 }
 
+function priceHistoryAverageKey(platform: MarketplaceKey): keyof PriceHistoryPoint {
+  return `${platform}_avg` as keyof PriceHistoryPoint;
+}
+
+function priceHistoryAverageKrwKey(
+  platform: MarketplaceKey,
+): keyof PriceHistoryPoint {
+  return `${platform}_avg_krw` as keyof PriceHistoryPoint;
+}
+
+function priceHistoryVolumeKey(platform: MarketplaceKey): keyof PriceHistoryPoint {
+  return `${platform}_volume` as keyof PriceHistoryPoint;
+}
+
+function readPriceHistoryAverage(
+  row: PriceHistoryPoint,
+  platform: MarketplaceKey,
+): number | null {
+  const value =
+    row[priceHistoryAverageKey(platform)] ??
+    row[priceHistoryAverageKrwKey(platform)];
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function deriveMarketplaceAveragesFromPriceHistory(
+  history: PriceHistoryPoint[],
+): Partial<Record<MarketplaceKey, MarketplaceAverage>> {
+  if (!history.length) {
+    return {};
+  }
+
+  const marketplaceAverages: Partial<Record<MarketplaceKey, MarketplaceAverage>> =
+    {};
+
+  for (const platform of MARKETPLACE_KEYS) {
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+      const avgPrice = readPriceHistoryAverage(history[index], platform);
+      if (avgPrice == null) {
+        continue;
+      }
+
+      const volume = Number(history[index][priceHistoryVolumeKey(platform)] ?? 0);
+      marketplaceAverages[platform] = {
+        avgPrice,
+        relativePercent: null,
+        volume: Number.isFinite(volume) ? volume : 0,
+      };
+      break;
+    }
+  }
+
+  return marketplaceAverages;
+}
+
 export function applyBaselineArbitrage(
   card: PokemonCard,
   baseline: MarketplaceKey,
