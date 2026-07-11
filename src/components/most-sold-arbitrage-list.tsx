@@ -3,10 +3,7 @@ import { useThemeManager, type AppLocale } from "@/hooks/useThemeManager";
 import { getMostSoldArbitrageCards } from "@/services/cardService";
 import { AppColors } from "@/theme/colors";
 import { MarketplaceKey, PokemonCard } from "@/types/card";
-import {
-  cleanMarketplaceTitle,
-  getDisplayCardName,
-} from "@/utils/displayNames";
+import { getCardListDisplayName } from "@/utils/displayNames";
 import { Image } from "expo-image";
 import { memo, useCallback, useEffect, useState } from "react";
 import {
@@ -32,6 +29,12 @@ const MARKETPLACES: Array<{ key: MarketplaceKey; label: string }> = [
   { key: "ebay", label: "ebay" },
   { key: "snkrdunk", label: "SNKR" },
 ];
+
+function cardLanguageFlag(language: string | null | undefined): string | null {
+  if (language === "ja") return "🇯🇵";
+  if (language === "en") return "🇺🇸";
+  return null;
+}
 
 function formatCardNumber(item: PokemonCard): string {
   if (!item.number) {
@@ -94,12 +97,6 @@ function getRelativeColor(
   return value > 0 ? colors.arbitragePositive : colors.arbitrageNegative;
 }
 
-function getDisplayName(item: PokemonCard, locale: AppLocale): string {
-  return locale === "ko-KR"
-    ? (cleanMarketplaceTitle(item.kreamTitle) ?? getDisplayCardName(item, locale))
-    : getDisplayCardName(item, locale);
-}
-
 type MarketplaceCellProps = {
   baseline: MarketplaceKey;
   colors: AppColors;
@@ -127,12 +124,7 @@ const MarketplaceCell = memo(function MarketplaceCell({
     <View
       style={[
         styles.marketCell,
-        isBaseline
-          ? {
-              backgroundColor: `${colors.primary}18`,
-              borderColor: colors.primary,
-            }
-          : { borderColor: "transparent" },
+        isBaseline ? { backgroundColor: colors.surfaceMuted } : null,
       ]}
     >
       <Text
@@ -143,19 +135,17 @@ const MarketplaceCell = memo(function MarketplaceCell({
           ? unavailableLabel
           : formatMoney(average.avgPrice, currency, locale)}
       </Text>
-      <Text
-        style={[
-          styles.marketPercent,
-          {
-            color: isBaseline
-              ? colors.primary
-              : getRelativeColor(colors, relativePercent),
-          },
-        ]}
-        numberOfLines={1}
-      >
-        {isBaseline ? "Baseline" : formatPercent(relativePercent)}
-      </Text>
+      {!isBaseline ? (
+        <Text
+          style={[
+            styles.marketPercent,
+            { color: getRelativeColor(colors, relativePercent) },
+          ]}
+          numberOfLines={1}
+        >
+          {formatPercent(relativePercent)}
+        </Text>
+      ) : null}
     </View>
   );
 });
@@ -221,12 +211,19 @@ const ArbitrageRow = memo(function ArbitrageRow({
           />
         )}
         <View style={styles.cardText}>
-          <Text
-            style={[styles.cardName, { color: colors.textPrimary }]}
-            numberOfLines={2}
-          >
-            {getDisplayName(item, locale)}
-          </Text>
+          <View style={styles.cardNameRow}>
+            {cardLanguageFlag(item.language) ? (
+              <Text style={styles.languageFlag} accessibilityLabel={item.language === "ja" ? "Japanese" : "English"}>
+                {cardLanguageFlag(item.language)}
+              </Text>
+            ) : null}
+            <Text
+              style={[styles.cardName, { color: colors.textPrimary }]}
+              numberOfLines={2}
+            >
+              {getCardListDisplayName(item, locale)}
+            </Text>
+          </View>
           {item.set?.name ? (
             <Text
               style={[styles.cardNumber, { color: colors.textSecondary }]}
@@ -287,6 +284,7 @@ export function MostSoldArbitrageList({
           displayCurrency,
           baseline,
           itemType,
+          locale,
         );
         if (!cancelled) {
           setCards(nextCards);
@@ -309,7 +307,7 @@ export function MostSoldArbitrageList({
     return () => {
       cancelled = true;
     };
-  }, [baseline, displayCurrency, itemType]);
+  }, [baseline, displayCurrency, itemType, locale]);
 
   const renderColumnHeader = useCallback(
     () => (
@@ -323,30 +321,46 @@ export function MostSoldArbitrageList({
           {itemType === "box" ? "Box" : "Card"}
         </Text>
         {MARKETPLACES.map((marketplace) => {
-          const isSelected = baseline === marketplace.key;
+          const isBaseline = baseline === marketplace.key;
           return (
             <Pressable
               key={marketplace.key}
               style={[
                 styles.marketHeader,
-                {
-                  backgroundColor: isSelected
-                    ? `${colors.primary}22`
-                    : colors.surface,
-                  borderColor: isSelected ? colors.primary : colors.border,
-                },
+                isBaseline
+                  ? {
+                      backgroundColor: `${colors.primary}14`,
+                      borderColor: colors.primary,
+                      borderWidth: 1,
+                    }
+                  : {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                    },
               ]}
               onPress={() => setBaseline(marketplace.key)}
             >
               <Text
                 style={[
                   styles.marketHeaderText,
-                  { color: isSelected ? colors.primary : colors.textPrimary },
+                  { color: isBaseline ? colors.primary : colors.textPrimary },
                 ]}
                 numberOfLines={1}
               >
                 {marketplace.label}
               </Text>
+              {isBaseline ? (
+                <Text
+                  style={[
+                    styles.marketHeaderBaseline,
+                    { color: colors.primary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  Baseline
+                </Text>
+              ) : null}
             </Pressable>
           );
         })}
@@ -514,15 +528,21 @@ const styles = StyleSheet.create({
   marketHeader: {
     alignItems: "center",
     borderRadius: 8,
-    borderWidth: 1,
     flex: 0.8,
+    gap: 1,
     justifyContent: "center",
     minHeight: 34,
     paddingHorizontal: 2,
+    paddingVertical: 4,
   },
   marketHeaderText: {
     fontSize: 11,
     fontWeight: "900",
+  },
+  marketHeaderBaseline: {
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
   row: {
     alignItems: "stretch",
@@ -559,7 +579,18 @@ const styles = StyleSheet.create({
     gap: 3,
     minWidth: 0,
   },
+  cardNameRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 4,
+  },
+  languageFlag: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 1,
+  },
   cardName: {
+    flex: 1,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 16,
@@ -571,12 +602,12 @@ const styles = StyleSheet.create({
   marketCell: {
     alignItems: "center",
     borderRadius: 7,
-    borderWidth: 1,
     flex: 0.8,
     gap: 3,
     justifyContent: "center",
     minWidth: 0,
     paddingHorizontal: 2,
+    paddingVertical: 6,
   },
   marketPrice: {
     fontSize: 11,

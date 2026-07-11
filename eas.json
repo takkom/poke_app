@@ -11,11 +11,24 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://xmon-api-production.up.railway.app"
+      }
+    },
+    "v2-preview": {
+      "distribution": "internal",
+      "channel": "v2-preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://xmon-api-v2-production.up.railway.app"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://xmon-api-production.up.railway.app"
+      }
     }
   },
   "submit": {

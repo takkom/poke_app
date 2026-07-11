@@ -632,7 +632,7 @@ export default function SearchTab() {
         </TouchableOpacity>
       </View>
 
-      <TcgDexTestSearch />
+      {__DEV__ ? <TcgDexTestSearch /> : null}
 
       <View style={styles.statusRow}>
         <Text style={[styles.statusText, { color: colors.textSecondary }]}>

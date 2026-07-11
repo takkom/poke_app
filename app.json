@@ -2,7 +2,7 @@
   "expo": {
     "name": "pokemon-tcg-app",
     "slug": "pokemon-tcg-app",
-    "version": "0.0.3",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pokemontcgapp",
@@ -30,7 +30,7 @@
         {
           "backgroundColor": "#040404",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 240
+          "imageWidth": 280
         }
       ]
     ],

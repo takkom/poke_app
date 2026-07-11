@@ -176,6 +176,9 @@ const transformCard = (tcgCard: any): CardWithPricing => {
     id: String(tcgCard.id ?? "unknown"),
     item_type: (tcgCard.item_type === "box" || tcgCard.item_type === "booster_box") ? "box" : "card",
     name: String(tcgCard.display_name || tcgCard.name || "Unknown"),
+    pokemon_name:
+      typeof tcgCard.pokemon_name === "string" ? tcgCard.pokemon_name : null,
+    language: typeof tcgCard.language === "string" ? tcgCard.language : null,
     number:
       tcgCard.number ??
       normalizeDisplayNumber(tcgCard.card_code, tcgCard.local_id),
@@ -476,36 +479,18 @@ export const getPriceHistoryQualities = async (
   }
 };
 
-export const getMostSoldCards = async (
-  limit: number = 30,
-  currency: "KRW" | "USD" = "KRW",
-): Promise<PokemonCard[]> => {
-  const params = new URLSearchParams({
-    limit: String(limit),
-    currency,
-  });
-  const response = await fetch(
-    `${LOCAL_API_BASE_URL}/api/cards/most-sold?${params.toString()}`,
-  );
-
-  if (!response.ok) {
-    throw new Error(`Most sold cards failed with ${response.status}`);
-  }
-
-  const data = (await response.json()) as PokemonCard[];
-  return Array.isArray(data) ? data.map(transformCard) : [];
-};
-
 export const getMostSoldArbitrageCards = async (
   limit: number = 30,
   currency: "KRW" | "USD" = "KRW",
   baseline: MarketplaceKey = "kream",
   itemType: "card" | "box" = "card",
+  locale: string = "en-US",
 ): Promise<PokemonCard[]> => {
   const params = new URLSearchParams({
     baseline,
     currency,
     limit: String(limit),
+    locale,
     ...(itemType === "box" ? { item_type: "box" } : {}),
   });
   const response = await fetch(

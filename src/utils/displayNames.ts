@@ -6,9 +6,27 @@ import type { PokemonCard } from "@/types/card";
 const koreanToEnglish = koreanNames as Record<string, string>;
 const japaneseToEnglish = japaneseNames as Record<string, string>;
 
+const englishPrefixTranslations: Record<string, { en: string; ko: string }> = {
+  alolan: { en: "Alolan", ko: "알로라" },
+  dark: { en: "Dark", ko: "다크" },
+  galarian: { en: "Galarian", ko: "가라르" },
+  hisuian: { en: "Hisuian", ko: "\uD788\uC2A4\uC774" },
+  light: { en: "Light", ko: "라이트" },
+  mega: { en: "Mega", ko: "메가" },
+  paldean: { en: "Paldean", ko: "팔데아" },
+  radiant: { en: "Radiant", ko: "찬란한" },
+  shining: { en: "Shining", ko: "샤이닝" },
+};
+
+const englishPrefixKeysByLength = Object.keys(englishPrefixTranslations).sort(
+  (a, b) => b.length - a.length,
+);
+
 const englishToKorean = Object.entries(koreanToEnglish).reduce<Record<string, string>>(
   (map, [koreanName, englishName]) => {
-    map[englishName.toLowerCase()] = koreanName;
+    const key = englishName.toLowerCase();
+    map[key] = koreanName;
+    map[key.replace(/['’]/g, "")] = koreanName;
     return map;
   },
   {},
@@ -106,11 +124,37 @@ function replaceJapanesePrefixes(name: string): string {
   );
 }
 
+function replaceEnglishPrefixes(name: string, locale: AppLocale): string {
+  let displayName = name;
+  for (const key of englishPrefixKeysByLength) {
+    const translated = englishPrefixTranslations[key];
+    const replacement = locale === "ko-KR" ? translated.ko : translated.en;
+    const pattern = new RegExp(`(^|[^A-Za-z])(${escapeRegExp(key)})(?=$|[^A-Za-z])`, "i");
+    if (pattern.test(displayName)) {
+      displayName = displayName.replace(pattern, (_match, prefix) => `${prefix}${replacement}`);
+    }
+  }
+  return normalizeSpaces(displayName);
+}
+
+function replaceEnglishPokemonNames(name: string): string {
+  let displayName = name;
+  for (const englishName of englishNamesByLength) {
+    const koreanName = englishToKorean[englishName];
+    if (!koreanName) continue;
+    const pattern = new RegExp(`(^|[^A-Za-z])(${escapeRegExp(englishName)})(?=$|[^A-Za-z])`, "i");
+    if (pattern.test(displayName)) {
+      displayName = displayName.replace(pattern, (_match, prefix) => `${prefix}${koreanName}`);
+    }
+  }
+  return normalizeSpaces(displayName);
+}
+
 function toEnglishDisplayName(name: string): string {
   let displayName = replaceNonEnglishFragments(name, koreanNamesByLength, koreanToEnglish);
   displayName = replaceNonEnglishFragments(displayName, japaneseNamesByLength, japaneseToEnglish);
   displayName = replaceJapanesePrefixes(displayName);
-  return normalizeSpaces(displayName);
+  return replaceEnglishPrefixes(normalizeSpaces(displayName), "en-US");
 }
 
 function toKoreanDisplayName(name: string): string {
@@ -121,32 +165,66 @@ function toKoreanDisplayName(name: string): string {
     return exactMatch;
   }
 
-  for (const englishName of englishNamesByLength) {
-    const koreanName = englishToKorean[englishName];
-    const pattern = new RegExp(`(^|[^A-Za-z])(${escapeRegExp(englishName)})(?=$|[^A-Za-z])`, "i");
-    if (pattern.test(displayName)) {
-      displayName = displayName.replace(pattern, (_match, prefix) => `${prefix}${koreanName}`);
-    }
-  }
+  displayName = replaceEnglishPokemonNames(displayName);
+  displayName = replaceEnglishPrefixes(displayName, "ko-KR");
 
   return normalizeSpaces(displayName);
 }
 
+function normalizeCardNameInput(name: string): string {
+  let normalized = String(name ?? "").normalize("NFKC");
+
+  normalized = normalized
+    .replace(/[<>]/g, " ")
+    .replace(/\(\s*\)/g, " ")
+    .replace(/\(\s+/g, " ")
+    .replace(/\s+\)/g, " ")
+    .replace(/&/g, " & ")
+    .replace(/([a-z0-9])-([a-z0-9])/gi, "$1 $2")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Za-z])(VMAX|VSTAR|VUNION|EX|GX|V)(\b|$)/gi, "$1 $2")
+    .replace(/([a-z])ex\b/gi, "$1 ex");
+
+  return normalizeSpaces(normalized);
+}
+
 export function getDisplayName(name: string, locale: AppLocale): string {
-  const cacheKey = `${locale}:${name}`;
+  const normalizedName = normalizeCardNameInput(name);
+  const cacheKey = `${locale}:${normalizedName}`;
   const cachedName = displayNameCache.get(cacheKey);
 
   if (cachedName) {
     return cachedName;
   }
 
-  const displayName = locale === "ko-KR" ? toKoreanDisplayName(name) : toEnglishDisplayName(name);
+  const displayName =
+    locale === "ko-KR"
+      ? toKoreanDisplayName(normalizedName)
+      : toEnglishDisplayName(normalizedName);
   displayNameCache.set(cacheKey, displayName);
   return displayName;
 }
 
 export function getDisplayCardName(card: Pick<PokemonCard, "name">, locale: AppLocale): string {
   return getDisplayName(card.name, locale);
+}
+
+/** Prefer API-localized name when present; otherwise translate identity name client-side. */
+export function getCardListDisplayName(
+  card: Pick<PokemonCard, "name" | "pokemon_name">,
+  locale: AppLocale,
+): string {
+  const identityName = card.pokemon_name ?? card.name;
+  if (
+    locale === "ko-KR" &&
+    card.pokemon_name &&
+    card.name &&
+    card.name !== card.pokemon_name
+  ) {
+    return card.name;
+  }
+
+  return getDisplayName(identityName, locale);
 }
 
 export function getDisplayRarity(rarity: string | null | undefined, locale: AppLocale): string | null {

@@ -47,6 +47,7 @@ export interface PokemonCard {
   canonical_id?: string | null;
   tcgdex_id?: string | null;
   language?: string | null;
+  pokemon_name?: string | null;
   image_url?: string | null;
   name: string;
   number: string;

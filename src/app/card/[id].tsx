@@ -246,18 +246,52 @@ export default function CardDetailScreen() {
   }, [card?.id]);
 
   const displayQualityOptions = useMemo<QualityBucket[]>(() => {
-    const byCode = new Map(qualityOptions.map((option) => [option.code, option]));
-    return ALL_QUALITY_BUCKETS.map(({ code, labelKey }) => {
-      const remote = byCode.get(code);
-      return {
+    // While the counts endpoint hasn't resolved yet, show the full static
+    // list so the chip row isn't empty during the initial load.
+    if (!qualityOptions.length) {
+      return ALL_QUALITY_BUCKETS.map(({ code, labelKey }) => ({
         code,
-        label: remote?.label ?? t(labelKey),
-        count: remote?.count ?? 0,
-        avg_price_krw: remote?.avg_price_krw ?? null,
-        min_price_krw: remote?.min_price_krw ?? null,
-        max_price_krw: remote?.max_price_krw ?? null,
-      };
-    });
+        label: t(labelKey),
+        count: 0,
+        avg_price_krw: null,
+        min_price_krw: null,
+        max_price_krw: null,
+      }));
+    }
+
+    const byCode = new Map(qualityOptions.map((option) => [option.code, option]));
+    // Once real counts are in, only show buckets with at least one sale -
+    // e.g. a v2 (EN/JA + RAW/PSA_10-only) card naturally never shows
+    // PSA_9/PSA_8_OR_LOWER/OTHER_GRADED chips, with no hardcoded v1/v2
+    // branching: it reverts automatically once those buckets get sales again.
+    const withSales = ALL_QUALITY_BUCKETS.filter(({ code }) => (byCode.get(code)?.count ?? 0) > 0).map(
+      ({ code, labelKey }) => {
+        const remote = byCode.get(code);
+        return {
+          code,
+          label: remote?.label ?? t(labelKey),
+          count: remote?.count ?? 0,
+          avg_price_krw: remote?.avg_price_krw ?? null,
+          min_price_krw: remote?.min_price_krw ?? null,
+          max_price_krw: remote?.max_price_krw ?? null,
+        };
+      },
+    );
+
+    if (withSales.length) return withSales;
+
+    // Extremely rare fallback (card has zero sales in every bucket): keep at
+    // least the default bucket visible so the row isn't blank.
+    return [
+      {
+        code: DEFAULT_QUALITY,
+        label: t(ALL_QUALITY_BUCKETS.find((bucket) => bucket.code === DEFAULT_QUALITY)!.labelKey),
+        count: 0,
+        avg_price_krw: null,
+        min_price_krw: null,
+        max_price_krw: null,
+      },
+    ];
   }, [qualityOptions, t]);
 
   const toggleQuality = (code: QualityBucketCode) => {
