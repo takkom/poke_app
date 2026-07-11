@@ -20,6 +20,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -160,8 +161,11 @@ function PriceRow({
   );
 }
 
+const CARD_ASPECT_RATIO = 2.5 / 3.5;
+
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { colors: themeColors, displayCurrency, locale } = useThemeManager();
   const { t } = useI18n();
   const [card, setCard] = useState<CardWithPricing | null>(null);
@@ -297,6 +301,20 @@ export default function CardDetailScreen() {
   const hasValidImage = Boolean(
     imageUrl && !imageUrl.includes("placeholder.png"),
   );
+  const cardImageSize = useMemo(() => {
+    const maxWidth = screenWidth * 0.94;
+    const maxHeight = screenHeight * 0.62;
+    let width = maxWidth;
+    let height = width / CARD_ASPECT_RATIO;
+
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * CARD_ASPECT_RATIO;
+    }
+
+    return { width, height };
+  }, [screenWidth, screenHeight]);
+
   const marketBadges = card
     ? [
         card.hasKream
@@ -352,11 +370,15 @@ export default function CardDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={[styles.imageContainer, { backgroundColor: themeColors.background }]}>
           {hasValidImage && imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+            <Image
+              source={{ uri: imageUrl }}
+              style={[styles.cardImage, cardImageSize]}
+            />
           ) : (
             <View
               style={[
                 styles.fallbackCardImage,
+                cardImageSize,
                 {
                   backgroundColor: themeColors.surface,
                   borderColor: themeColors.border,
@@ -562,21 +584,16 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 8,
   },
   cardImage: {
-    height: 350,
     resizeMode: "contain",
-    width: 250,
   },
   fallbackCardImage: {
     alignItems: "center",
-    aspectRatio: 300 / 420,
     borderRadius: 8,
     borderWidth: 1,
-    height: 350,
     justifyContent: "center",
-    width: 250,
   },
   fallbackImageText: {
     fontSize: 13,
