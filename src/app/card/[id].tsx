@@ -25,7 +25,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -63,7 +62,6 @@ const MARKETPLACE_SALES_ORDER = MARKETPLACE_COLUMN_ORDER;
 
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { width: screenWidth } = useWindowDimensions();
   const { colors: themeColors, displayCurrency, locale } = useThemeManager();
   const { t } = useI18n();
   const [card, setCard] = useState<CardWithPricing | null>(null);
@@ -173,12 +171,6 @@ export default function CardDetailScreen() {
   const hasValidImage = Boolean(
     imageUrl && !imageUrl.includes("placeholder.png"),
   );
-  const cardImageSize = useMemo(() => {
-    const imageWidth = Math.round(screenWidth * 0.3);
-    const imageHeight = imageWidth / CARD_ASPECT_RATIO;
-
-    return { width: imageWidth, height: imageHeight };
-  }, [screenWidth]);
 
   const cardForArbitrage = useMemo(() => {
     if (!card) {
@@ -265,71 +257,67 @@ export default function CardDetailScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
-          <View style={styles.heroRow}>
-            <View style={styles.heroImageWrap}>
-              {hasValidImage && imageUrl ? (
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={[styles.cardImage, cardImageSize]}
-                  contentFit="contain"
-                  transition={200}
+        <View style={styles.heroRow}>
+          <View
+            style={[
+              styles.heroImageFrame,
+              { backgroundColor: themeColors.surface },
+            ]}
+          >
+            {hasValidImage && imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.heroImage}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <View style={styles.heroImageFallback}>
+                <MaterialCommunityIcons
+                  name="cards-outline"
+                  size={40}
+                  color={themeColors.textSecondary}
                 />
-              ) : (
-                <View
-                  style={[
-                    styles.fallbackCardImage,
-                    cardImageSize,
-                    {
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                    },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="cards-outline"
-                    size={48}
-                    color={themeColors.textSecondary}
-                  />
-                  <Text style={[styles.fallbackImageText, { color: themeColors.textSecondary }]}>
-                    {t("card.imageUnavailable")}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.heroText}>
-              <View style={styles.cardNameRow}>
-                {languageFlag ? (
-                  <Text
-                    style={styles.languageFlag}
-                    accessibilityLabel={card.language === "ja" ? "Japanese" : "English"}
-                  >
-                    {languageFlag}
-                  </Text>
-                ) : null}
-                <Text style={[styles.cardName, { color: themeColors.primary }]} numberOfLines={4}>
-                  {displayName}
+                <Text style={[styles.fallbackImageText, { color: themeColors.textSecondary }]}>
+                  {t("card.imageUnavailable")}
                 </Text>
               </View>
-              {displayNumber || displayRarity ? (
-                <Text style={[styles.cardNumber, { color: themeColors.textSecondary }]}>
-                  {displayNumber ? `#${displayNumber}` : null}
-                  {displayNumber && displayRarity ? " · " : null}
-                  {displayRarity}
-                </Text>
-              ) : null}
-              {displaySetName ? (
-                <Text
-                  style={[styles.setName, { color: themeColors.textMuted }]}
-                  numberOfLines={2}
-                >
-                  {displaySetName}
-                </Text>
-              ) : null}
-            </View>
+            )}
           </View>
 
+          <View style={styles.heroText}>
+            <View style={styles.cardNameRow}>
+              {languageFlag ? (
+                <Text
+                  style={styles.languageFlag}
+                  accessibilityLabel={card.language === "ja" ? "Japanese" : "English"}
+                >
+                  {languageFlag}
+                </Text>
+              ) : null}
+              <Text style={[styles.cardName, { color: themeColors.primary }]} numberOfLines={4}>
+                {displayName}
+              </Text>
+            </View>
+            {displayNumber || displayRarity ? (
+              <Text style={[styles.cardNumber, { color: themeColors.textSecondary }]}>
+                {displayNumber ? `#${displayNumber}` : null}
+                {displayNumber && displayRarity ? " · " : null}
+                {displayRarity}
+              </Text>
+            ) : null}
+            {displaySetName ? (
+              <Text
+                style={[styles.setName, { color: themeColors.textMuted }]}
+                numberOfLines={2}
+              >
+                {displaySetName}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
           <MarketplaceArbitragePanel
             baseline={baseline}
             card={cardForArbitrage ?? card}
@@ -417,30 +405,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    gap: 10,
     paddingBottom: 16,
   },
   heroRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 14,
+    gap: 8,
+    paddingHorizontal: 10,
+    width: "100%",
   },
-  heroImageWrap: {
+  heroImageFrame: {
+    aspectRatio: CARD_ASPECT_RATIO,
+    borderRadius: 8,
+    flexGrow: 0,
     flexShrink: 0,
+    overflow: "hidden",
+    width: "46%",
+  },
+  heroImage: {
+    height: "100%",
+    width: "100%",
+  },
+  heroImageFallback: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    padding: 8,
   },
   heroText: {
     flex: 1,
+    flexShrink: 1,
     gap: 6,
     justifyContent: "center",
     minWidth: 0,
-  },
-  cardImage: {
-    borderRadius: 6,
-  },
-  fallbackCardImage: {
-    alignItems: "center",
-    borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: "center",
+    paddingRight: 10,
   },
   fallbackImageText: {
     fontSize: 13,
@@ -459,15 +458,14 @@ const styles = StyleSheet.create({
   detailsContainer: {
     borderRadius: 8,
     gap: 18,
-    marginHorizontal: 8,
-    marginTop: 12,
-    padding: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
   },
   cardName: {
     flex: 1,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
-    lineHeight: 28,
+    lineHeight: 26,
   },
   cardNameRow: {
     alignItems: "flex-start",
@@ -478,7 +476,6 @@ const styles = StyleSheet.create({
   languageFlag: {
     fontSize: 20,
     lineHeight: 26,
-    marginTop: 2,
   },
   cardNumber: {
     fontSize: 15,
