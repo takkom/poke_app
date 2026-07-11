@@ -1,21 +1,27 @@
 import { AddToCollectionModal } from "@/components/AddToCollectionModal";
+import { MarketplaceArbitragePanel } from "@/components/MarketplaceArbitragePanel";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { getCardById, getPriceHistory } from "@/services/cardService";
+import { getCardById, getPriceHistory, applyBaselineArbitrage } from "@/services/cardService";
 import {
   CardWithPricing,
+  MarketplaceKey,
   PriceHistoryPoint,
   QualityBucketCode,
 } from "@/types/card";
-import { getDisplayCardName } from "@/utils/displayNames";
+import {
+  MARKETPLACE_BADGE_LABELS,
+  MARKETPLACE_COLUMN_ORDER,
+} from "@/constants/marketplaces";
+import { getDisplayCardName, getCardDetailRarity, getDisplaySetName } from "@/utils/displayNames";
 import { resolveCardDisplayNumber } from "@/utils/cardNumber";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -53,12 +59,15 @@ function resolveImageUrl(card: CardWithPricing): string | null {
 
 const CARD_ASPECT_RATIO = 2.5 / 3.5;
 
+const MARKETPLACE_SALES_ORDER = MARKETPLACE_COLUMN_ORDER;
+
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: screenWidth } = useWindowDimensions();
   const { colors: themeColors, displayCurrency, locale } = useThemeManager();
   const { t } = useI18n();
   const [card, setCard] = useState<CardWithPricing | null>(null);
+  const [baseline, setBaseline] = useState<MarketplaceKey>("kream");
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
   const [priceHistoryError, setPriceHistoryError] = useState<string | null>(null);
@@ -76,7 +85,11 @@ export default function CardDetailScreen() {
       }
 
       try {
-        const cardData = await getCardById(cardId);
+        const cardData = await getCardById(cardId, {
+          baseline,
+          currency: displayCurrency,
+          locale,
+        });
 
         if (!cancelled) {
           setCard(cardData);
@@ -95,7 +108,12 @@ export default function CardDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, displayCurrency, locale]);
+
+  const cardWithBaseline = useMemo(
+    () => (card ? applyBaselineArbitrage(card, baseline) : null),
+    [card, baseline],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -149,51 +167,47 @@ export default function CardDetailScreen() {
   const imageUrl = card ? resolveImageUrl(card) : null;
   const displayName = card ? getDisplayCardName(card, locale) : "";
   const displayNumber = card ? resolveCardDisplayNumber(card) : "";
+  const displaySetName = card ? getDisplaySetName(card) : null;
+  const displayRarity = card ? getCardDetailRarity(card.rarity, locale) : null;
   const languageFlag = card ? cardLanguageFlag(card.language) : null;
   const hasValidImage = Boolean(
     imageUrl && !imageUrl.includes("placeholder.png"),
   );
   const cardImageSize = useMemo(() => {
-    const maxWidth = screenWidth * 0.94;
-    const maxHeight = screenHeight * 0.62;
-    let width = maxWidth;
-    let height = width / CARD_ASPECT_RATIO;
+    const contentWidth = screenWidth - 24 - 32;
+    const imageWidth = Math.min(contentWidth * 0.48, 200);
+    const imageHeight = imageWidth / CARD_ASPECT_RATIO;
 
-    if (height > maxHeight) {
-      height = maxHeight;
-      width = height * CARD_ASPECT_RATIO;
-    }
+    return { width: imageWidth, height: imageHeight };
+  }, [screenWidth]);
 
-    return { width, height };
-  }, [screenWidth, screenHeight]);
+  const marketplaceSales = card
+    ? MARKETPLACE_SALES_ORDER.flatMap((key) => {
+        const hasMarketplace =
+          (key === "ebay" && card.hasEbay) ||
+          (key === "kream" && card.hasKream) ||
+          (key === "snkrdunk" && card.hasSnkrdunk);
 
-  const marketBadges = card
-    ? [
-        card.hasKream
-          ? {
-              key: "kream",
-              label: "KREAM",
-              count: formatSalesCount(card.kreamSales, locale),
-              color: themeColors.marketplaces.kream,
-            }
-          : null,
-        card.hasEbay
-          ? {
-              key: "ebay",
-              label: "eBay",
-              count: formatSalesCount(card.ebaySales, locale),
-              color: themeColors.marketplaces.ebay,
-            }
-          : null,
-        card.hasSnkrdunk
-          ? {
-              key: "snkrdunk",
-              label: "SNK",
-              count: formatSalesCount(card.snkrdunkSales, locale),
-              color: themeColors.marketplaces.snkrdunk,
-            }
-          : null,
-      ].filter(Boolean) as Array<{ key: string; label: string; count: string; color: string }>
+        if (!hasMarketplace) {
+          return [];
+        }
+
+        const sales =
+          key === "ebay"
+            ? card.ebaySales
+            : key === "kream"
+              ? card.kreamSales
+              : card.snkrdunkSales;
+
+        return [
+          {
+            key,
+            label: MARKETPLACE_BADGE_LABELS[key],
+            count: formatSalesCount(sales, locale),
+            color: themeColors.marketplaces[key],
+          },
+        ];
+      })
     : [];
 
   if (loading) {
@@ -220,72 +234,77 @@ export default function CardDetailScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.imageContainer, { backgroundColor: themeColors.background }]}>
-          {hasValidImage && imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={[styles.cardImage, cardImageSize]}
-            />
-          ) : (
-            <View
-              style={[
-                styles.fallbackCardImage,
-                cardImageSize,
-                {
-                  backgroundColor: themeColors.surface,
-                  borderColor: themeColors.border,
-                },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="cards-outline"
-                size={76}
-                color={themeColors.textSecondary}
-              />
-              <Text style={[styles.fallbackImageText, { color: themeColors.textSecondary }]}>{t('card.imageUnavailable')}</Text>
-            </View>
-          )}
-        </View>
-
         <View style={[styles.detailsContainer, { backgroundColor: themeColors.surface }]}>
-          <View style={styles.titleBlock}>
-            <View style={styles.cardNameRow}>
-              <Text style={[styles.cardName, { color: themeColors.primary }]}>{displayName}</Text>
-              {languageFlag ? (
-                <Text
-                  style={styles.languageFlag}
-                  accessibilityLabel={card.language === "ja" ? "Japanese" : "English"}
+          <View style={styles.heroRow}>
+            <View style={styles.heroImageWrap}>
+              {hasValidImage && imageUrl ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={[styles.cardImage, cardImageSize]}
+                  contentFit="contain"
+                  transition={200}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.fallbackCardImage,
+                    cardImageSize,
+                    {
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                    },
+                  ]}
                 >
-                  {languageFlag}
+                  <MaterialCommunityIcons
+                    name="cards-outline"
+                    size={48}
+                    color={themeColors.textSecondary}
+                  />
+                  <Text style={[styles.fallbackImageText, { color: themeColors.textSecondary }]}>
+                    {t("card.imageUnavailable")}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.heroText}>
+              <View style={styles.cardNameRow}>
+                {languageFlag ? (
+                  <Text
+                    style={styles.languageFlag}
+                    accessibilityLabel={card.language === "ja" ? "Japanese" : "English"}
+                  >
+                    {languageFlag}
+                  </Text>
+                ) : null}
+                <Text style={[styles.cardName, { color: themeColors.primary }]} numberOfLines={4}>
+                  {displayName}
+                </Text>
+              </View>
+              {displayNumber || displayRarity ? (
+                <Text style={[styles.cardNumber, { color: themeColors.textSecondary }]}>
+                  {displayNumber ? `#${displayNumber}` : null}
+                  {displayNumber && displayRarity ? " · " : null}
+                  {displayRarity}
+                </Text>
+              ) : null}
+              {displaySetName ? (
+                <Text
+                  style={[styles.setName, { color: themeColors.textMuted }]}
+                  numberOfLines={2}
+                >
+                  {displaySetName}
                 </Text>
               ) : null}
             </View>
-            {displayNumber ? (
-              <Text style={[styles.cardNumber, { color: themeColors.textSecondary }]}>
-                #{displayNumber}
-              </Text>
-            ) : null}
           </View>
-          {marketBadges.length ? (
-            <View style={styles.marketBadgeRow}>
-              {marketBadges.map((badge) => (
-                <View
-                  key={badge.key}
-                  style={[
-                    styles.marketBadge,
-                    { borderColor: badge.color, backgroundColor: `${badge.color}22` },
-                  ]}
-                >
-                  <Text style={[styles.marketBadgeText, { color: badge.color }]}>
-                    {badge.label}
-                  </Text>
-                  <Text style={[styles.marketBadgeCount, { color: badge.color }]}>
-                    {badge.count}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+
+          <MarketplaceArbitragePanel
+            baseline={baseline}
+            card={cardWithBaseline ?? card}
+            currency={card.displayCurrency ?? displayCurrency}
+            onBaselineChange={setBaseline}
+          />
           {priceHistoryLoading ? (
             <View
               style={[
@@ -314,10 +333,11 @@ export default function CardDetailScreen() {
           ) : (
             <PriceHistoryChart
               tcgdexId={card.id}
-              cardName={displayName}
               priceHistory={priceHistory}
               displayCurrency={displayCurrency}
               locale={locale}
+              showLatestPrice={false}
+              marketplaceSales={marketplaceSales}
             />
           )}
 
@@ -368,12 +388,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 16,
   },
-  imageContainer: {
+  heroRow: {
     alignItems: "center",
-    paddingVertical: 8,
+    flexDirection: "row",
+    gap: 14,
+  },
+  heroImageWrap: {
+    flexShrink: 0,
+  },
+  heroText: {
+    flex: 1,
+    gap: 6,
+    justifyContent: "center",
+    minWidth: 0,
   },
   cardImage: {
-    resizeMode: "contain",
+    borderRadius: 6,
   },
   fallbackCardImage: {
     alignItems: "center",
@@ -399,33 +429,34 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 18,
     marginHorizontal: 12,
-    marginTop: 16,
+    marginTop: 12,
     padding: 16,
   },
   cardName: {
-    fontSize: 28,
+    flex: 1,
+    fontSize: 22,
     fontWeight: "800",
-    textAlign: "center",
-  },
-  titleBlock: {
-    alignItems: "center",
-    gap: 4,
+    lineHeight: 28,
   },
   cardNameRow: {
-    alignItems: "center",
+    alignItems: "flex-start",
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    justifyContent: "center",
   },
   languageFlag: {
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 20,
+    lineHeight: 26,
+    marginTop: 2,
   },
   cardNumber: {
     fontSize: 15,
     fontWeight: "700",
-    textAlign: "center",
+  },
+  setName: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
   },
   bottomBar: {
     borderTopWidth: 1,
@@ -447,30 +478,6 @@ const styles = StyleSheet.create({
   addToCollectionText: {
     fontSize: 15,
     fontWeight: "800",
-  },
-  marketBadgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    justifyContent: "center",
-    marginTop: -6,
-  },
-  marketBadge: {
-    alignItems: "center",
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  marketBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  marketBadgeCount: {
-    fontSize: 10,
-    fontWeight: "900",
   },
   centerContainer: {
     alignItems: "center",

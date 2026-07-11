@@ -12,6 +12,10 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 
+import {
+  MARKETPLACE_CHART_LABELS,
+  MARKETPLACE_COLUMN_ORDER,
+} from "@/constants/marketplaces";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { AppColors, Marketplace } from "@/theme/colors";
@@ -44,19 +48,27 @@ type SelectedPoint = {
   point: ChartPoint;
 };
 
+type MarketplaceSalesBadge = {
+  key: Marketplace;
+  label: string;
+  count: string;
+  color: string;
+};
+
 type PriceHistoryChartProps = {
   tcgdexId: string;
   cardName?: string;
   priceHistory: PriceHistoryPoint[];
   displayCurrency?: "KRW" | "USD" | "JPY";
   locale?: "ko-KR" | "en-US";
+  showLatestPrice?: boolean;
+  marketplaceSales?: MarketplaceSalesBadge[];
 };
 
-const platforms: Array<{ key: Marketplace; label: string }> = [
-  { key: "ebay", label: "eBay" },
-  { key: "kream", label: "KREAM" },
-  { key: "snkrdunk", label: "SNKRDUNK" },
-];
+const platforms = MARKETPLACE_COLUMN_ORDER.map((key) => ({
+  key,
+  label: MARKETPLACE_CHART_LABELS[key],
+}));
 
 const chartWidth = 328;
 const chartHeight = 238;
@@ -224,6 +236,8 @@ export function PriceHistoryChart({
   priceHistory,
   displayCurrency = "KRW",
   locale = "ko-KR",
+  showLatestPrice = true,
+  marketplaceSales,
 }: PriceHistoryChartProps) {
   const { t } = useI18n();
   const { colors } = useThemeManager();
@@ -359,7 +373,7 @@ export function PriceHistoryChart({
             {cardName ?? tcgdexId}
           </Text>
         </View>
-        {primaryLatest ? (
+        {showLatestPrice && primaryLatest ? (
           <View style={styles.latest}>
             <Text
               style={[
@@ -622,6 +636,30 @@ export function PriceHistoryChart({
           </View>
         </View>
       ) : null}
+
+      {marketplaceSales?.length ? (
+        <View style={styles.marketBadgeRow}>
+          {marketplaceSales.map((badge) => (
+            <View
+              key={badge.key}
+              style={[
+                styles.marketBadge,
+                {
+                  borderColor: badge.color,
+                  backgroundColor: `${badge.color}22`,
+                },
+              ]}
+            >
+              <Text style={[styles.marketBadgeText, { color: badge.color }]}>
+                {badge.label}
+              </Text>
+              <Text style={[styles.marketBadgeCount, { color: badge.color }]}>
+                {badge.count}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -755,6 +793,29 @@ function createStyles(colors: AppColors) {
     borderRadius: 3,
     minHeight: 3,
     opacity: 0.9,
+  },
+  marketBadgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "flex-start",
+  },
+  marketBadge: {
+    alignItems: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  marketBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  marketBadgeCount: {
+    fontSize: 10,
+    fontWeight: "900",
   },
   });
 }

@@ -186,7 +186,13 @@ const transformCard = (tcgCard: any): CardWithPricing => {
     },
     set: {
       id: tcgCard.set?.id || tcgCard.set_code || undefined,
-      name: tcgCard.set?.name || tcgCard.set_name || undefined,
+      name:
+        tcgCard.set?.display_name ||
+        tcgCard.set?.displayName ||
+        tcgCard.display_set_name ||
+        tcgCard.set?.name ||
+        tcgCard.set_name ||
+        undefined,
       releaseDate: tcgCard.set?.releaseDate,
       series: tcgCard.set?.series,
       cardCount: {
@@ -240,6 +246,20 @@ const transformCard = (tcgCard: any): CardWithPricing => {
       ? tcgCard.trendDirection
       : "unknown",
     displayCurrency: tcgCard.displayCurrency ?? undefined,
+    set_name:
+      typeof tcgCard.set_name === "string"
+        ? tcgCard.set_name
+        : typeof tcgCard.set?.name === "string"
+          ? tcgCard.set.name
+          : null,
+    display_set_name:
+      typeof tcgCard.display_set_name === "string"
+        ? tcgCard.display_set_name
+        : typeof tcgCard.set?.display_name === "string"
+          ? tcgCard.set.display_name
+          : typeof tcgCard.set?.displayName === "string"
+            ? tcgCard.set.displayName
+            : null,
   };
 };
 
@@ -263,6 +283,8 @@ function normalizeMarketplaceAverage(value: unknown): MarketplaceAverage {
   };
 }
 
+const MARKETPLACE_KEYS: MarketplaceKey[] = ["kream", "ebay", "snkrdunk"];
+
 function transformArbitrageCard(tcgCard: any): PokemonCard {
   const card = transformCard(tcgCard);
   const averages = tcgCard.marketplaceAverages ?? {};
@@ -284,6 +306,51 @@ function transformArbitrageCard(tcgCard: any): PokemonCard {
       ebay: normalizeMarketplaceAverage(averages.ebay),
       snkrdunk: normalizeMarketplaceAverage(averages.snkrdunk),
     },
+  };
+}
+
+export function applyBaselineArbitrage(
+  card: PokemonCard,
+  baseline: MarketplaceKey,
+): PokemonCard {
+  const averages = card.marketplaceAverages;
+  if (!averages) {
+    return { ...card, baselineMarketplace: baseline };
+  }
+
+  const baselinePrice = averages[baseline]?.avgPrice;
+  if (
+    typeof baselinePrice !== "number" ||
+    !Number.isFinite(baselinePrice) ||
+    baselinePrice === 0
+  ) {
+    return { ...card, baselineMarketplace: baseline };
+  }
+
+  const marketplaceAverages = { ...averages };
+  for (const key of MARKETPLACE_KEYS) {
+    const avg = marketplaceAverages[key];
+    if (!avg) continue;
+
+    const price = avg.avgPrice;
+    if (key === baseline) {
+      marketplaceAverages[key] = { ...avg, relativePercent: 0 };
+      continue;
+    }
+
+    if (typeof price === "number" && Number.isFinite(price)) {
+      marketplaceAverages[key] = {
+        ...avg,
+        relativePercent: ((price - baselinePrice) / baselinePrice) * 100,
+      };
+    }
+  }
+
+  return {
+    ...card,
+    baselineMarketplace: baseline,
+    baselineAvgPrice: baselinePrice,
+    marketplaceAverages,
   };
 }
 export const getAllCards = async (
@@ -380,13 +447,32 @@ export const getAllCards = async (
 
 export const getCardById = async (
   id: string,
+  options?: {
+    baseline?: MarketplaceKey;
+    currency?: "KRW" | "USD" | "JPY";
+    locale?: string;
+  },
 ): Promise<CardWithPricing | null> => {
+  const baseline = options?.baseline ?? "kream";
+  const params = new URLSearchParams();
+  if (options?.currency) {
+    params.set("currency", options.currency);
+  }
+  params.set("baseline", baseline);
+  if (options?.locale) {
+    params.set("locale", options.locale);
+  }
+  const query = params.toString();
+
   try {
     const localResponse = await axios.get(
-      `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(id)}`,
+      `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(id)}?${query}`,
     );
     if (localResponse.data) {
-      return transformCard(localResponse.data);
+      return applyBaselineArbitrage(
+        transformArbitrageCard(localResponse.data),
+        baseline,
+      );
     }
   } catch (error) {
     console.warn(

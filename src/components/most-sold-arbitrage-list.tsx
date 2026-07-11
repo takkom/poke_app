@@ -1,4 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  MARKETPLACE_COLUMN_ORDER,
+  MARKETPLACE_LIST_LABELS,
+} from "@/constants/marketplaces";
 import { useThemeManager, type AppLocale } from "@/hooks/useThemeManager";
 import { getMostSoldArbitrageCards } from "@/services/cardService";
 import { AppColors } from "@/theme/colors";
@@ -25,11 +29,10 @@ type MostSoldArbitrageListProps = {
   avgUnavailableLabel: string;
 };
 
-const MARKETPLACES: Array<{ key: MarketplaceKey; label: string }> = [
-  { key: "kream", label: "Kream" },
-  { key: "ebay", label: "ebay" },
-  { key: "snkrdunk", label: "SNKR" },
-];
+const MARKETPLACES = MARKETPLACE_COLUMN_ORDER.map((key) => ({
+  key,
+  label: MARKETPLACE_LIST_LABELS[key],
+}));
 
 function cardLanguageFlag(language: string | null | undefined): string | null {
   if (language === "ja") return "🇯🇵";

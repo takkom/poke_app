@@ -1,3 +1,7 @@
+import {
+  MARKETPLACE_BADGE_LABELS,
+  MARKETPLACE_COLUMN_ORDER,
+} from "@/constants/marketplaces";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
@@ -173,22 +177,39 @@ export default function BoxDetailScreen() {
   const hasImage = Boolean(imageUrl);
   const currency = box.displayCurrency ?? displayCurrency;
 
-  const marketBadges = [
-    box.hasKream ? { key: "kream", label: "KREAM", count: formatSalesCount(box.kreamSales, locale), color: colors.marketplaces.kream } : null,
-    box.hasEbay  ? { key: "ebay",  label: "eBay",  count: formatSalesCount(box.ebaySales,  locale), color: colors.marketplaces.ebay  } : null,
-    box.hasSnkrdunk ? { key: "snkrdunk", label: "SNK", count: formatSalesCount(box.snkrdunkSales, locale), color: colors.marketplaces.snkrdunk } : null,
-  ].filter(Boolean) as Array<{ key: string; label: string; count: string; color: string }>;
+  const marketBadges = MARKETPLACE_COLUMN_ORDER.flatMap((key) => {
+    const hasMarketplace =
+      (key === "ebay" && box.hasEbay) ||
+      (key === "kream" && box.hasKream) ||
+      (key === "snkrdunk" && box.hasSnkrdunk);
+
+    if (!hasMarketplace) {
+      return [];
+    }
+
+    const sales =
+      key === "ebay"
+        ? box.ebaySales
+        : key === "kream"
+          ? box.kreamSales
+          : box.snkrdunkSales;
+
+    return [
+      {
+        key,
+        label: MARKETPLACE_BADGE_LABELS[key],
+        count: formatSalesCount(sales, locale),
+        color: colors.marketplaces[key],
+      },
+    ];
+  });
 
   const averages = box.marketplaceAverages;
   const hasAverages = averages && Object.values(averages).some(
     (a) => a?.avgPrice != null || a?.volume != null,
   );
 
-  const MARKETPLACE_LABELS: Record<MarketplaceKey, string> = {
-    kream: "KREAM",
-    ebay: "eBay",
-    snkrdunk: "SNKRDUNK",
-  };
+  const MARKETPLACE_LABELS = MARKETPLACE_BADGE_LABELS;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -283,7 +304,7 @@ export default function BoxDetailScreen() {
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
                 {t("box.marketPrices")}
               </Text>
-              {(["kream", "ebay", "snkrdunk"] as MarketplaceKey[]).map((key) => (
+              {MARKETPLACE_COLUMN_ORDER.map((key) => (
                 <MarketplaceRow
                   key={key}
                   label={MARKETPLACE_LABELS[key]}

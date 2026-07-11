@@ -83,6 +83,7 @@ const rarityTranslations: Record<string, { en: string; ko: string }> = {
   "super rare": { en: "Super Rare", ko: "슈퍼 레어" },
   "triple rare": { en: "Triple Rare", ko: "트리플 레어" },
   "ultra rare": { en: "Ultra Rare", ko: "울트라 레어" },
+  mirror: { en: "Mirror", ko: "미러" },
 };
 
 const rarityKeysByLength = Object.keys(rarityTranslations).sort(
@@ -207,6 +208,30 @@ export function getDisplayName(name: string, locale: AppLocale): string {
 
 export function getDisplayCardName(card: Pick<PokemonCard, "name">, locale: AppLocale): string {
   return getDisplayName(card.name, locale);
+}
+
+/** Prefer API-localized set name (via locale query param); falls back to set_name. */
+export function getDisplaySetName(
+  card: Pick<PokemonCard, "set"> & { set_name?: string | null },
+): string | null {
+  const apiName = card.set?.name ?? card.set_name;
+  if (!apiName) {
+    return null;
+  }
+
+  const trimmed = apiName.trim();
+  return trimmed || null;
+}
+
+export function getCardDetailRarity(
+  rarity: string | null | undefined,
+  locale: AppLocale,
+): string | null {
+  if (!rarity || rarity === "Classic Promo") {
+    return null;
+  }
+
+  return getDisplayRarity(rarity, locale);
 }
 
 /** Prefer API-localized name when present; otherwise translate identity name client-side. */

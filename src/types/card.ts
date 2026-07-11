@@ -53,6 +53,8 @@ export interface PokemonCard {
   number: string;
   card_code?: string | null;
   local_id?: string | null;
+  set_name?: string | null;
+  display_set_name?: string | null;
   hasEbay?: boolean;
   hasKream?: boolean;
   hasSnkrdunk?: boolean;
