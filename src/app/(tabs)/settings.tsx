@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AppLocale, ThemePreference, useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
 import { APP_VERSION } from '@/constants/version';
+import { validatePasswordChangeInput } from '@/utils/passwordValidation';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -36,6 +37,7 @@ export default function SettingsTab() {
     user,
     logout,
     updateUsername,
+    changePassword,
     deleteAccount,
     checkUsernameAvailability,
   } = useAuth();
@@ -46,6 +48,11 @@ export default function SettingsTab() {
   const [isEditVisible, setIsEditVisible] = useState(false);
   const [draftUsername, setDraftUsername] = useState(user?.username ?? user?.email ?? '');
   const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -76,6 +83,50 @@ export default function SettingsTab() {
       Alert.alert('Could not save username', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setIsSavingUsername(false);
+    }
+  }
+
+  function resetPasswordForm() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  }
+
+  function openPasswordModal() {
+    resetPasswordForm();
+    setIsPasswordVisible(true);
+  }
+
+  function closePasswordModal() {
+    resetPasswordForm();
+    setIsPasswordVisible(false);
+  }
+
+  async function savePassword() {
+    const validationError = validatePasswordChangeInput(
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    );
+
+    if (validationError) {
+      Alert.alert(t('settings.changePasswordTitle'), validationError);
+      return;
+    }
+
+    setIsSavingPassword(true);
+
+    try {
+      await changePassword(currentPassword, newPassword);
+      closePasswordModal();
+      Alert.alert(t('settings.changePasswordTitle'), t('settings.passwordChanged'));
+    } catch (error) {
+      Alert.alert(
+        t('settings.passwordChangeFailed'),
+        error instanceof Error ? error.message : 'Please try again.',
+      );
+    } finally {
+      setIsSavingPassword(false);
     }
   }
 
@@ -129,6 +180,14 @@ export default function SettingsTab() {
         <Text style={[styles.accountName, { color: colors.textPrimary }]}>
           {user?.username ?? user?.email ?? 'No user'}
         </Text>
+        <TouchableOpacity
+          onPress={openPasswordModal}
+          style={[styles.actionButton, { borderColor: colors.border }]}
+        >
+          <Text style={[styles.actionButtonText, { color: colors.textPrimary }]}>
+            {t('settings.changePassword')}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -293,6 +352,76 @@ export default function SettingsTab() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={closePasswordModal}
+        transparent
+        visible={isPasswordVisible}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+              {t('settings.changePasswordTitle')}
+            </Text>
+            <Text style={[styles.passwordHint, { color: colors.textSecondary }]}>
+              {t('settings.passwordHint')}
+            </Text>
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="password"
+              onChangeText={setCurrentPassword}
+              placeholder={t('settings.currentPassword')}
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+              value={currentPassword}
+            />
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="new-password"
+              onChangeText={setNewPassword}
+              placeholder={t('settings.newPassword')}
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+              value={newPassword}
+            />
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="new-password"
+              onChangeText={setConfirmPassword}
+              placeholder={t('settings.confirmPassword')}
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+              value={confirmPassword}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={closePasswordModal}
+                style={[styles.modalButton, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.textPrimary }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                disabled={isSavingPassword}
+                onPress={() => void savePassword()}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+              >
+                {isSavingPassword ? (
+                  <ActivityIndicator color={colors.onPrimary} />
+                ) : (
+                  <Text style={[styles.primaryButtonText, { color: colors.onPrimary }]}>Save</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -375,6 +504,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '900',
+  },
+  passwordHint: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   primaryButtonText: {
     fontSize: 14,
