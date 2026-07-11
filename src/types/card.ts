@@ -51,6 +51,8 @@ export interface PokemonCard {
   image_url?: string | null;
   name: string;
   number: string;
+  card_code?: string | null;
+  local_id?: string | null;
   hasEbay?: boolean;
   hasKream?: boolean;
   hasSnkrdunk?: boolean;

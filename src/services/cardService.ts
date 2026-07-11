@@ -1,5 +1,6 @@
 import axios from "axios";
 import { XMON_API_URL } from "../config";
+import { resolveCardDisplayNumber } from "../utils/cardNumber";
 import {
   CardWithPricing,
   MarketplaceAverage,
@@ -129,18 +130,6 @@ function resolveTcgdexImageUrl(
   return value;
 }
 
-function normalizeDisplayNumber(
-  cardCode?: string | null,
-  localId?: string | null,
-): string {
-  const slashCode = cardCode?.match(/\b([A-Z]*\d+|SV\d+)\s*\/\s*(\d+)\b/i);
-  if (slashCode) {
-    return `${slashCode[1].toUpperCase()}/${slashCode[2]}`;
-  }
-
-  return localId ?? cardCode ?? "";
-}
-
 function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("/")) return `${LOCAL_API_BASE_URL}${url}`;
@@ -179,9 +168,15 @@ const transformCard = (tcgCard: any): CardWithPricing => {
     pokemon_name:
       typeof tcgCard.pokemon_name === "string" ? tcgCard.pokemon_name : null,
     language: typeof tcgCard.language === "string" ? tcgCard.language : null,
-    number:
-      tcgCard.number ??
-      normalizeDisplayNumber(tcgCard.card_code, tcgCard.local_id),
+    number: resolveCardDisplayNumber({
+      number: tcgCard.number,
+      card_code: tcgCard.card_code,
+      local_id: tcgCard.local_id,
+      set: tcgCard.set,
+    }),
+    card_code:
+      typeof tcgCard.card_code === "string" ? tcgCard.card_code : null,
+    local_id: typeof tcgCard.local_id === "string" ? tcgCard.local_id : null,
     rarity: tcgCard.rarity ?? "Classic Promo",
     image: smallImage,
     // Explicitly guarantee small and large properties exist to prevent UI rendering errors
@@ -594,7 +589,12 @@ export const searchCard = async (
         tcgdex_id: card.tcgdex_id ?? null,
         language: card.language ?? null,
         name: card.name ?? cardId,
-        number: normalizeDisplayNumber(card.card_code, card.local_id),
+        number: resolveCardDisplayNumber({
+          card_code: card.card_code,
+          local_id: card.local_id,
+        }),
+        card_code: card.card_code ?? null,
+        local_id: card.local_id ?? null,
         rarity: card.rarity ?? undefined,
         image,
         image_url: image,

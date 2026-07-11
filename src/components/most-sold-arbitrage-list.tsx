@@ -3,6 +3,7 @@ import { useThemeManager, type AppLocale } from "@/hooks/useThemeManager";
 import { getMostSoldArbitrageCards } from "@/services/cardService";
 import { AppColors } from "@/theme/colors";
 import { MarketplaceKey, PokemonCard } from "@/types/card";
+import { resolveCardDisplayNumber } from "@/utils/cardNumber";
 import { getCardListDisplayName } from "@/utils/displayNames";
 import { Image } from "expo-image";
 import { memo, useCallback, useEffect, useState } from "react";
@@ -37,28 +38,15 @@ function cardLanguageFlag(language: string | null | undefined): string | null {
 }
 
 function formatCardNumber(item: PokemonCard): string {
-  if (!item.number) {
-    return item.id;
+  const resolved = resolveCardDisplayNumber(item);
+  return resolved || item.id;
+}
+
+function getCardSubtitle(item: PokemonCard): string | null {
+  if (item.item_type === "box") {
+    return item.set?.name ?? null;
   }
-
-  if (item.number.includes("/")) {
-    return item.number;
-  }
-
-  const total = item.set?.cardCount?.total || item.set?.cardCount?.official;
-  if (!total) {
-    return item.number;
-  }
-
-  const paddedTotal = String(total).padStart(
-    Math.max(3, String(total).length),
-    "0",
-  );
-  const paddedNumber = /^\d+$/.test(item.number)
-    ? item.number.padStart(paddedTotal.length, "0")
-    : item.number;
-
-  return `${paddedNumber}/${paddedTotal}`;
+  return formatCardNumber(item) || null;
 }
 
 function formatMoney(
@@ -170,6 +158,7 @@ const ArbitrageRow = memo(function ArbitrageRow({
   unavailableLabel,
 }: ArbitrageRowProps) {
   const isBox = item.item_type === "box";
+  const subtitle = getCardSubtitle(item);
   return (
     <Pressable
       style={({ pressed }) => [
@@ -224,19 +213,12 @@ const ArbitrageRow = memo(function ArbitrageRow({
               {getCardListDisplayName(item, locale)}
             </Text>
           </View>
-          {item.set?.name ? (
+          {subtitle ? (
             <Text
               style={[styles.cardNumber, { color: colors.textSecondary }]}
               numberOfLines={1}
             >
-              {item.set.name}
-            </Text>
-          ) : formatCardNumber(item) ? (
-            <Text
-              style={[styles.cardNumber, { color: colors.textSecondary }]}
-              numberOfLines={1}
-            >
-              {formatCardNumber(item)}
+              {subtitle}
             </Text>
           ) : null}
         </View>
