@@ -377,7 +377,7 @@ export function PriceHistoryChart({
       ? Math.min(16, plotWidth * 0.4)
       : Math.min(10, Math.max(3, (plotWidth / allDates.length) * 0.7));
   const volumeColor =
-    activePlatforms[0]?.key
+    activePlatforms.length === 1
       ? colors.marketplaces[activePlatforms[0].key]
       : colors.primary;
 
