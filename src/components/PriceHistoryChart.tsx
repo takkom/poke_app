@@ -665,36 +665,39 @@ export function PriceHistoryChart({
         )}
       </View>
 
-      {hasAnyData && hasVisiblePlatforms ? (
-        <View style={styles.metricsRow}>
-          <Text style={styles.metricLabel}>{t('chart.volume')}</Text>
-          <Text style={styles.metricValue}>
-            {totalVolume.toLocaleString(locale)}
-          </Text>
-        </View>
-      ) : null}
-
-      {marketplaceSales?.length ? (
-        <View style={styles.marketBadgeRow}>
-          {marketplaceSales.map((badge) => (
-            <View
-              key={badge.key}
-              style={[
-                styles.marketBadge,
-                {
-                  borderColor: badge.color,
-                  backgroundColor: `${badge.color}22`,
-                },
-              ]}
-            >
-              <Text style={[styles.marketBadgeText, { color: badge.color }]}>
-                {badge.label}
-              </Text>
-              <Text style={[styles.marketBadgeCount, { color: badge.color }]}>
-                {badge.count}
+      {(hasAnyData && hasVisiblePlatforms) || marketplaceSales?.length ? (
+        <View style={styles.statsRow}>
+          {hasAnyData && hasVisiblePlatforms ? (
+            <View style={styles.metricsRow}>
+              <Text style={styles.metricLabel}>{t('chart.volume')}</Text>
+              <Text style={styles.metricValue}>
+                {totalVolume.toLocaleString(locale)}
               </Text>
             </View>
-          ))}
+          ) : null}
+          {marketplaceSales?.length ? (
+            <View style={styles.marketBadgeRow}>
+              {marketplaceSales.map((badge) => (
+                <View
+                  key={badge.key}
+                  style={[
+                    styles.marketBadge,
+                    {
+                      borderColor: badge.color,
+                      backgroundColor: `${badge.color}22`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.marketBadgeText, { color: badge.color }]}>
+                    {badge.label}
+                  </Text>
+                  <Text style={[styles.marketBadgeCount, { color: badge.color }]}>
+                    {badge.count}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -793,9 +796,17 @@ function createStyles(colors: AppColors) {
     lineHeight: 20,
     textAlign: "center",
   },
+  statsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
   metricsRow: {
     alignItems: "baseline",
     flexDirection: "row",
+    flexShrink: 0,
     gap: 8,
   },
   metricLabel: {
@@ -808,13 +819,13 @@ function createStyles(colors: AppColors) {
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: "800",
-    marginTop: 2,
   },
   marketBadgeRow: {
     flexDirection: "row",
+    flex: 1,
     flexWrap: "wrap",
     gap: 6,
-    justifyContent: "flex-start",
+    justifyContent: "flex-end",
   },
   marketBadge: {
     alignItems: "center",
