@@ -670,7 +670,7 @@ export function PriceHistoryChart({
           {hasAnyData && hasVisiblePlatforms ? (
             <View style={styles.metricsRow}>
               <Text style={styles.metricLabel}>{t('chart.volume')}</Text>
-              <Text style={styles.metricValue}>
+              <Text style={[styles.metricValue, { color: colors.primary }]}>
                 {totalVolume.toLocaleString(locale)}
               </Text>
             </View>
