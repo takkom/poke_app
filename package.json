@@ -1,7 +1,7 @@
 {
   "name": "pokemon-tcg-app",
   "main": "expo-router/entry",
-  "version": "0.1.2",
+  "version": "0.1.6",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/metro-runtime": "~56.0.16",

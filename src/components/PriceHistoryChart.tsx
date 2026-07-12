@@ -71,7 +71,6 @@ const platforms = MARKETPLACE_COLUMN_ORDER.map((key) => ({
 }));
 
 const chartWidth = 328;
-const chartHeight = 238;
 const chartPadding = {
   top: 18,
   right: 18,
@@ -79,9 +78,27 @@ const chartPadding = {
   left: 58,
 };
 const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
-const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+const pricePlotHeight = 150;
+const volumePlotHeight = 32;
+const volumeGap = 8;
+const chartHeight =
+  chartPadding.top +
+  pricePlotHeight +
+  volumeGap +
+  volumePlotHeight +
+  chartPadding.bottom;
 const yTickCount = 4;
 const maxXAxisLabels = 4;
+
+function getDateX(dateIndex: number, dateCount: number): number {
+  if (dateCount <= 1) {
+    return chartPadding.left + plotWidth / 2;
+  }
+
+  return (
+    chartPadding.left + (dateIndex / (dateCount - 1)) * plotWidth
+  );
+}
 
 function formatCompactMoney(
   value: number,
@@ -304,15 +321,11 @@ export function PriceHistoryChart({
       rawDatasets.map((dataset) => {
         const points = dataset.rawPoints.map((point) => {
           const dateIndex = Math.max(0, allDates.indexOf(point.date));
-          const x =
-            chartPadding.left +
-            (allDates.length <= 1
-              ? plotWidth / 2
-              : (dateIndex / (allDates.length - 1)) * plotWidth);
+          const x = getDateX(dateIndex, allDates.length);
           const y =
             chartPadding.top +
-            plotHeight -
-            ((point.value - minValue) / range) * plotHeight;
+            pricePlotHeight -
+            ((point.value - minValue) / range) * pricePlotHeight;
 
           return { ...point, x, y };
         });
@@ -340,16 +353,33 @@ export function PriceHistoryChart({
       sum + dataset.points.reduce((inner, point) => inner + point.volume, 0),
     0,
   );
-  const maxVolume = Math.max(
-    1,
-    ...priceHistory.map((row) =>
-      platforms.reduce(
-        (sum, platform) => sum + Number(row[volumeKey(platform.key)] ?? 0),
-        0,
-      ),
-    ),
+  const volumeByDate = useMemo(
+    () =>
+      allDates.map((date) => {
+        const row = priceHistory.find((entry) => entry.date === date);
+        if (!row) {
+          return 0;
+        }
+
+        return activePlatforms.reduce(
+          (sum, platform) =>
+            sum + Number(row[volumeKey(platform.key)] ?? 0),
+          0,
+        );
+      }),
+    [activePlatforms, allDates, priceHistory],
   );
-  const volumePreview = priceHistory.slice(-10);
+  const maxVolume = Math.max(1, ...volumeByDate);
+  const volumeTop = chartPadding.top + pricePlotHeight + volumeGap;
+  const volumeBottom = volumeTop + volumePlotHeight;
+  const volumeBarWidth =
+    allDates.length <= 1
+      ? Math.min(16, plotWidth * 0.4)
+      : Math.min(10, Math.max(3, (plotWidth / allDates.length) * 0.7));
+  const volumeColor =
+    activePlatforms[0]?.key
+      ? colors.marketplaces[activePlatforms[0].key]
+      : colors.primary;
 
   const tooltipX = selectedPoint
     ? Math.min(
@@ -455,7 +485,7 @@ export function PriceHistoryChart({
             {yTicks.map((tick, index) => {
               const y =
                 chartPadding.top +
-                (index / Math.max(1, yTicks.length - 1)) * plotHeight;
+                (index / Math.max(1, yTicks.length - 1)) * pricePlotHeight;
               return (
                 <React.Fragment key={`${tick}-${index}`}>
                   <Line
@@ -481,13 +511,50 @@ export function PriceHistoryChart({
               );
             })}
 
+            <Line
+              x1={chartPadding.left}
+              x2={chartWidth - chartPadding.right}
+              y1={volumeTop - 4}
+              y2={volumeTop - 4}
+              stroke={colors.border}
+              strokeWidth="1"
+              opacity="0.45"
+            />
+            <SvgText
+              x={chartPadding.left - 8}
+              y={volumeTop + volumePlotHeight / 2 + 3}
+              fill={colors.textMuted}
+              fontSize="9"
+              fontWeight="700"
+              textAnchor="end"
+            >
+              {t("chart.volume")}
+            </SvgText>
+
+            {volumeByDate.map((volume, index) => {
+              const x = getDateX(index, allDates.length);
+              const barHeight = Math.max(
+                2,
+                (volume / maxVolume) * volumePlotHeight,
+              );
+
+              return (
+                <Rect
+                  key={`volume-${allDates[index]}`}
+                  x={x - volumeBarWidth / 2}
+                  y={volumeBottom - barHeight}
+                  width={volumeBarWidth}
+                  height={barHeight}
+                  rx="2"
+                  fill={volumeColor}
+                  opacity={volume > 0 ? 0.85 : 0}
+                />
+              );
+            })}
+
             {xLabelIndexes.map((index) => {
               const date = allDates[index];
-              const x =
-                chartPadding.left +
-                (allDates.length <= 1
-                  ? plotWidth / 2
-                  : (index / (allDates.length - 1)) * plotWidth);
+              const x = getDateX(index, allDates.length);
               return (
                 <SvgText
                   key={`${date}-x`}
@@ -507,7 +574,7 @@ export function PriceHistoryChart({
               dataset.points.length > 1 ? (
                 <Path
                   key={`${dataset.platform}-area`}
-                  d={`${dataset.path} L ${dataset.points[dataset.points.length - 1].x} ${chartPadding.top + plotHeight} L ${dataset.points[0].x} ${chartPadding.top + plotHeight} Z`}
+                  d={`${dataset.path} L ${dataset.points[dataset.points.length - 1].x} ${chartPadding.top + pricePlotHeight} L ${dataset.points[0].x} ${chartPadding.top + pricePlotHeight} Z`}
                   fill={`url(#priceGlow-${dataset.platform})`}
                 />
               ) : null,
@@ -544,7 +611,7 @@ export function PriceHistoryChart({
                   x1={selectedPoint.point.x}
                   x2={selectedPoint.point.x}
                   y1={chartPadding.top}
-                  y2={chartPadding.top + plotHeight}
+                  y2={volumeBottom}
                   stroke={selectedColor}
                   strokeWidth="1"
                   opacity="0.45"
@@ -600,40 +667,10 @@ export function PriceHistoryChart({
 
       {hasAnyData && hasVisiblePlatforms ? (
         <View style={styles.metricsRow}>
-          <View>
-            <Text style={styles.metricLabel}>{t('chart.volume')}</Text>
-            <Text style={styles.metricValue}>
-              {totalVolume.toLocaleString(locale)}
-            </Text>
-          </View>
-          <View style={styles.volumeBars}>
-            {volumePreview.map((row) => {
-              const activeVolume = activePlatforms.reduce(
-                (sum, platform) =>
-                  sum + Number(row[volumeKey(platform.key)] ?? 0),
-                0,
-              );
-              return (
-                <View key={row.date} style={styles.volumeBarTrack}>
-                  <View
-                    style={[
-                      styles.volumeBarFill,
-                      {
-                        height: `${Math.max(
-                          12,
-                          (activeVolume / maxVolume) * 100,
-                        )}%`,
-                        backgroundColor:
-                          activePlatforms[0]
-                            ? colors.marketplaces[activePlatforms[0].key]
-                            : colors.primary,
-                      },
-                    ]}
-                  />
-                </View>
-              );
-            })}
-          </View>
+          <Text style={styles.metricLabel}>{t('chart.volume')}</Text>
+          <Text style={styles.metricValue}>
+            {totalVolume.toLocaleString(locale)}
+          </Text>
         </View>
       ) : null}
 
@@ -757,9 +794,9 @@ function createStyles(colors: AppColors) {
     textAlign: "center",
   },
   metricsRow: {
-    alignItems: "center",
+    alignItems: "baseline",
     flexDirection: "row",
-    gap: 14,
+    gap: 8,
   },
   metricLabel: {
     color: colors.textMuted,
@@ -772,27 +809,6 @@ function createStyles(colors: AppColors) {
     fontSize: 18,
     fontWeight: "800",
     marginTop: 2,
-  },
-  volumeBars: {
-    alignItems: "flex-end",
-    flex: 1,
-    flexDirection: "row",
-    gap: 5,
-    height: 34,
-    justifyContent: "flex-end",
-  },
-  volumeBarTrack: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 3,
-    height: 34,
-    justifyContent: "flex-end",
-    overflow: "hidden",
-    width: 8,
-  },
-  volumeBarFill: {
-    borderRadius: 3,
-    minHeight: 3,
-    opacity: 0.9,
   },
   marketBadgeRow: {
     flexDirection: "row",
