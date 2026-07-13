@@ -111,7 +111,10 @@ export default function BoxDetailScreen() {
     let cancelled = false;
 
     async function load() {
-      const data = await getBoxById(boxId as string);
+      const data = await getBoxById(boxId as string, {
+        currency: displayCurrency,
+        locale,
+      });
       if (!cancelled) {
         setBox(data);
         setLoading(false);
@@ -120,7 +123,7 @@ export default function BoxDetailScreen() {
 
     load();
     return () => { cancelled = true; };
-  }, [boxId]);
+  }, [boxId, displayCurrency, locale]);
 
   useEffect(() => {
     if (!boxId) return;
@@ -131,7 +134,11 @@ export default function BoxDetailScreen() {
       setPriceHistoryLoading(true);
       setPriceHistoryError(null);
       try {
-        const history = await getBoxPriceHistory(boxId as string, displayCurrency);
+        const history = await getBoxPriceHistory(
+          boxId as string,
+          displayCurrency,
+          locale,
+        );
         if (!cancelled) setPriceHistory(history);
       } catch {
         if (!cancelled) {
@@ -145,7 +152,7 @@ export default function BoxDetailScreen() {
 
     loadHistory();
     return () => { cancelled = true; };
-  }, [boxId, displayCurrency]);
+  }, [boxId, displayCurrency, locale, t]);
 
   if (loading) {
     return (

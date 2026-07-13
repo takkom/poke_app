@@ -1,5 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
-import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
+import {
+  useThemeManager,
+  type AppLocale,
+  type DisplayCurrency,
+} from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { XMON_API_URL } from "@/config";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -27,6 +31,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
+import {
+  getCardListDisplayName,
+  getDisplayRarity,
+} from "@/utils/displayNames";
 import {
   AnchoredActionMenu,
   type MenuAnchor,
@@ -70,6 +78,8 @@ type CollectionCard = {
   canonical_card_id?: string | null;
   tcgdex_card_id?: string | null;
   box_canonical_id?: string | null;
+  name?: string | null;
+  display_name?: string | null;
   pokemon_name?: string | null;
   card_number?: string | null;
   language?: string | null;
@@ -90,6 +100,7 @@ function isBoxItem(item: CollectionCard): boolean {
 
 function itemMetaLine(
   item: CollectionCard,
+  locale: AppLocale,
   labels: { boosterBox: string },
 ): string {
   if (isBoxItem(item)) {
@@ -97,9 +108,8 @@ function itemMetaLine(
     return parts.join(" | ");
   }
 
-  return `#${item.card_number ?? "-"}${
-    item.rarity ? ` | ${item.rarity}` : ""
-  }`;
+  const rarity = getDisplayRarity(item.rarity, locale);
+  return `#${item.card_number ?? "-"}${rarity ? ` | ${rarity}` : ""}`;
 }
 
 type CollectionDetailResponse = {
@@ -142,11 +152,20 @@ function cardValue(card: CollectionCard): number {
 
 function itemDisplayName(
   item: CollectionCard,
+  locale: AppLocale,
   labels: { unknownBox: string; unknownCard: string },
 ): string {
-  return (
-    item.pokemon_name ??
-    (isBoxItem(item) ? labels.unknownBox : labels.unknownCard)
+  const localizedName = item.display_name ?? item.name ?? item.pokemon_name;
+  if (!localizedName) {
+    return isBoxItem(item) ? labels.unknownBox : labels.unknownCard;
+  }
+
+  return getCardListDisplayName(
+    {
+      name: localizedName,
+      pokemon_name: item.pokemon_name ?? null,
+    },
+    locale,
   );
 }
 
@@ -271,7 +290,7 @@ export default function CollectionDetailScreen() {
 
       try {
         const body = await requestJson<CollectionDetailResponse>(
-          `/api/collections/${collectionId}?display_currency=${displayCurrency}`,
+          `/api/collections/${collectionId}?display_currency=${displayCurrency}&locale=${encodeURIComponent(locale)}`,
           token,
         );
         setCollection(body.collection);
@@ -287,7 +306,7 @@ export default function CollectionDetailScreen() {
         setRefreshing(false);
       }
     },
-    [collectionId, displayCurrency, t, token],
+    [collectionId, displayCurrency, locale, t, token],
   );
 
   useFocusEffect(
@@ -379,7 +398,7 @@ export default function CollectionDetailScreen() {
     Alert.alert(
       t("collections.removeFromCollectionTitle"),
       t("collections.removeFromCollectionMessage", {
-        name: itemDisplayName(card, {
+        name: itemDisplayName(card, locale, {
           unknownBox: t("collections.unknownBox"),
           unknownCard: t("collections.unknownCard"),
         }),
@@ -412,6 +431,7 @@ export default function CollectionDetailScreen() {
           {
             body: JSON.stringify({
               display_currency: displayCurrency,
+              locale,
               purchase_price: amount,
             }),
             method: "PATCH",
@@ -424,6 +444,7 @@ export default function CollectionDetailScreen() {
           {
             body: JSON.stringify({
               display_currency: displayCurrency,
+              locale,
               sold_at: new Date().toISOString(),
               sold_price: amount,
             }),
@@ -476,6 +497,7 @@ export default function CollectionDetailScreen() {
       <FlatList
         contentContainerStyle={styles.container}
         data={visibleCards}
+        extraData={locale}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={
           <View style={styles.header}>
@@ -667,14 +689,14 @@ export default function CollectionDetailScreen() {
                     numberOfLines={1}
                     style={[styles.cardName, { color: colors.textPrimary }]}
                   >
-                    {itemDisplayName(item, {
+                    {itemDisplayName(item, locale, {
                       unknownBox: t("collections.unknownBox"),
                       unknownCard: t("collections.unknownCard"),
                     })}
                   </Text>
                 </View>
                 <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                  {itemMetaLine(item, {
+                  {itemMetaLine(item, locale, {
                     boosterBox: t("collections.boosterBox"),
                   })}
                 </Text>
@@ -794,7 +816,7 @@ export default function CollectionDetailScreen() {
             </Text>
             <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
               {sheetCard
-                ? itemDisplayName(sheetCard, {
+                ? itemDisplayName(sheetCard, locale, {
                     unknownBox: t("collections.unknownBox"),
                     unknownCard: t("collections.unknownCard"),
                   })

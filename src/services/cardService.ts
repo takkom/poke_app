@@ -571,8 +571,9 @@ export const getPriceHistory = async (
   cardId: string,
   currency: "KRW" | "USD" = "KRW",
   qualities?: QualityBucketCode[],
+  locale: string = "en-US",
 ): Promise<PriceHistoryPoint[]> => {
-  const params = new URLSearchParams({ currency });
+  const params = new URLSearchParams({ currency, locale });
   if (qualities?.length) {
     params.set("qualities", qualities.join(","));
   }
@@ -691,6 +692,10 @@ export const clearCache = (): void => {
 
 export const searchCard = async (
   searchTerm: string,
+  options?: {
+    currency?: "KRW" | "USD";
+    locale?: string;
+  },
 ): Promise<PokemonCard[]> => {
   try {
     const response = await fetch(
@@ -700,7 +705,11 @@ export const searchCard = async (
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query: searchTerm }),
+        body: JSON.stringify({
+          query: searchTerm,
+          ...(options?.currency ? { display_currency: options.currency } : {}),
+          ...(options?.locale ? { locale: options.locale } : {}),
+        }),
       },
     );
 
@@ -778,10 +787,22 @@ export const searchCard = async (
 
 export const getBoxById = async (
   id: string,
+  options?: {
+    currency?: "KRW" | "USD";
+    locale?: string;
+  },
 ): Promise<CardWithPricing | null> => {
   try {
+    const params = new URLSearchParams();
+    if (options?.currency) {
+      params.set("currency", options.currency);
+    }
+    if (options?.locale) {
+      params.set("locale", options.locale);
+    }
+    const query = params.toString();
     const response = await fetch(
-      `${LOCAL_API_BASE_URL}/api/booster-boxes/${encodeURIComponent(id)}`,
+      `${LOCAL_API_BASE_URL}/api/booster-boxes/${encodeURIComponent(id)}${query ? `?${query}` : ""}`,
     );
     if (!response.ok) throw new Error(`Box fetch failed with ${response.status}`);
     const data = await response.json();
@@ -796,9 +817,10 @@ export const getBoxById = async (
 export const getBoxPriceHistory = async (
   boxId: string,
   currency: "KRW" | "USD" = "KRW",
+  locale: string = "en-US",
 ): Promise<PriceHistoryPoint[]> => {
   try {
-    const params = new URLSearchParams({ currency });
+    const params = new URLSearchParams({ currency, locale });
     const response = await fetch(
       `${LOCAL_API_BASE_URL}/api/booster-boxes/${encodeURIComponent(boxId)}/price-history?${params.toString()}`,
     );
@@ -813,6 +835,10 @@ export const getBoxPriceHistory = async (
 
 export const searchBox = async (
   searchTerm: string,
+  options?: {
+    currency?: "KRW" | "USD";
+    locale?: string;
+  },
 ): Promise<BoosterBoxBlueprint[]> => {
   try {
     const response = await fetch(
@@ -822,7 +848,12 @@ export const searchBox = async (
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query: searchTerm, item_type: "box" }),
+        body: JSON.stringify({
+          query: searchTerm,
+          item_type: "box",
+          ...(options?.currency ? { display_currency: options.currency } : {}),
+          ...(options?.locale ? { locale: options.locale } : {}),
+        }),
       },
     );
 

@@ -2,7 +2,12 @@ import { ContactUsModal } from '@/components/ContactUsModal';
 import { PrivacyPolicyModal } from '@/components/PrivacyPolicyModal';
 import { TermsOfServiceModal } from '@/components/TermsOfServiceModal';
 import { useAuth } from '@/context/AuthContext';
-import { AppLocale, ThemePreference, useThemeManager } from '@/hooks/useThemeManager';
+import {
+  AppLocale,
+  DisplayCurrency,
+  ThemePreference,
+  useThemeManager,
+} from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
 import { APP_VERSION } from '@/constants/version';
 import { validatePasswordChangeInput } from '@/utils/passwordValidation';
@@ -26,13 +31,30 @@ const themeOptions: Array<{ value: ThemePreference; labelKey: 'settings.light' |
   { value: 'system', labelKey: 'settings.system' },
 ];
 
-const localeOptions: Array<{ value: AppLocale; labelKey: 'settings.korean' | 'settings.english'; meta: string }> = [
-  { value: 'ko-KR', labelKey: 'settings.korean', meta: 'KRW' },
-  { value: 'en-US', labelKey: 'settings.english', meta: 'USD' },
+const localeOptions: Array<{ value: AppLocale; labelKey: 'settings.korean' | 'settings.english' }> = [
+  { value: 'ko-KR', labelKey: 'settings.korean' },
+  { value: 'en-US', labelKey: 'settings.english' },
+];
+
+const currencyOptions: Array<{
+  value: DisplayCurrency;
+  labelKey: 'settings.currencyKrw' | 'settings.currencyUsd';
+}> = [
+  { value: 'KRW', labelKey: 'settings.currencyKrw' },
+  { value: 'USD', labelKey: 'settings.currencyUsd' },
 ];
 
 export default function SettingsTab() {
-  const { colors, preference, setPreference, mode, locale, setLocale, displayCurrency } = useThemeManager();
+  const {
+    colors,
+    preference,
+    setPreference,
+    mode,
+    locale,
+    setLocale,
+    displayCurrency,
+    setDisplayCurrency,
+  } = useThemeManager();
   const {
     user,
     logout,
@@ -221,12 +243,7 @@ export default function SettingsTab() {
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.language')}</Text>
-          <Text style={[styles.sectionMeta, { color: colors.textSecondary }]}>
-            {displayCurrency}
-          </Text>
-        </View>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.language')}</Text>
 
         <View style={[styles.segmented, { backgroundColor: colors.background, borderColor: colors.border }]}>
           {localeOptions.map((option) => {
@@ -244,8 +261,30 @@ export default function SettingsTab() {
                 <Text style={[styles.segmentText, { color: selected ? colors.onPrimary : colors.textSecondary }]}>
                   {t(option.labelKey)}
                 </Text>
-                <Text style={[styles.segmentMeta, { color: selected ? colors.onPrimary : colors.textMuted }]}>
-                  {option.meta}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.currency')}</Text>
+
+        <View style={[styles.segmented, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          {currencyOptions.map((option) => {
+            const selected = displayCurrency === option.value;
+
+            return (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => setDisplayCurrency(option.value)}
+                style={[
+                  styles.segment,
+                  selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+              >
+                <Text style={[styles.segmentText, { color: selected ? colors.onPrimary : colors.textSecondary }]}>
+                  {t(option.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -541,11 +580,6 @@ const styles = StyleSheet.create({
   segmentText: {
     fontSize: 13,
     fontWeight: '800',
-  },
-  segmentMeta: {
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 2,
   },
   smallButton: {
     alignItems: 'center',

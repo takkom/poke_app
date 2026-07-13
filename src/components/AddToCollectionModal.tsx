@@ -88,7 +88,7 @@ export function AddToCollectionModal({
   onClose,
 }: AddToCollectionModalProps) {
   const { token } = useAuth();
-  const { colors, displayCurrency } = useThemeManager();
+  const { colors, displayCurrency, locale } = useThemeManager();
   const { t } = useI18n();
   const styles = createStyles(colors);
 
@@ -112,7 +112,7 @@ export function AddToCollectionModal({
 
     try {
       const body = await requestJson<CollectionListResponse>(
-        `/api/collections?display_currency=${displayCurrency}`,
+        `/api/collections?display_currency=${displayCurrency}&locale=${encodeURIComponent(locale)}`,
         token,
       );
       const nextCollections = Array.isArray(body)
@@ -128,7 +128,7 @@ export function AddToCollectionModal({
     } finally {
       setLoading(false);
     }
-  }, [displayCurrency, t, token]);
+  }, [displayCurrency, locale, t, token]);
 
   useEffect(() => {
     if (!visible) {
@@ -156,6 +156,7 @@ export function AddToCollectionModal({
           card_id: cardId,
           display_currency: displayCurrency as DisplayCurrency,
           item_type: "card" as const,
+          locale,
         }),
         method: "POST",
       });
@@ -199,6 +200,7 @@ export function AddToCollectionModal({
           card_id: cardId,
           display_currency: displayCurrency as DisplayCurrency,
           item_type: "card" as const,
+          locale,
         }),
         method: "POST",
       });

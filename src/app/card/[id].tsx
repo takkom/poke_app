@@ -135,6 +135,7 @@ export default function CardDetailScreen() {
           requestedCardId,
           displayCurrency,
           [DEFAULT_QUALITY],
+          locale,
         );
         if (!cancelled) {
           setPriceHistory(history);
@@ -160,7 +161,7 @@ export default function CardDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [card?.id, displayCurrency, t]);
+  }, [card?.id, displayCurrency, locale, t]);
 
   const imageUrl = card ? resolveImageUrl(card) : null;
   const displayName = card ? getDisplayCardName(card, locale) : "";

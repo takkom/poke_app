@@ -455,7 +455,7 @@ type SearchItemType = 'card' | 'box';
 
 export default function SearchTab() {
   const router = useRouter();
-  const { colors, searchMode, locale } = useThemeManager();
+  const { colors, searchMode, locale, displayCurrency } = useThemeManager();
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [itemType, setItemType] = useState<SearchItemType>('card');
@@ -489,13 +489,19 @@ export default function SearchTab() {
 
     try {
       if (searchMode === 'local' && itemType === 'box') {
-        const nextBoxResults = await searchBox(currentQuery);
+        const nextBoxResults = await searchBox(currentQuery, {
+          currency: displayCurrency,
+          locale,
+        });
         setBoxResults(nextBoxResults);
         setResults([]);
       } else {
         const nextResults =
           searchMode === 'local'
-            ? await searchCard(currentQuery)
+            ? await searchCard(currentQuery, {
+                currency: displayCurrency,
+                locale,
+              })
             : await searchTcgDex(currentQuery);
         setResults(nextResults);
         setBoxResults([]);

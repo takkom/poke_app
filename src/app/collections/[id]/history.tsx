@@ -1,5 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
-import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
+import {
+  useThemeManager,
+  type AppLocale,
+  type DisplayCurrency,
+} from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { XMON_API_URL } from "@/config";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -33,6 +37,7 @@ import {
   cardLanguageFlag,
   languageFlagAccessibilityLabel,
 } from "@/utils/languageFlag";
+import { getDisplayName, getDisplayRarity } from "@/utils/displayNames";
 import { getReturnColor } from "@/utils/returnDisplay";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -114,16 +119,19 @@ function parseTransactionDate(value: string | null | undefined): Date {
 
 function transactionItemName(
   transaction: CollectionTransaction,
+  locale: AppLocale,
   unknownLabel: string,
 ): string {
-  const name = transaction.item_name ?? unknownLabel;
+  const rawName = transaction.item_name ?? unknownLabel;
   if (transaction.item_type === "box") {
-    return name;
+    return rawName;
   }
 
+  const name = getDisplayName(rawName, locale);
   const number = transaction.card_number ? `#${transaction.card_number}` : null;
   const base = number ? `${name} ${number}` : name;
-  const metaParts = [transaction.rarity ?? null].filter(Boolean);
+  const rarity = getDisplayRarity(transaction.rarity, locale);
+  const metaParts = [rarity].filter(Boolean);
 
   return metaParts.length ? `${base} [${metaParts.join(" | ")}]` : base;
 }
@@ -280,7 +288,7 @@ export default function CollectionHistoryScreen() {
 
       try {
         const body = await requestJson<TransactionsResponse>(
-          `/api/collections/${collectionId}/transactions?display_currency=${displayCurrency}&type=${filterQuery}&page=${nextPage}&limit=${PAGE_SIZE}`,
+          `/api/collections/${collectionId}/transactions?display_currency=${displayCurrency}&locale=${encodeURIComponent(locale)}&type=${filterQuery}&page=${nextPage}&limit=${PAGE_SIZE}`,
           token,
         );
         const nextTransactions = Array.isArray(body?.transactions)
@@ -303,7 +311,7 @@ export default function CollectionHistoryScreen() {
         setLoadingMore(false);
       }
     },
-    [collectionId, displayCurrency, filterQuery, t, token],
+    [collectionId, displayCurrency, filterQuery, locale, t, token],
   );
 
   const filterRef = useRef(filter);
@@ -444,6 +452,7 @@ export default function CollectionHistoryScreen() {
         {
           body: JSON.stringify({
             display_currency: displayCurrency,
+            locale,
             occurred_at: parsedDate.toISOString(),
             price,
           }),
@@ -483,6 +492,7 @@ export default function CollectionHistoryScreen() {
       <FlatList
         contentContainerStyle={styles.container}
         data={transactions}
+        extraData={locale}
         keyExtractor={(item, index) =>
           item?.id ? String(item.id) : `tx-${index}`
         }
@@ -608,7 +618,7 @@ export default function CollectionHistoryScreen() {
                       numberOfLines={1}
                       style={[styles.itemName, { color: colors.textPrimary }]}
                     >
-                      {transactionItemName(item, t("collections.unknown"))}
+                      {transactionItemName(item, locale, t("collections.unknown"))}
                     </Text>
                   </View>
                   <Text
@@ -716,6 +726,7 @@ export default function CollectionHistoryScreen() {
                 {editingTransaction
                   ? transactionItemName(
                       editingTransaction,
+                      locale,
                       t("collections.unknown"),
                     )
                   : null}

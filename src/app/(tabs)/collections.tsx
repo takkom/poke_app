@@ -467,7 +467,7 @@ export default function CollectionsScreen() {
     setValueHistoryLoading(true);
     try {
       const body = await requestJson<{ points: CollectionValuePoint[] }>(
-        `/api/collections/portfolio/value-history?display_currency=${displayCurrency}`,
+        `/api/collections/portfolio/value-history?display_currency=${displayCurrency}&locale=${encodeURIComponent(locale)}`,
         token,
       );
       setValueHistory(body.points ?? []);
@@ -476,7 +476,7 @@ export default function CollectionsScreen() {
     } finally {
       setValueHistoryLoading(false);
     }
-  }, [displayCurrency, token]);
+  }, [displayCurrency, locale, token]);
 
   const loadCollections = useCallback(
     async (showRefresh = false) => {
@@ -496,7 +496,7 @@ export default function CollectionsScreen() {
 
       try {
         const body = await requestJson<CollectionListResponse>(
-          `/api/collections?display_currency=${displayCurrency}`,
+          `/api/collections?display_currency=${displayCurrency}&locale=${encodeURIComponent(locale)}`,
           token,
         );
         const nextCollections = Array.isArray(body)
@@ -514,7 +514,7 @@ export default function CollectionsScreen() {
         setRefreshing(false);
       }
     },
-    [displayCurrency, t, token],
+    [displayCurrency, locale, t, token],
   );
 
   useFocusEffect(

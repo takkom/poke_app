@@ -27,6 +27,7 @@ type ThemeManagerValue = {
   locale: AppLocale;
   setLocale: (locale: AppLocale) => void;
   displayCurrency: DisplayCurrency;
+  setDisplayCurrency: (currency: DisplayCurrency) => void;
 };
 
 const ThemeManagerContext = createContext<ThemeManagerValue | null>(null);
@@ -44,9 +45,9 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] = useState<ThemePreference>('system');
   const [searchMode, setSearchMode] = useState<SearchMode>('local');
   const [locale, setLocale] = useState<AppLocale>('ko-KR');
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('KRW');
   const mode = resolveMode(preference, systemScheme);
   const activeColors = mode === 'dark' ? darkColors : lightColors;
-  const displayCurrency: DisplayCurrency = locale === 'ko-KR' ? 'KRW' : 'USD';
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(activeColors.background);
@@ -64,6 +65,7 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
       locale,
       setLocale,
       displayCurrency,
+      setDisplayCurrency,
     }),
     [activeColors, displayCurrency, locale, mode, preference, searchMode, systemScheme],
   );

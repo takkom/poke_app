@@ -1,5 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
-import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
+import {
+  useThemeManager,
+  type AppLocale,
+  type DisplayCurrency,
+} from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { XMON_API_URL } from "@/config";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -16,6 +20,10 @@ import {
 } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
+import {
+  getCardListDisplayName,
+  getDisplayRarity,
+} from "@/utils/displayNames";
 import { resolveCollectionSearchImageUrl } from "@/utils/mediaUrl";
 import {
   formatMoneyInput,
@@ -66,8 +74,22 @@ function getAuthToken(auth: AuthState): string | null {
   return auth.accessToken ?? auth.authToken ?? auth.token ?? null;
 }
 
-function candidateName(item: SearchCandidate): string | null {
-  return item.display_name ?? item.name ?? null;
+function candidateName(
+  item: SearchCandidate,
+  locale: AppLocale,
+): string | null {
+  const localizedName = item.display_name ?? item.name;
+  if (!localizedName) {
+    return null;
+  }
+
+  return getCardListDisplayName(
+    {
+      name: localizedName,
+      pokemon_name: item.name ?? null,
+    },
+    locale,
+  );
 }
 
 function cardNumber(card: SearchCandidate): string {
@@ -106,8 +128,9 @@ function boxMetaLine(item: SearchCandidate): string {
   return parts.join(" | ");
 }
 
-function cardMetaLine(item: SearchCandidate): string {
-  return `#${cardNumber(item)}${item.rarity ? ` | ${item.rarity}` : ""}`;
+function cardMetaLine(item: SearchCandidate, locale: AppLocale): string {
+  const rarity = getDisplayRarity(item.rarity, locale);
+  return `#${cardNumber(item)}${rarity ? ` | ${rarity}` : ""}`;
 }
 
 async function requestJson<T>(
@@ -215,6 +238,7 @@ export default function AddCollectionCardScreen() {
           body: JSON.stringify({
             display_currency: displayCurrency,
             item_type: itemType,
+            locale,
             query: query.trim(),
           }),
           method: "POST",
@@ -282,6 +306,7 @@ export default function AddCollectionCardScreen() {
               box_id: selectedId,
               display_currency: displayCurrency,
               item_type: "box" as const,
+              locale,
               purchase_price:
                 purchasePrice !== null ? purchasePrice : undefined,
             }
@@ -289,6 +314,7 @@ export default function AddCollectionCardScreen() {
               card_id: selectedId,
               display_currency: displayCurrency,
               item_type: "card" as const,
+              locale,
               purchase_price:
                 purchasePrice !== null ? purchasePrice : undefined,
             };
@@ -329,6 +355,7 @@ export default function AddCollectionCardScreen() {
       <FlatList
         contentContainerStyle={styles.container}
         data={candidates}
+        extraData={locale}
         keyExtractor={(item, index) => `${itemIdentity(item)}-${index}`}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
@@ -487,7 +514,7 @@ export default function AddCollectionCardScreen() {
                         numberOfLines={1}
                         style={[styles.cardName, { color: colors.textPrimary }]}
                       >
-                        {candidateName(selectedItem) ??
+                        {candidateName(selectedItem, locale) ??
                           (itemType === "box"
                             ? t("collections.unknownBox")
                             : t("collections.unknownCard"))}
@@ -498,7 +525,7 @@ export default function AddCollectionCardScreen() {
                     >
                       {itemType === "box"
                         ? boxMetaLine(selectedItem)
-                        : cardMetaLine(selectedItem)}
+                        : cardMetaLine(selectedItem, locale)}
                     </Text>
                   </View>
                 </View>
@@ -621,7 +648,7 @@ export default function AddCollectionCardScreen() {
                     numberOfLines={1}
                     style={[styles.cardName, { color: colors.textPrimary }]}
                   >
-                    {candidateName(item) ??
+                    {candidateName(item, locale) ??
                       (itemType === "box"
                         ? t("collections.unknownBox")
                         : t("collections.unknownCard"))}
@@ -632,7 +659,7 @@ export default function AddCollectionCardScreen() {
                 >
                   {itemType === "box"
                     ? boxMetaLine(item)
-                    : cardMetaLine(item)}
+                    : cardMetaLine(item, locale)}
                 </Text>
                 {typeof item.avgPrice === "number" ? (
                   <Text
