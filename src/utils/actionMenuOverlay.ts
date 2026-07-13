@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const EDGE_PADDING = 16;
+const TAB_BAR_HEIGHT = 49;
 
 export function useActionMenuOverlayInsets(extraBottom = 0) {
   const insets = useSafeAreaInsets();
@@ -15,4 +16,8 @@ export function useActionMenuOverlayInsets(extraBottom = 0) {
     }),
     [extraBottom, insets.bottom, insets.left, insets.right, insets.top],
   );
+}
+
+export function useTabScreenActionMenuOverlayInsets() {
+  return useActionMenuOverlayInsets(TAB_BAR_HEIGHT);
 }

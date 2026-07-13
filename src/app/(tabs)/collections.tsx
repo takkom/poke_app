@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -28,7 +27,7 @@ import {
   type DisplayCurrency,
 } from "../../hooks/useThemeManager";
 import { useI18n } from "../../i18n";
-import { useActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
+import { useTabScreenActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
 import { getReturnColor } from "@/utils/returnDisplay";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
@@ -358,8 +357,7 @@ export default function CollectionsScreen() {
   const auth = useAuth() as AuthState;
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
-  const tabBarHeight = useBottomTabBarHeight();
-  const menuOverlayInsets = useActionMenuOverlayInsets(tabBarHeight);
+  const menuOverlayInsets = useTabScreenActionMenuOverlayInsets();
   const token = getAuthToken(auth);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [name, setName] = useState("");
