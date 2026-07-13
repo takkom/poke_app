@@ -18,20 +18,23 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { darkColors } from "@/theme/colors";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
+import {
+  AnchoredActionMenu,
+  type MenuAnchor,
+} from "@/components/AnchoredActionMenu";
+import { TransactionDatePicker } from "@/components/TransactionDatePicker";
 import {
   formatMoneyInput,
   formatMoneyInputFromNumber,
   parseMoneyInput,
 } from "@/utils/moneyInput";
-import { useActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
 import {
   cardLanguageFlag,
   languageFlagAccessibilityLabel,
 } from "@/utils/languageFlag";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { getReturnColor } from "@/utils/returnDisplay";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 const PAGE_SIZE = 30;
@@ -89,15 +92,24 @@ function formatMoney(
   }).format(value);
 }
 
-function formatDate(value: string, locale: string): string {
-  const parsed = Date.parse(value);
+function formatDate(value: string | Date, locale: string): string {
+  const parsed =
+    value instanceof Date ? value.getTime() : Date.parse(String(value ?? ""));
   if (!Number.isFinite(parsed)) {
-    return value;
+    return typeof value === "string" ? value : "";
   }
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(parsed));
+}
+
+function parseTransactionDate(value: string | null | undefined): Date {
+  const parsed = Date.parse(String(value ?? ""));
+  if (!Number.isFinite(parsed)) {
+    return new Date();
+  }
+  return new Date(parsed);
 }
 
 function transactionItemName(
@@ -165,7 +177,6 @@ export default function CollectionHistoryScreen() {
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
-  const menuOverlayInsets = useActionMenuOverlayInsets();
   const [transactions, setTransactions] = useState<CollectionTransaction[]>([]);
   const [filter, setFilter] = useState<"all" | "purchase" | "sale">("all");
   const [page, setPage] = useState(1);
@@ -175,6 +186,8 @@ export default function CollectionHistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [menuTransaction, setMenuTransaction] =
     useState<CollectionTransaction | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<MenuAnchor | null>(null);
+  const menuButtonRefs = useRef<Record<string, View | null>>({});
   const [editingTransaction, setEditingTransaction] =
     useState<CollectionTransaction | null>(null);
   const [editedPrice, setEditedPrice] = useState("");
@@ -267,8 +280,21 @@ export default function CollectionHistoryScreen() {
     return t("collections.transactionHistory");
   }, [filter, t]);
 
-  function openEditTransaction(transaction: CollectionTransaction) {
+  function openTransactionMenu(
+    transaction: CollectionTransaction,
+    anchor: MenuAnchor,
+  ) {
+    setMenuTransaction(transaction);
+    setMenuAnchor(anchor);
+  }
+
+  function closeTransactionMenu() {
     setMenuTransaction(null);
+    setMenuAnchor(null);
+  }
+
+  function openEditTransaction(transaction: CollectionTransaction) {
+    closeTransactionMenu();
     setEditingTransaction(transaction);
     setEditedPrice(
       formatMoneyInputFromNumber(
@@ -277,7 +303,7 @@ export default function CollectionHistoryScreen() {
         displayCurrency,
       ),
     );
-    setEditedOccurredAt(new Date(transaction.occurred_at));
+    setEditedOccurredAt(parseTransactionDate(transaction.occurred_at));
     setShowDatePicker(false);
     setError(null);
   }
@@ -287,7 +313,7 @@ export default function CollectionHistoryScreen() {
   }
 
   function confirmDeleteTransaction(transaction: CollectionTransaction) {
-    setMenuTransaction(null);
+    closeTransactionMenu();
     const typeLabel =
       transaction.transaction_type === "sale"
         ? t("collections.transactionSale")
@@ -338,7 +364,13 @@ export default function CollectionHistoryScreen() {
 
   async function saveEditedTransaction() {
     const price = parseMoneyInput(editedPrice);
-    if (!token || !collectionId || !editingTransaction || price === null) {
+    if (
+      !token ||
+      !collectionId ||
+      !editingTransaction ||
+      price === null ||
+      Number.isNaN(editedOccurredAt.getTime())
+    ) {
       return;
     }
 
@@ -482,6 +514,7 @@ export default function CollectionHistoryScreen() {
         renderItem={({ item, index }) => {
           const isSale = item.transaction_type === "sale";
           const signedAmount = formatSignedAmount(item, locale, displayCurrency);
+          const occurredAt = item.occurred_at ?? "";
           return (
             <View
               style={[
@@ -494,7 +527,7 @@ export default function CollectionHistoryScreen() {
             >
               <View style={styles.rowText}>
                 <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-                  {formatDate(item.occurred_at, locale)}
+                  {formatDate(occurredAt, locale)}
                 </Text>
                 <View style={styles.namePriceRow}>
                   <View style={styles.itemNameRow}>
@@ -520,9 +553,10 @@ export default function CollectionHistoryScreen() {
                     style={[
                       styles.amountText,
                       {
-                        color: isSale
-                          ? darkColors.arbitragePositive
-                          : darkColors.arbitrageNegative,
+                        color: getReturnColor(
+                          colors,
+                          isSale ? 1 : -1,
+                        ),
                       },
                     ]}
                   >
@@ -531,7 +565,15 @@ export default function CollectionHistoryScreen() {
                 </View>
               </View>
               <Pressable
-                onPress={() => setMenuTransaction(item)}
+                onPress={() => {
+                  const node = menuButtonRefs.current[item.id];
+                  node?.measureInWindow((x, y, width, height) => {
+                    openTransactionMenu(item, { top: y, left: x, width, height });
+                  });
+                }}
+                ref={(node) => {
+                  menuButtonRefs.current[item.id] = node;
+                }}
                 style={[styles.menuButton, { borderColor: colors.border }]}
               >
                 <MaterialCommunityIcons
@@ -545,52 +587,43 @@ export default function CollectionHistoryScreen() {
         }}
       />
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setMenuTransaction(null)}
-        transparent
+      <AnchoredActionMenu
+        anchor={menuAnchor}
+        estimatedHeight={96}
+        onClose={closeTransactionMenu}
         visible={Boolean(menuTransaction)}
       >
         <Pressable
-          style={[styles.menuOverlay, menuOverlayInsets]}
-          onPress={() => setMenuTransaction(null)}
+          onPress={() =>
+            menuTransaction && openEditTransaction(menuTransaction)
+          }
+          style={styles.menuItem}
         >
-          <View
-            style={[styles.menuContent, { backgroundColor: colors.surface }]}
-          >
-            <Pressable
-              onPress={() =>
-                menuTransaction && openEditTransaction(menuTransaction)
-              }
-              style={styles.menuItem}
-            >
-              <MaterialCommunityIcons
-                name="pencil-outline"
-                color={colors.textPrimary}
-                size={20}
-              />
-              <Text style={[styles.menuText, { color: colors.textPrimary }]}>
-                {t("collections.editTransaction")}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() =>
-                menuTransaction && confirmDeleteTransaction(menuTransaction)
-              }
-              style={styles.menuItem}
-            >
-              <MaterialCommunityIcons
-                name="trash-can-outline"
-                color={colors.error}
-                size={20}
-              />
-              <Text style={[styles.menuText, { color: colors.error }]}>
-                {t("collections.delete")}
-              </Text>
-            </Pressable>
-          </View>
+          <MaterialCommunityIcons
+            name="pencil-outline"
+            color={colors.textPrimary}
+            size={20}
+          />
+          <Text style={[styles.menuText, { color: colors.textPrimary }]}>
+            {t("collections.editTransaction")}
+          </Text>
         </Pressable>
-      </Modal>
+        <Pressable
+          onPress={() =>
+            menuTransaction && confirmDeleteTransaction(menuTransaction)
+          }
+          style={styles.menuItem}
+        >
+          <MaterialCommunityIcons
+            name="trash-can-outline"
+            color={colors.error}
+            size={20}
+          />
+          <Text style={[styles.menuText, { color: colors.error }]}>
+            {t("collections.delete")}
+          </Text>
+        </Pressable>
+      </AnchoredActionMenu>
 
       <Modal
         animationType="fade"
@@ -655,7 +688,7 @@ export default function CollectionHistoryScreen() {
                 ]}
               >
                 <Text style={[styles.dateFieldText, { color: colors.textPrimary }]}>
-                  {formatDate(editedOccurredAt.toISOString(), locale)}
+                  {formatDate(editedOccurredAt, locale)}
                 </Text>
                 <MaterialCommunityIcons
                   name="calendar-month-outline"
@@ -664,9 +697,7 @@ export default function CollectionHistoryScreen() {
                 />
               </Pressable>
               {showDatePicker ? (
-                <DateTimePicker
-                  display={Platform.OS === "ios" ? "inline" : "default"}
-                  mode="datetime"
+                <TransactionDatePicker
                   onChange={(event, selectedDate) => {
                     if (Platform.OS === "android") {
                       setShowDatePicker(false);
@@ -806,23 +837,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 38,
   },
-  menuContent: {
-    borderRadius: 8,
-    minWidth: 180,
-    paddingVertical: 6,
-  },
   menuItem: {
     alignItems: "center",
     flexDirection: "row",
     gap: 10,
     minHeight: 46,
     paddingHorizontal: 16,
-  },
-  menuOverlay: {
-    alignItems: "flex-end",
-    backgroundColor: "rgba(15, 23, 42, 0.24)",
-    flex: 1,
-    justifyContent: "flex-end",
   },
   menuText: {
     fontSize: 15,

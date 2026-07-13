@@ -18,6 +18,14 @@ import {
 } from "react-native";
 
 import { XMON_API_URL } from "@/config";
+import {
+  AnchoredActionMenu,
+  type MenuAnchor,
+} from "@/components/AnchoredActionMenu";
+import {
+  CollectionValueChart,
+  type CollectionValuePoint,
+} from "@/components/CollectionValueChart";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
 import { type AppColors } from "@/theme/colors";
@@ -27,7 +35,6 @@ import {
   type DisplayCurrency,
 } from "../../hooks/useThemeManager";
 import { useI18n } from "../../i18n";
-import { useTabScreenActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
 import { getReturnColor } from "@/utils/returnDisplay";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
@@ -199,7 +206,7 @@ function CollectionPlate({
   onDragEnd: (fromIndex: number, toIndex: number) => void;
   onDragTargetChange: (fromIndex: number, toIndex: number) => void;
   onDragStart: () => void;
-  onMenu: (collection: Collection) => void;
+  onMenu: (collection: Collection, anchor: MenuAnchor) => void;
   onOpen: (collection: Collection) => void;
   targetIndex: number | null;
   t: ReturnType<typeof useI18n>["t"];
@@ -220,6 +227,7 @@ function CollectionPlate({
   );
   const returnPct = collectionReturn(collection);
   const returnText = formatReturn(returnPct);
+  const menuButtonRef = useRef<View>(null);
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -320,8 +328,6 @@ function CollectionPlate({
               {collection.description}
             </Text>
           ) : null}
-        </View>
-        <View style={styles.collectionStats}>
           <Text
             numberOfLines={1}
             style={[styles.metricLine, { color: colors.textPrimary }]}
@@ -341,7 +347,15 @@ function CollectionPlate({
         </View>
       </Pressable>
 
-      <Pressable onPress={() => onMenu(collection)} style={styles.iconButton}>
+      <Pressable
+        ref={menuButtonRef}
+        onPress={() => {
+          menuButtonRef.current?.measureInWindow((x, y, width, height) => {
+            onMenu(collection, { top: y, left: x, width, height });
+          });
+        }}
+        style={styles.iconButton}
+      >
         <MaterialCommunityIcons
           name="dots-vertical"
           color={colors.textPrimary}
@@ -357,14 +371,16 @@ export default function CollectionsScreen() {
   const auth = useAuth() as AuthState;
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
-  const menuOverlayInsets = useTabScreenActionMenuOverlayInsets();
   const token = getAuthToken(auth);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [valueHistory, setValueHistory] = useState<CollectionValuePoint[]>([]);
+  const [valueHistoryLoading, setValueHistoryLoading] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [orderPosition, setOrderPosition] = useState(1);
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [menuCollection, setMenuCollection] = useState<Collection | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<MenuAnchor | null>(null);
   const [editingCollection, setEditingCollection] = useState<Collection | null>(
     null,
   );
@@ -426,6 +442,42 @@ export default function CollectionsScreen() {
 
   const totalValue = totalBalance;
 
+  const chartPoints = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const points = [...valueHistory];
+
+    if (points.length > 0 || totalBalance > 0) {
+      const todayIndex = points.findIndex((point) => point.date === today);
+      if (todayIndex >= 0) {
+        points[todayIndex] = { date: today, value: totalBalance };
+      } else {
+        points.push({ date: today, value: totalBalance });
+      }
+    }
+
+    return points.sort((left, right) => left.date.localeCompare(right.date));
+  }, [totalBalance, valueHistory]);
+
+  const loadValueHistory = useCallback(async () => {
+    if (!token) {
+      setValueHistory([]);
+      return;
+    }
+
+    setValueHistoryLoading(true);
+    try {
+      const body = await requestJson<{ points: CollectionValuePoint[] }>(
+        `/api/collections/portfolio/value-history?display_currency=${displayCurrency}`,
+        token,
+      );
+      setValueHistory(body.points ?? []);
+    } catch {
+      setValueHistory([]);
+    } finally {
+      setValueHistoryLoading(false);
+    }
+  }, [displayCurrency, token]);
+
   const loadCollections = useCallback(
     async (showRefresh = false) => {
       if (!token) {
@@ -468,8 +520,19 @@ export default function CollectionsScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadCollections();
-    }, [loadCollections]),
+      void loadValueHistory();
+    }, [loadCollections, loadValueHistory]),
   );
+
+  function openCollectionMenu(collection: Collection, anchor: MenuAnchor) {
+    setMenuCollection(collection);
+    setMenuAnchor(anchor);
+  }
+
+  function closeCollectionMenu() {
+    setMenuCollection(null);
+    setMenuAnchor(null);
+  }
 
   useEffect(() => {
     if (!modalMode) {
@@ -511,7 +574,7 @@ export default function CollectionsScreen() {
     setDescription(collection.description ?? "");
     setOrderPosition(currentIndex >= 0 ? currentIndex + 1 : 1);
     setEditingCollection(collection);
-    setMenuCollection(null);
+    closeCollectionMenu();
     setModalMode("edit");
     setError(null);
   }
@@ -592,7 +655,7 @@ export default function CollectionsScreen() {
       return;
     }
 
-    setMenuCollection(null);
+    closeCollectionMenu();
     Alert.alert(
       t("collections.deleteTitle"),
       t("collections.deleteMessage", { name: collection.name }),
@@ -725,15 +788,23 @@ export default function CollectionsScreen() {
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <View style={styles.headerText}>
-                <Text style={[styles.title, { color: colors.textPrimary }]}>
-                  {t("collections.title")}
-                </Text>
-                <Text style={[styles.summary, { color: colors.textSecondary }]}>
-                  {t("collections.summary", {
-                    collections: collections.length,
-                    cards: totalCards,
-                  })}
-                </Text>
+                <View style={styles.titleNameRow}>
+                  <Text style={[styles.title, { color: colors.textPrimary }]}>
+                    {t("collections.title")}
+                  </Text>
+                  <Text
+                    style={[styles.titleMeta, { color: colors.textSecondary }]}
+                  >
+                    {t("collections.headerMetaCollections", {
+                      count: collections.length,
+                    })}
+                  </Text>
+                  <Text
+                    style={[styles.titleMeta, { color: colors.textSecondary }]}
+                  >
+                    {t("collections.headerMetaCards", { count: totalCards })}
+                  </Text>
+                </View>
                 <View style={styles.summaryMetrics}>
                   <Text style={[styles.metricLine, { color: colors.textPrimary }]}>
                     {t("collections.balanceLabel")}{" "}
@@ -768,6 +839,12 @@ export default function CollectionsScreen() {
                 {error}
               </Text>
             ) : null}
+            <CollectionValueChart
+              displayCurrency={displayCurrency}
+              loading={valueHistoryLoading}
+              locale={locale}
+              points={chartPoints}
+            />
           </View>
         }
         ListEmptyComponent={
@@ -803,7 +880,7 @@ export default function CollectionsScreen() {
             onDragEnd={finishCollectionDrag}
             onDragStart={startCollectionDrag}
             onDragTargetChange={previewCollectionDrop}
-            onMenu={setMenuCollection}
+            onMenu={openCollectionMenu}
             onOpen={(collection) =>
               router.push(`/collections/${collection.id}`)
             }
@@ -1014,48 +1091,40 @@ export default function CollectionsScreen() {
         </KeyboardAvoidingView>
       ) : null}
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setMenuCollection(null)}
-        transparent
+      <AnchoredActionMenu
+        anchor={menuAnchor}
+        estimatedHeight={96}
+        extraBottom={49}
+        onClose={closeCollectionMenu}
         visible={Boolean(menuCollection)}
       >
         <Pressable
-          style={[styles.menuOverlay, menuOverlayInsets]}
-          onPress={() => setMenuCollection(null)}
+          onPress={() => menuCollection && openEditModal(menuCollection)}
+          style={styles.menuItem}
         >
-          <View
-            style={[styles.menuContent, { backgroundColor: colors.surface }]}
-          >
-            <Pressable
-              onPress={() => menuCollection && openEditModal(menuCollection)}
-              style={styles.menuItem}
-            >
-              <MaterialCommunityIcons
-                name="pencil-outline"
-                color={colors.textPrimary}
-                size={20}
-              />
-              <Text style={[styles.menuText, { color: colors.textPrimary }]}>
-                {t("collections.edit")}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => menuCollection && confirmDelete(menuCollection)}
-              style={styles.menuItem}
-            >
-              <MaterialCommunityIcons
-                name="trash-can-outline"
-                color={colors.error}
-                size={20}
-              />
-              <Text style={[styles.menuText, { color: colors.error }]}>
-                {t("collections.delete")}
-              </Text>
-            </Pressable>
-          </View>
+          <MaterialCommunityIcons
+            name="pencil-outline"
+            color={colors.textPrimary}
+            size={20}
+          />
+          <Text style={[styles.menuText, { color: colors.textPrimary }]}>
+            {t("collections.edit")}
+          </Text>
         </Pressable>
-      </Modal>
+        <Pressable
+          onPress={() => menuCollection && confirmDelete(menuCollection)}
+          style={styles.menuItem}
+        >
+          <MaterialCommunityIcons
+            name="trash-can-outline"
+            color={colors.error}
+            size={20}
+          />
+          <Text style={[styles.menuText, { color: colors.error }]}>
+            {t("collections.delete")}
+          </Text>
+        </Pressable>
+      </AnchoredActionMenu>
     </View>
   );
 }
@@ -1130,20 +1199,25 @@ const styles = StyleSheet.create({
     gap: 3,
     minWidth: 0,
   },
-  collectionStats: {
-    alignItems: "flex-end",
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
-  },
   metricLine: {
     fontSize: 13,
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
-    textAlign: "right",
   },
   summaryMetrics: {
     gap: 2,
+    marginTop: 4,
+  },
+  titleNameRow: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  titleMeta: {
+    fontSize: 15,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "600",
   },
   container: {
     gap: 0,
@@ -1227,14 +1301,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
     paddingHorizontal: 16,
   },
-  menuOverlay: {
-    alignItems: "flex-end",
-    backgroundColor: "rgba(15, 23, 42, 0.24)",
-    flex: 1,
-    justifyContent: "flex-end",
-  },
   menuText: {
-    color: "#0f172a",
     fontSize: 15,
     fontWeight: "700",
   },

@@ -26,7 +26,10 @@ import {
 } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
-import { useActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
+import {
+  AnchoredActionMenu,
+  type MenuAnchor,
+} from "@/components/AnchoredActionMenu";
 import { getReturnColor } from "@/utils/returnDisplay";
 import {
   cardLanguageFlag,
@@ -193,13 +196,14 @@ export default function CollectionDetailScreen() {
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
-  const menuOverlayInsets = useActionMenuOverlayInsets();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [itemFilter, setItemFilter] = useState<"all" | "card" | "box">("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuCard, setMenuCard] = useState<CollectionCard | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<MenuAnchor | null>(null);
+  const menuButtonRefs = useRef<Record<string, View | null>>({});
   const [sheetMode, setSheetMode] = useState<ItemSheetMode | null>(null);
   const [sheetCard, setSheetCard] = useState<CollectionCard | null>(null);
   const [sheetAmount, setSheetAmount] = useState("");
@@ -313,8 +317,18 @@ export default function CollectionDetailScreen() {
     setSheetAmount("");
   }
 
-  function openSheet(card: CollectionCard, mode: ItemSheetMode) {
+  function openItemMenu(item: CollectionCard, anchor: MenuAnchor) {
+    setMenuCard(item);
+    setMenuAnchor(anchor);
+  }
+
+  function closeItemMenu() {
     setMenuCard(null);
+    setMenuAnchor(null);
+  }
+
+  function openSheet(card: CollectionCard, mode: ItemSheetMode) {
+    closeItemMenu();
     setSheetCard(card);
     setSheetMode(mode);
     setSheetAmount(
@@ -359,7 +373,7 @@ export default function CollectionDetailScreen() {
   }
 
   function confirmRemoveFromCollection(card: CollectionCard) {
-    setMenuCard(null);
+    closeItemMenu();
     Alert.alert(
       t("collections.removeFromCollectionTitle"),
       t("collections.removeFromCollectionMessage", {
@@ -677,7 +691,15 @@ export default function CollectionDetailScreen() {
               </View>
             </Pressable>
             <Pressable
-              onPress={() => setMenuCard(item)}
+              onPress={() => {
+                const node = menuButtonRefs.current[String(item.id)];
+                node?.measureInWindow((x, y, width, height) => {
+                  openItemMenu(item, { top: y, left: x, width, height });
+                });
+              }}
+              ref={(node) => {
+                menuButtonRefs.current[String(item.id)] = node;
+              }}
               style={[styles.menuButton, { borderColor: colors.border }]}
             >
               <MaterialCommunityIcons
@@ -691,61 +713,52 @@ export default function CollectionDetailScreen() {
         }}
       />
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setMenuCard(null)}
-        transparent
+      <AnchoredActionMenu
+        anchor={menuAnchor}
+        estimatedHeight={144}
+        onClose={closeItemMenu}
         visible={Boolean(menuCard)}
       >
         <Pressable
-          style={[styles.menuOverlay, menuOverlayInsets]}
-          onPress={() => setMenuCard(null)}
+          onPress={() => menuCard && openSheet(menuCard, "purchase")}
+          style={styles.menuItem}
         >
-          <View
-            style={[styles.menuContent, { backgroundColor: colors.surface }]}
-          >
-            <Pressable
-              onPress={() => menuCard && openSheet(menuCard, "purchase")}
-              style={styles.menuItem}
-            >
-              <MaterialCommunityIcons
-                name="receipt-text-outline"
-                color={colors.textPrimary}
-                size={20}
-              />
-              <Text style={[styles.menuText, { color: colors.textPrimary }]}>
-                {t("collections.editPurchasePrice")}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => menuCard && openSheet(menuCard, "sale")}
-              style={styles.menuItem}
-            >
-              <MaterialCommunityIcons
-                name="cash-check"
-                color={colors.textPrimary}
-                size={20}
-              />
-              <Text style={[styles.menuText, { color: colors.textPrimary }]}>
-                {t("collections.recordSale")}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => menuCard && confirmRemoveFromCollection(menuCard)}
-              style={styles.menuItem}
-            >
-              <MaterialCommunityIcons
-                name="trash-can-outline"
-                color={colors.error}
-                size={20}
-              />
-              <Text style={[styles.menuText, { color: colors.error }]}>
-                {t("collections.removeFromCollection")}
-              </Text>
-            </Pressable>
-          </View>
+          <MaterialCommunityIcons
+            name="receipt-text-outline"
+            color={colors.textPrimary}
+            size={20}
+          />
+          <Text style={[styles.menuText, { color: colors.textPrimary }]}>
+            {t("collections.editPurchasePrice")}
+          </Text>
         </Pressable>
-      </Modal>
+        <Pressable
+          onPress={() => menuCard && openSheet(menuCard, "sale")}
+          style={styles.menuItem}
+        >
+          <MaterialCommunityIcons
+            name="cash-check"
+            color={colors.textPrimary}
+            size={20}
+          />
+          <Text style={[styles.menuText, { color: colors.textPrimary }]}>
+            {t("collections.recordSale")}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => menuCard && confirmRemoveFromCollection(menuCard)}
+          style={styles.menuItem}
+        >
+          <MaterialCommunityIcons
+            name="trash-can-outline"
+            color={colors.error}
+            size={20}
+          />
+          <Text style={[styles.menuText, { color: colors.error }]}>
+            {t("collections.removeFromCollection")}
+          </Text>
+        </Pressable>
+      </AnchoredActionMenu>
 
       <Modal
         animationType="slide"
