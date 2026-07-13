@@ -39,6 +39,9 @@ type Collection = {
   id: string | number;
   name: string;
   total_value?: number | string | null;
+  balance_value?: number | string | null;
+  holdings_value?: number | string | null;
+  return_pct?: number | string | null;
   display_currency?: DisplayCurrency | string | null;
   active_card_count?: number | string | null;
   card_count?: number | string | null;
@@ -108,6 +111,14 @@ function formatMoney(
   }).format(value);
 }
 
+function formatReturn(value: number | null): string {
+  if (value === null) {
+    return "0%";
+  }
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
+}
+
 function cardValue(card: CollectionCard): number {
   return toNumber(card.display_price ?? card.purchase_price);
 }
@@ -166,22 +177,45 @@ export default function CollectionDetailScreen() {
   const editedPriceInputRef = useRef<TextInput>(null);
   const soldPriceInputRef = useRef<TextInput>(null);
 
-  const visibleCards = useMemo(() => {
-    if (itemFilter === "all") return cards;
-    if (itemFilter === "box") return cards.filter(isBoxItem);
-    return cards.filter((c) => !isBoxItem(c));
-  }, [cards, itemFilter]);
-
-  const total = useMemo(
-    () =>
-      collection?.total_value !== undefined && collection?.total_value !== null
-        ? toNumber(collection.total_value)
-        : cards.reduce(
-            (sum, card) => (card.sold_at ? sum : sum + cardValue(card)),
-            0,
-          ),
-    [cards, collection?.total_value],
+  const activeCards = useMemo(
+    () => cards.filter((card) => !card.sold_at),
+    [cards],
   );
+
+  const visibleCards = useMemo(() => {
+    if (itemFilter === "all") return activeCards;
+    if (itemFilter === "box") return activeCards.filter(isBoxItem);
+    return activeCards.filter((c) => !isBoxItem(c));
+  }, [activeCards, itemFilter]);
+
+  const balance = useMemo(() => {
+    if (collection?.balance_value !== undefined && collection?.balance_value !== null) {
+      return toNumber(collection.balance_value);
+    }
+    const holdings = activeCards.reduce((sum, card) => sum + cardValue(card), 0);
+    const sales = cards.reduce(
+      (sum, card) =>
+        card.sold_at
+          ? sum + toNumber((card as { display_sold_price?: number }).display_sold_price ?? card.purchase_price)
+          : sum,
+      0,
+    );
+    return holdings + sales;
+  }, [activeCards, cards, collection?.balance_value]);
+
+  const holdings = useMemo(() => {
+    if (collection?.holdings_value !== undefined && collection?.holdings_value !== null) {
+      return toNumber(collection.holdings_value);
+    }
+    return activeCards.reduce((sum, card) => sum + cardValue(card), 0);
+  }, [activeCards, collection?.holdings_value]);
+
+  const returnPct = useMemo(() => {
+    if (collection?.return_pct !== undefined && collection?.return_pct !== null) {
+      return toNumber(collection.return_pct);
+    }
+    return null;
+  }, [collection?.return_pct]);
 
   const loadCollection = useCallback(
     async (showRefresh = false) => {
@@ -384,10 +418,35 @@ export default function CollectionDetailScreen() {
                 </Text>
                 <Text style={[styles.total, { color: colors.textSecondary }]}>
                   {t("collections.itemValueSummary", {
-                    items: cards.length,
-                    value: formatMoney(total, locale, displayCurrency),
+                    items: activeCards.length,
+                    balance: formatMoney(balance, locale, displayCurrency),
+                    holdings: formatMoney(holdings, locale, displayCurrency),
+                    return: formatReturn(returnPct),
                   })}
                 </Text>
+                <Pressable
+                  onPress={() =>
+                    router.push(`/collections/${collectionId}/history`)
+                  }
+                  style={[
+                    styles.historyButton,
+                    {
+                      backgroundColor: colors.surfaceAlternate,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="history"
+                    color={colors.textPrimary}
+                    size={18}
+                  />
+                  <Text
+                    style={[styles.historyButtonText, { color: colors.textPrimary }]}
+                  >
+                    {t("collections.transactionHistory")}
+                  </Text>
+                </Pressable>
               </View>
               <Pressable
                 onPress={() => router.push(`/collections/${collectionId}/add`)}
@@ -396,7 +455,7 @@ export default function CollectionDetailScreen() {
                 <MaterialCommunityIcons name="plus" color={colors.onPrimary} size={22} />
               </Pressable>
             </View>
-              {cards.length > 0 ? (
+              {activeCards.length > 0 ? (
                 <View
                   style={[
                     styles.filterToggle,
@@ -882,6 +941,21 @@ const styles = StyleSheet.create({
   },
   titleText: {
     flex: 1,
+  },
+  historyButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+    minHeight: 38,
+    paddingHorizontal: 12,
+  },
+  historyButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   total: {
     fontSize: 16,

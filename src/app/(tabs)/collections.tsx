@@ -45,6 +45,14 @@ type Collection = {
   orderNumber?: number | string | null;
   total_value?: number | string | null;
   totalValue?: number | string | null;
+  balance_value?: number | string | null;
+  balanceValue?: number | string | null;
+  holdings_value?: number | string | null;
+  holdingsValue?: number | string | null;
+  return_pct?: number | string | null;
+  returnPct?: number | string | null;
+  total_invested?: number | string | null;
+  totalInvested?: number | string | null;
   card_count?: number | string | null;
   cardCount?: number | string | null;
   active_card_count?: number | string | null;
@@ -78,8 +86,43 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function collectionValue(collection: Collection): number {
-  return toNumber(collection.total_value ?? collection.totalValue);
+function collectionHoldings(collection: Collection): number {
+  return toNumber(
+    collection.holdings_value ??
+      collection.holdingsValue ??
+      collection.total_value ??
+      collection.totalValue,
+  );
+}
+
+function collectionBalance(collection: Collection): number {
+  const balance = toNumber(
+    collection.balance_value ?? collection.balanceValue,
+  );
+  return balance > 0 || collection.balance_value != null || collection.balanceValue != null
+    ? balance
+    : collectionHoldings(collection);
+}
+
+function collectionReturn(collection: Collection): number | null {
+  const value = collection.return_pct ?? collection.returnPct;
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const parsed = toNumber(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatReturn(value: number | null): string {
+  if (value === null) {
+    return "0%";
+  }
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
+}
+
+function collectionInvested(collection: Collection): number {
+  return toNumber(collection.total_invested ?? collection.totalInvested);
 }
 
 function collectionCardCount(collection: Collection): number {
@@ -163,7 +206,22 @@ function CollectionPlate({
   const originIndexRef = useRef(index);
   const targetIndexRef = useRef(index);
   const cardCount = collectionCardCount(collection);
-  const valueText = currency(collectionValue(collection), locale, displayCurrency);
+  const balanceText = currency(
+    collectionBalance(collection),
+    locale,
+    displayCurrency,
+  );
+  const holdingsText = currency(
+    collectionHoldings(collection),
+    locale,
+    displayCurrency,
+  );
+  const returnText = formatReturn(collectionReturn(collection));
+  const metricsText = t("collections.plateMetrics", {
+    balance: balanceText,
+    holdings: holdingsText,
+    return: returnText,
+  });
   const cardCountText = t("collections.cardLine", {
     count: cardCount,
     value: "",
@@ -264,8 +322,13 @@ function CollectionPlate({
             numberOfLines={1}
             style={[styles.collectionValue, { color: darkColors.arbitragePositive }]}
           >
-            {valueText}
-            <Text style={{ color: colors.textPrimary }}> ({cardCountText})</Text>
+            {metricsText}
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={[styles.collectionSubValue, { color: colors.textSecondary }]}
+          >
+            {cardCountText}
           </Text>
         </View>
       </Pressable>
@@ -318,14 +381,41 @@ export default function CollectionsScreen() {
     [collections],
   );
 
-  const totalValue = useMemo(
+  const totalBalance = useMemo(
     () =>
       collections.reduce(
-        (sum, collection) => sum + collectionValue(collection),
+        (sum, collection) => sum + collectionBalance(collection),
         0,
       ),
     [collections],
   );
+
+  const totalHoldings = useMemo(
+    () =>
+      collections.reduce(
+        (sum, collection) => sum + collectionHoldings(collection),
+        0,
+      ),
+    [collections],
+  );
+
+  const totalInvested = useMemo(
+    () =>
+      collections.reduce(
+        (sum, collection) => sum + collectionInvested(collection),
+        0,
+      ),
+    [collections],
+  );
+
+  const totalReturn = useMemo(() => {
+    if (totalInvested <= 0) {
+      return null;
+    }
+    return ((totalBalance - totalInvested) / totalInvested) * 100;
+  }, [totalBalance, totalInvested]);
+
+  const totalValue = totalBalance;
 
   const loadCollections = useCallback(
     async (showRefresh = false) => {
@@ -633,7 +723,13 @@ export default function CollectionsScreen() {
                   {t("collections.summary", {
                     collections: collections.length,
                     cards: totalCards,
-                    value: currency(totalValue, locale, displayCurrency),
+                  })}
+                </Text>
+                <Text style={[styles.summary, { color: colors.textSecondary }]}>
+                  {t("collections.summaryMetrics", {
+                    balance: currency(totalValue, locale, displayCurrency),
+                    holdings: currency(totalHoldings, locale, displayCurrency),
+                    return: formatReturn(totalReturn),
                   })}
                 </Text>
               </View>
@@ -1018,6 +1114,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontVariant: ["tabular-nums"],
     fontWeight: "900",
+  },
+  collectionSubValue: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    marginTop: 2,
   },
   container: {
     gap: 0,

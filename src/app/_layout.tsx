@@ -121,6 +121,13 @@ function RootStack() {
           }}
         />
         <Stack.Screen
+          name="collections/[id]/history"
+          options={{
+            title: t('collections.transactionHistory'),
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
           name="collections/[id]/add"
           options={{
             title: t('collections.addItem'),

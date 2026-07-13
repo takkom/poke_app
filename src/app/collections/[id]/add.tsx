@@ -189,11 +189,7 @@ export default function AddCollectionCardScreen() {
 
   function selectItem(item: SearchCandidate) {
     setSelectedItem(item);
-    setPrice(
-      typeof item.avgPrice === "number"
-        ? String(Math.floor(item.avgPrice))
-        : "",
-    );
+    setPrice("0");
     setMessage(null);
   }
 
