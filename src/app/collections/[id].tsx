@@ -13,7 +13,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Button,
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -52,6 +52,8 @@ type CollectionItemType = "card" | "box" | "booster_box";
 type CollectionCard = {
   id: string | number;
   item_type?: CollectionItemType | string | null;
+  canonical_card_id?: string | null;
+  tcgdex_card_id?: string | null;
   box_canonical_id?: string | null;
   pokemon_name?: string | null;
   card_number?: string | null;
@@ -64,6 +66,8 @@ type CollectionCard = {
   display_currency?: DisplayCurrency | string | null;
   sold_at?: string | null;
 };
+
+type ItemSheetMode = "purchase" | "sale";
 
 function isBoxItem(item: CollectionCard): boolean {
   return item.item_type === "box" || item.item_type === "booster_box";
@@ -123,6 +127,26 @@ function cardValue(card: CollectionCard): number {
   return toNumber(card.display_price ?? card.purchase_price);
 }
 
+function itemDisplayName(
+  item: CollectionCard,
+  labels: { unknownBox: string; unknownCard: string },
+): string {
+  return (
+    item.pokemon_name ??
+    (isBoxItem(item) ? labels.unknownBox : labels.unknownCard)
+  );
+}
+
+function itemDetailRoute(item: CollectionCard): string | null {
+  if (isBoxItem(item)) {
+    const boxId = item.box_canonical_id?.trim();
+    return boxId ? `/box/${boxId}` : null;
+  }
+
+  const cardId = item.canonical_card_id?.trim() ?? item.tcgdex_card_id?.trim();
+  return cardId ? `/card/${cardId}` : null;
+}
+
 async function requestJson<T>(
   path: string,
   token: string,
@@ -166,16 +190,13 @@ export default function CollectionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuCard, setMenuCard] = useState<CollectionCard | null>(null);
-  const [editingPriceCard, setEditingPriceCard] =
-    useState<CollectionCard | null>(null);
-  const [editedPrice, setEditedPrice] = useState("");
-  const [updatingPrice, setUpdatingPrice] = useState(false);
+  const [sheetMode, setSheetMode] = useState<ItemSheetMode | null>(null);
+  const [sheetCard, setSheetCard] = useState<CollectionCard | null>(null);
+  const [sheetAmount, setSheetAmount] = useState("");
+  const [sheetSaving, setSheetSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [removingCard, setRemovingCard] = useState<CollectionCard | null>(null);
-  const [soldPrice, setSoldPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const editedPriceInputRef = useRef<TextInput>(null);
-  const soldPriceInputRef = useRef<TextInput>(null);
+  const sheetAmountInputRef = useRef<TextInput>(null);
 
   const activeCards = useMemo(
     () => cards.filter((card) => !card.sold_at),
@@ -260,41 +281,47 @@ export default function CollectionDetailScreen() {
   );
 
   useEffect(() => {
-    if (!editingPriceCard) {
+    if (!sheetMode) {
       return undefined;
     }
 
-    const focusPriceInput = () => editedPriceInputRef.current?.focus();
-    const animationFrame = requestAnimationFrame(focusPriceInput);
+    const focusAmountInput = () => sheetAmountInputRef.current?.focus();
+    const animationFrame = requestAnimationFrame(focusAmountInput);
     const retryTimers = [80, 220, 420].map((delay) =>
-      setTimeout(focusPriceInput, delay),
+      setTimeout(focusAmountInput, delay),
     );
 
     return () => {
       cancelAnimationFrame(animationFrame);
       retryTimers.forEach(clearTimeout);
     };
-  }, [editingPriceCard]);
+  }, [sheetMode, sheetCard]);
 
-  useEffect(() => {
-    if (!removingCard) {
-      return undefined;
-    }
+  function closeSheet() {
+    setSheetMode(null);
+    setSheetCard(null);
+    setSheetAmount("");
+  }
 
-    const focusSoldPriceInput = () => soldPriceInputRef.current?.focus();
-    const animationFrame = requestAnimationFrame(focusSoldPriceInput);
-    const retryTimers = [80, 220, 420].map((delay) =>
-      setTimeout(focusSoldPriceInput, delay),
+  function openSheet(card: CollectionCard, mode: ItemSheetMode) {
+    setMenuCard(null);
+    setSheetCard(card);
+    setSheetMode(mode);
+    setSheetAmount(
+      mode === "purchase" ? String(cardValue(card) || "") : "",
     );
+    setError(null);
+  }
 
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      retryTimers.forEach(clearTimeout);
-    };
-  }, [removingCard]);
+  function openItemDetail(item: CollectionCard) {
+    const route = itemDetailRoute(item);
+    if (route) {
+      router.push(route);
+    }
+  }
 
-  async function confirmRemoveCard() {
-    if (!token || !collectionId || !removingCard) {
+  async function confirmRemoveItem(card: CollectionCard) {
+    if (!token || !collectionId) {
       return;
     }
 
@@ -302,24 +329,11 @@ export default function CollectionDetailScreen() {
     setError(null);
 
     try {
-      const body = soldPrice.trim()
-        ? {
-            display_currency: displayCurrency,
-            sold_at: new Date().toISOString(),
-            sold_price: Number(soldPrice),
-          }
-        : {};
-
       await requestJson<{ removed: boolean }>(
-        `/api/collections/${collectionId}/cards/${removingCard.id}`,
+        `/api/collections/${collectionId}/cards/${card.id}`,
         token,
-        {
-          body: JSON.stringify(body),
-          method: "DELETE",
-        },
+        { method: "DELETE" },
       );
-      setRemovingCard(null);
-      setSoldPrice("");
       await loadCollection();
     } catch (caught) {
       setError(
@@ -332,50 +346,75 @@ export default function CollectionDetailScreen() {
     }
   }
 
-  function openEditPrice(card: CollectionCard) {
+  function confirmRemoveFromCollection(card: CollectionCard) {
     setMenuCard(null);
-    setEditingPriceCard(card);
-    setEditedPrice(String(cardValue(card) || ""));
-    setError(null);
+    Alert.alert(
+      t("collections.removeFromCollectionTitle"),
+      t("collections.removeFromCollectionMessage", {
+        name: itemDisplayName(card, {
+          unknownBox: t("collections.unknownBox"),
+          unknownCard: t("collections.unknownCard"),
+        }),
+      }),
+      [
+        { style: "cancel", text: t("collections.cancel") },
+        {
+          onPress: () => void confirmRemoveItem(card),
+          style: "destructive",
+          text: t("collections.removeFromCollection"),
+        },
+      ],
+    );
   }
 
-  function openRemoveCard(card: CollectionCard) {
-    setMenuCard(null);
-    setRemovingCard(card);
-    setSoldPrice("");
-  }
-
-  async function saveEditedPrice() {
-    if (!token || !collectionId || !editingPriceCard || !editedPrice.trim()) {
+  async function saveSheet() {
+    if (!token || !collectionId || !sheetCard || !sheetMode || !sheetAmount.trim()) {
       return;
     }
 
-    setUpdatingPrice(true);
+    setSheetSaving(true);
     setError(null);
 
     try {
-      await requestJson<CollectionCard>(
-        `/api/collections/${collectionId}/cards/${editingPriceCard.id}`,
-        token,
-        {
-          body: JSON.stringify({
-            display_currency: displayCurrency,
-            purchase_price: Number(editedPrice),
-          }),
-          method: "PATCH",
-        },
-      );
-      setEditingPriceCard(null);
-      setEditedPrice("");
+      if (sheetMode === "purchase") {
+        await requestJson<CollectionCard>(
+          `/api/collections/${collectionId}/cards/${sheetCard.id}`,
+          token,
+          {
+            body: JSON.stringify({
+              display_currency: displayCurrency,
+              purchase_price: Number(sheetAmount),
+            }),
+            method: "PATCH",
+          },
+        );
+      } else {
+        await requestJson<{ removed: boolean; sold: boolean }>(
+          `/api/collections/${collectionId}/cards/${sheetCard.id}`,
+          token,
+          {
+            body: JSON.stringify({
+              display_currency: displayCurrency,
+              sold_at: new Date().toISOString(),
+              sold_price: Number(sheetAmount),
+            }),
+            method: "DELETE",
+          },
+        );
+      }
+
+      closeSheet();
       await loadCollection();
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : t("collections.couldNotUpdatePrice"),
+          : sheetMode === "purchase"
+            ? t("collections.couldNotUpdatePrice")
+            : t("collections.couldNotRecordSale"),
       );
     } finally {
-      setUpdatingPrice(false);
+      setSheetSaving(false);
     }
   }
 
@@ -521,7 +560,9 @@ export default function CollectionDetailScreen() {
             refreshing={refreshing}
           />
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item, index }) => {
+          const detailRoute = itemDetailRoute(item);
+          return (
           <View
             style={[
               styles.cardRow,
@@ -532,58 +573,69 @@ export default function CollectionDetailScreen() {
               },
             ]}
           >
-            {item.image_url ? (
-              <Image
-                source={{ uri: item.image_url }}
-                style={
-                  isBoxItem(item) ? styles.boxThumbnail : styles.thumbnail
-                }
-              />
-            ) : (
-              <View
-                style={[
-                  isBoxItem(item)
-                    ? styles.boxThumbnailFallback
-                    : styles.thumbnailFallback,
-                  { backgroundColor: colors.surfaceMuted },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={
-                    isBoxItem(item) ? "package-variant" : "cards-outline"
+            <Pressable
+              disabled={!detailRoute}
+              onPress={() => openItemDetail(item)}
+              style={({ pressed }) => [
+                styles.cardRowMain,
+                pressed && detailRoute ? styles.cardRowPressed : null,
+              ]}
+            >
+              {item.image_url ? (
+                <Image
+                  source={{ uri: item.image_url }}
+                  style={
+                    isBoxItem(item) ? styles.boxThumbnail : styles.thumbnail
                   }
-                  color={colors.textSecondary}
-                  size={24}
                 />
-              </View>
-            )}
-            <View style={styles.cardText}>
-              <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                {item.pokemon_name ??
-                  (isBoxItem(item)
-                    ? t("collections.unknownBox")
-                    : t("collections.unknownCard"))}
-              </Text>
-              <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                {itemMetaLine(item, {
-                  boosterBox: t("collections.boosterBox"),
-                  unknown: t("collections.unknown"),
-                })}
-              </Text>
-              {item.set_name && !isBoxItem(item) ? (
-                <Text
-                  style={[styles.mutedText, { color: colors.textSecondary }]}
+              ) : (
+                <View
+                  style={[
+                    isBoxItem(item)
+                      ? styles.boxThumbnailFallback
+                      : styles.thumbnailFallback,
+                    { backgroundColor: colors.surfaceMuted },
+                  ]}
                 >
-                  {item.set_name}
+                  <MaterialCommunityIcons
+                    name={
+                      isBoxItem(item) ? "package-variant" : "cards-outline"
+                    }
+                    color={colors.textSecondary}
+                    size={24}
+                  />
+                </View>
+              )}
+              <View style={styles.cardText}>
+                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
+                  {itemDisplayName(item, {
+                    unknownBox: t("collections.unknownBox"),
+                    unknownCard: t("collections.unknownCard"),
+                  })}
                 </Text>
-              ) : null}
-              <Text style={[styles.cardValue, { color: colors.textPrimary }]}>
-                {formatMoney(cardValue(item), locale, displayCurrency)}
-              </Text>
-            </View>
+                <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
+                  {itemMetaLine(item, {
+                    boosterBox: t("collections.boosterBox"),
+                    unknown: t("collections.unknown"),
+                  })}
+                </Text>
+                {item.set_name && !isBoxItem(item) ? (
+                  <Text
+                    style={[styles.mutedText, { color: colors.textSecondary }]}
+                  >
+                    {item.set_name}
+                  </Text>
+                ) : null}
+                <Text style={[styles.cardValue, { color: colors.textPrimary }]}>
+                  {t("collections.purchasedAt", {
+                    value: formatMoney(cardValue(item), locale, displayCurrency),
+                  })}
+                </Text>
+              </View>
+            </Pressable>
             <Pressable
               onPress={() => setMenuCard(item)}
-              style={[styles.removeButton, { borderColor: colors.border }]}
+              style={[styles.menuButton, { borderColor: colors.border }]}
             >
               <MaterialCommunityIcons
                 name="dots-vertical"
@@ -592,7 +644,8 @@ export default function CollectionDetailScreen() {
               />
             </Pressable>
           </View>
-        )}
+          );
+        }}
       />
 
       <Modal
@@ -606,20 +659,33 @@ export default function CollectionDetailScreen() {
             style={[styles.menuContent, { backgroundColor: colors.surface }]}
           >
             <Pressable
-              onPress={() => menuCard && openEditPrice(menuCard)}
+              onPress={() => menuCard && openSheet(menuCard, "purchase")}
               style={styles.menuItem}
             >
               <MaterialCommunityIcons
-                name="currency-krw"
+                name="receipt-text-outline"
                 color={colors.textPrimary}
                 size={20}
               />
               <Text style={[styles.menuText, { color: colors.textPrimary }]}>
-                {t("collections.editPrice")}
+                {t("collections.editPurchasePrice")}
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => menuCard && openRemoveCard(menuCard)}
+              onPress={() => menuCard && openSheet(menuCard, "sale")}
+              style={styles.menuItem}
+            >
+              <MaterialCommunityIcons
+                name="cash-check"
+                color={colors.textPrimary}
+                size={20}
+              />
+              <Text style={[styles.menuText, { color: colors.textPrimary }]}>
+                {t("collections.recordSale")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => menuCard && confirmRemoveFromCollection(menuCard)}
               style={styles.menuItem}
             >
               <MaterialCommunityIcons
@@ -628,7 +694,7 @@ export default function CollectionDetailScreen() {
                 size={20}
               />
               <Text style={[styles.menuText, { color: colors.error }]}>
-                {t("collections.remove")}
+                {t("collections.removeFromCollection")}
               </Text>
             </Pressable>
           </View>
@@ -636,132 +702,122 @@ export default function CollectionDetailScreen() {
       </Modal>
 
       <Modal
-        animationType="fade"
-        onRequestClose={() => setEditingPriceCard(null)}
+        animationType="slide"
+        onRequestClose={closeSheet}
         transparent
-        visible={Boolean(editingPriceCard)}
+        visible={Boolean(sheetMode && sheetCard)}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={24}
-          style={styles.modalKeyboardView}
+          keyboardVerticalOffset={0}
+          style={styles.sheetHost}
         >
-          <View style={styles.modalOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={closeSheet} />
+          <View
+            style={[
+              styles.sheetPanel,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <View
-              style={[styles.modalContent, { backgroundColor: colors.surface }]}
+              style={[styles.sheetHandle, { backgroundColor: colors.border }]}
+            />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {sheetMode === "sale"
+                ? t("collections.recordSale")
+                : t("collections.editPurchasePrice")}
+            </Text>
+            <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
+              {sheetCard
+                ? itemDisplayName(sheetCard, {
+                    unknownBox: t("collections.unknownBox"),
+                    unknownCard: t("collections.unknownCard"),
+                  })
+                : null}
+            </Text>
+            {sheetMode === "sale" ? (
+              <Text style={[styles.sheetHelp, { color: colors.textSecondary }]}>
+                {t("collections.recordSaleHelp")}
+              </Text>
+            ) : null}
+            <Text
+              style={[styles.sheetFieldLabel, { color: colors.textSecondary }]}
             >
-              <Text
-                style={[styles.sectionTitle, { color: colors.textPrimary }]}
-              >
-                {t("collections.editPrice")}
-              </Text>
-              <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                {editingPriceCard?.pokemon_name ??
-                  (editingPriceCard && isBoxItem(editingPriceCard)
-                    ? t("collections.collectionBox")
-                    : t("collections.collectionCard"))}
-              </Text>
-              <TextInput
-                autoFocus
-                ref={editedPriceInputRef}
-                keyboardType="decimal-pad"
-                onChangeText={setEditedPrice}
-                placeholder={t("collections.price")}
-                placeholderTextColor={colors.textMuted}
-                selectTextOnFocus
-                showSoftInputOnFocus
+              {sheetMode === "sale"
+                ? t("collections.salePrice")
+                : t("collections.purchasePrice")}
+            </Text>
+            <TextInput
+              autoFocus
+              ref={sheetAmountInputRef}
+              keyboardType="decimal-pad"
+              onChangeText={setSheetAmount}
+              placeholder={
+                sheetMode === "sale"
+                  ? t("collections.salePrice")
+                  : t("collections.purchasePrice")
+              }
+              placeholderTextColor={colors.textMuted}
+              selectTextOnFocus
+              showSoftInputOnFocus
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                },
+              ]}
+              value={sheetAmount}
+            />
+            <View style={styles.sheetActions}>
+              <Pressable
+                disabled={sheetSaving}
+                onPress={closeSheet}
                 style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    color: colors.textPrimary,
-                  },
+                  styles.sheetSecondaryButton,
+                  { borderColor: colors.border },
                 ]}
-                value={editedPrice}
-              />
-              <View style={styles.modalActions}>
-                <Button
-                  disabled={updatingPrice}
-                  onPress={() => setEditingPriceCard(null)}
-                  title={t("collections.cancel")}
-                />
-                <Button
-                  color={colors.primary}
-                  disabled={updatingPrice || !editedPrice.trim()}
-                  onPress={() => void saveEditedPrice()}
-                  title={
-                    updatingPrice
-                      ? t("collections.saving")
-                      : t("collections.save")
-                  }
-                />
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setRemovingCard(null)}
-        transparent
-        visible={Boolean(removingCard)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={24}
-          style={styles.modalKeyboardView}
-        >
-          <View style={styles.modalOverlay}>
-            <View
-              style={[styles.modalContent, { backgroundColor: colors.surface }]}
-            >
-              <Text
-                style={[styles.sectionTitle, { color: colors.textPrimary }]}
               >
-                {removingCard && isBoxItem(removingCard)
-                  ? t("collections.removeItem")
-                  : t("collections.removeCard")}
-              </Text>
-              <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
-                {removingCard && isBoxItem(removingCard)
-                  ? t("collections.removeItemHelp")
-                  : t("collections.removeCardHelp")}
-              </Text>
-              <TextInput
-                autoFocus
-                ref={soldPriceInputRef}
-                keyboardType="decimal-pad"
-                onChangeText={setSoldPrice}
-                placeholder={t("collections.soldPricePlaceholder")}
-                placeholderTextColor={colors.textMuted}
-                showSoftInputOnFocus
+                <Text
+                  style={[
+                    styles.sheetSecondaryButtonText,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  {t("collections.cancel")}
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={sheetSaving || !sheetAmount.trim()}
+                onPress={() => void saveSheet()}
                 style={[
-                  styles.input,
+                  styles.sheetPrimaryButton,
                   {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    color: colors.textPrimary,
+                    backgroundColor:
+                      sheetMode === "sale" ? colors.primary : colors.primary,
                   },
+                  sheetSaving || !sheetAmount.trim()
+                    ? styles.sheetButtonDisabled
+                    : null,
                 ]}
-                value={soldPrice}
-              />
-              <View style={styles.modalActions}>
-                <Button
-                  disabled={removing}
-                  onPress={() => setRemovingCard(null)}
-                  title={t("collections.cancel")}
-                />
-                <Button
-                  color={colors.error}
-                  disabled={removing}
-                  onPress={() => void confirmRemoveCard()}
-                  title={
-                    removing ? t("collections.remove") : t("collections.remove")
-                  }
-                />
-              </View>
+              >
+                <Text
+                  style={[
+                    styles.sheetPrimaryButtonText,
+                    { color: colors.onPrimary },
+                  ]}
+                >
+                  {sheetSaving
+                    ? t("collections.saving")
+                    : sheetMode === "sale"
+                      ? t("collections.confirmSale")
+                      : t("collections.save")}
+                </Text>
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -787,8 +843,18 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     borderWidth: 0,
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
     padding: 10,
+  },
+  cardRowMain: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: 12,
+    minWidth: 0,
+  },
+  cardRowPressed: {
+    opacity: 0.72,
   },
   cardText: {
     flex: 1,
@@ -864,38 +930,80 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    borderRadius: 8,
-    gap: 12,
-    maxWidth: 420,
-    padding: 20,
-    width: "100%",
-  },
-  modalKeyboardView: {
-    flex: 1,
-  },
-  modalOverlay: {
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
-  mutedText: {
-    fontSize: 13,
-  },
-  removeButton: {
+  menuButton: {
     alignItems: "center",
     borderRadius: 8,
     borderWidth: 1,
     height: 38,
     justifyContent: "center",
     width: 38,
+  },
+  sheetActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  sheetBackdrop: {
+    backgroundColor: "rgba(15, 23, 42, 0.32)",
+    flex: 1,
+  },
+  sheetButtonDisabled: {
+    opacity: 0.5,
+  },
+  sheetFieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    borderRadius: 999,
+    height: 4,
+    marginBottom: 12,
+    width: 40,
+  },
+  sheetHelp: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  sheetHost: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetPanel: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+    paddingBottom: Platform.OS === "ios" ? 28 : 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  sheetPrimaryButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  sheetPrimaryButtonText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  sheetSecondaryButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  sheetSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  mutedText: {
+    fontSize: 13,
   },
   screen: {
     flex: 1,

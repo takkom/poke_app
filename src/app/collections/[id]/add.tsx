@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
+import { resolveCollectionSearchImageUrl } from "@/utils/mediaUrl";
 
 type AuthState = {
   token?: string | null;
@@ -76,10 +77,7 @@ function itemIdentity(item: SearchCandidate): string {
 }
 
 function itemImage(item: SearchCandidate): string | null {
-  const image = item.image_url ?? item.projected_image_asset_path ?? null;
-  if (!image) return null;
-  if (image.startsWith("/")) return `${XMON_API_URL}${image}`;
-  return image;
+  return resolveCollectionSearchImageUrl(item, "low");
 }
 
 function formatMoney(
@@ -159,6 +157,11 @@ export default function AddCollectionCardScreen() {
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const selectedImage = useMemo(
+    () => (selectedItem ? itemImage(selectedItem) : null),
+    [selectedItem],
+  );
 
   const selectedDefaultPrice = useMemo(
     () =>
@@ -434,19 +437,51 @@ export default function AddCollectionCardScreen() {
                 >
                   {t("collections.selected")}
                 </Text>
-                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                  {candidateName(selectedItem) ??
-                    (itemType === "box"
-                      ? t("collections.unknownBox")
-                      : t("collections.unknownCard"))}
-                </Text>
-                <Text
-                  style={[styles.mutedText, { color: colors.textSecondary }]}
-                >
-                  {itemType === "box"
-                    ? boxMetaLine(selectedItem, t("collections.boosterBox"))
-                    : cardMetaLine(selectedItem, t("collections.unknown"))}
-                </Text>
+                <View style={styles.selectedRow}>
+                  {selectedImage ? (
+                    <Image
+                      source={{ uri: selectedImage }}
+                      style={
+                        itemType === "box"
+                          ? styles.selectedBoxThumbnail
+                          : styles.selectedThumbnail
+                      }
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        itemType === "box"
+                          ? styles.selectedBoxThumbnail
+                          : styles.selectedThumbnail,
+                        styles.thumbnailFallback,
+                        { backgroundColor: colors.surfaceMuted },
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={
+                          itemType === "box" ? "package-variant" : "cards-outline"
+                        }
+                        color={colors.textSecondary}
+                        size={24}
+                      />
+                    </View>
+                  )}
+                  <View style={styles.selectedDetails}>
+                    <Text style={[styles.cardName, { color: colors.textPrimary }]}>
+                      {candidateName(selectedItem) ??
+                        (itemType === "box"
+                          ? t("collections.unknownBox")
+                          : t("collections.unknownCard"))}
+                    </Text>
+                    <Text
+                      style={[styles.mutedText, { color: colors.textSecondary }]}
+                    >
+                      {itemType === "box"
+                        ? boxMetaLine(selectedItem, t("collections.boosterBox"))
+                        : cardMetaLine(selectedItem, t("collections.unknown"))}
+                    </Text>
+                  </View>
+                </View>
                 {selectedDefaultPrice ? (
                   <Text
                     style={[styles.mutedText, { color: colors.textSecondary }]}
@@ -529,10 +564,14 @@ export default function AddCollectionCardScreen() {
               ]}
             >
               {image ? (
-                <Image source={{ uri: image }} style={styles.thumbnail} />
+                <Image
+                  source={{ uri: image }}
+                  style={itemType === "box" ? styles.boxThumbnail : styles.thumbnail}
+                />
               ) : (
                 <View
                   style={[
+                    itemType === "box" ? styles.boxThumbnail : styles.thumbnail,
                     styles.thumbnailFallback,
                     { backgroundColor: colors.surfaceMuted },
                   ]}
@@ -652,6 +691,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
+  selectedDetails: {
+    flex: 1,
+    gap: 4,
+  },
+  selectedBoxThumbnail: {
+    borderRadius: 6,
+    height: 76,
+    resizeMode: "cover",
+    width: 76,
+  },
+  selectedRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  selectedThumbnail: {
+    borderRadius: 6,
+    height: 76,
+    resizeMode: "cover",
+    width: 54,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: "800",
@@ -669,12 +729,16 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
     width: 50,
   },
+  boxThumbnail: {
+    borderRadius: 6,
+    height: 70,
+    resizeMode: "cover",
+    width: 70,
+  },
   thumbnailFallback: {
     alignItems: "center",
     borderRadius: 6,
-    height: 70,
     justifyContent: "center",
-    width: 50,
   },
   title: {
     fontSize: 28,
