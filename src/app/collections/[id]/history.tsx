@@ -18,7 +18,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Text } from "@/components/ui/Text";
+import { darkColors } from "@/theme/colors";
 import { TextInput } from "@/components/ui/TextInput";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
@@ -94,17 +94,31 @@ function transactionItemName(
 ): string {
   const name = transaction.item_name ?? unknownLabel;
   if (transaction.item_type === "box") {
-    return `${name} | ${transaction.language ?? unknownLabel}`;
+    const meta = transaction.language ?? unknownLabel;
+    return `${name} [${meta}]`;
   }
 
-  const parts = [
-    name,
-    transaction.card_number ? `#${transaction.card_number}` : null,
+  const number = transaction.card_number ? `#${transaction.card_number}` : null;
+  const base = number ? `${name} ${number}` : name;
+  const metaParts = [
     transaction.language ?? unknownLabel,
     transaction.rarity ?? null,
   ].filter(Boolean);
 
-  return parts.join(" | ");
+  return metaParts.length ? `${base} [${metaParts.join(" | ")}]` : base;
+}
+
+function formatSignedAmount(
+  transaction: CollectionTransaction,
+  locale: string,
+  displayCurrency: DisplayCurrency,
+): string {
+  const amount = formatMoney(
+    toNumber(transaction.display_price ?? transaction.price),
+    locale,
+    displayCurrency,
+  );
+  return transaction.transaction_type === "sale" ? `+${amount}` : `-${amount}`;
 }
 
 async function requestJson<T>(
@@ -449,6 +463,7 @@ export default function CollectionHistoryScreen() {
         }
         renderItem={({ item, index }) => {
           const isSale = item.transaction_type === "sale";
+          const signedAmount = formatSignedAmount(item, locale, displayCurrency);
           return (
             <View
               style={[
@@ -463,18 +478,15 @@ export default function CollectionHistoryScreen() {
                 <View style={styles.rowTopLine}>
                   <Text
                     style={[
-                      styles.typeBadge,
+                      styles.amountText,
                       {
-                        backgroundColor: isSale
-                          ? colors.surfaceMuted
-                          : colors.primary,
-                        color: isSale ? colors.textPrimary : colors.onPrimary,
+                        color: isSale
+                          ? darkColors.arbitragePositive
+                          : darkColors.arbitrageNegative,
                       },
                     ]}
                   >
-                    {isSale
-                      ? t("collections.transactionSale")
-                      : t("collections.transactionPurchase")}
+                    {signedAmount}
                   </Text>
                   <Text style={[styles.dateText, { color: colors.textSecondary }]}>
                     {formatDate(item.occurred_at, locale)}
@@ -482,22 +494,6 @@ export default function CollectionHistoryScreen() {
                 </View>
                 <Text style={[styles.itemName, { color: colors.textPrimary }]}>
                   {transactionItemName(item, t("collections.unknown"))}
-                </Text>
-                <Text
-                  style={[
-                    styles.priceText,
-                    {
-                      color: isSale
-                        ? colors.textPrimary
-                        : colors.textPrimary,
-                    },
-                  ]}
-                >
-                  {formatMoney(
-                    transactionPrice(item),
-                    locale,
-                    displayCurrency,
-                  )}
                 </Text>
               </View>
               <Pressable
@@ -654,6 +650,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 20,
   },
+  amountText: {
+    fontSize: 15,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "900",
+  },
   container: {
     gap: 10,
     padding: 20,
@@ -759,10 +760,8 @@ const styles = StyleSheet.create({
   mutedText: {
     fontSize: 13,
   },
-  priceText: {
-    fontSize: 15,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
+  screen: {
+    flex: 1,
   },
   row: {
     alignItems: "center",
@@ -778,9 +777,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 8,
-  },
-  screen: {
-    flex: 1,
+    justifyContent: "space-between",
   },
   sectionTitle: {
     fontSize: 18,
@@ -789,13 +786,5 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-  },
-  typeBadge: {
-    borderRadius: 999,
-    fontSize: 11,
-    fontWeight: "800",
-    overflow: "hidden",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
 });
