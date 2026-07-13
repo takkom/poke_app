@@ -26,6 +26,17 @@ import {
 } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
+import { useActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
+import { getReturnColor } from "@/utils/returnDisplay";
+import {
+  cardLanguageFlag,
+  languageFlagAccessibilityLabel,
+} from "@/utils/languageFlag";
+import {
+  formatMoneyInput,
+  formatMoneyInputFromNumber,
+  parseMoneyInput,
+} from "@/utils/moneyInput";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 
@@ -75,16 +86,14 @@ function isBoxItem(item: CollectionCard): boolean {
 
 function itemMetaLine(
   item: CollectionCard,
-  labels: { boosterBox: string; unknown: string },
+  labels: { boosterBox: string },
 ): string {
   if (isBoxItem(item)) {
-    const parts = [labels.boosterBox, item.set_name, item.language].filter(
-      Boolean,
-    );
+    const parts = [labels.boosterBox, item.set_name].filter(Boolean);
     return parts.join(" | ");
   }
 
-  return `#${item.card_number ?? "-"} | ${item.language ?? labels.unknown}${
+  return `#${item.card_number ?? "-"}${
     item.rarity ? ` | ${item.rarity}` : ""
   }`;
 }
@@ -184,6 +193,7 @@ export default function CollectionDetailScreen() {
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
+  const menuOverlayInsets = useActionMenuOverlayInsets();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [itemFilter, setItemFilter] = useState<"all" | "card" | "box">("all");
@@ -308,7 +318,9 @@ export default function CollectionDetailScreen() {
     setSheetCard(card);
     setSheetMode(mode);
     setSheetAmount(
-      mode === "purchase" ? String(cardValue(card) || "") : "",
+      mode === "purchase"
+        ? formatMoneyInputFromNumber(cardValue(card), locale, displayCurrency)
+        : "",
     );
     setError(null);
   }
@@ -368,7 +380,8 @@ export default function CollectionDetailScreen() {
   }
 
   async function saveSheet() {
-    if (!token || !collectionId || !sheetCard || !sheetMode || !sheetAmount.trim()) {
+    const amount = parseMoneyInput(sheetAmount);
+    if (!token || !collectionId || !sheetCard || !sheetMode || amount === null) {
       return;
     }
 
@@ -383,7 +396,7 @@ export default function CollectionDetailScreen() {
           {
             body: JSON.stringify({
               display_currency: displayCurrency,
-              purchase_price: Number(sheetAmount),
+              purchase_price: amount,
             }),
             method: "PATCH",
           },
@@ -396,7 +409,7 @@ export default function CollectionDetailScreen() {
             body: JSON.stringify({
               display_currency: displayCurrency,
               sold_at: new Date().toISOString(),
-              sold_price: Number(sheetAmount),
+              sold_price: amount,
             }),
             method: "DELETE",
           },
@@ -452,17 +465,33 @@ export default function CollectionDetailScreen() {
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <View style={styles.titleText}>
-                <Text style={[styles.title, { color: colors.textPrimary }]}>
-                  {collection?.name ?? t("collections.collection")}
-                </Text>
-                <Text style={[styles.total, { color: colors.textSecondary }]}>
-                  {t("collections.itemValueSummary", {
-                    items: activeCards.length,
-                    balance: formatMoney(balance, locale, displayCurrency),
-                    holdings: formatMoney(holdings, locale, displayCurrency),
-                    return: formatReturn(returnPct),
-                  })}
-                </Text>
+                <View style={styles.titleNameRow}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.title, { color: colors.textPrimary, flexShrink: 1 }]}
+                  >
+                    {collection?.name ?? t("collections.collection")}
+                  </Text>
+                  <Text
+                    style={[styles.titleItemCount, { color: colors.textSecondary }]}
+                  >
+                    ({activeCards.length})
+                  </Text>
+                </View>
+                <View style={styles.metricsBlock}>
+                  <Text style={[styles.metricLine, { color: colors.textPrimary }]}>
+                    {t("collections.balanceLabel")}{" "}
+                    {formatMoney(balance, locale, displayCurrency)}
+                    <Text style={{ color: getReturnColor(colors, returnPct) }}>
+                      {" "}
+                      ({formatReturn(returnPct)})
+                    </Text>
+                  </Text>
+                  <Text style={[styles.metricLine, { color: colors.textPrimary }]}>
+                    {t("collections.holdingsLabel")}{" "}
+                    {formatMoney(holdings, locale, displayCurrency)}
+                  </Text>
+                </View>
                 <Pressable
                   onPress={() =>
                     router.push(`/collections/${collectionId}/history`)
@@ -607,16 +636,30 @@ export default function CollectionDetailScreen() {
                 </View>
               )}
               <View style={styles.cardText}>
-                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                  {itemDisplayName(item, {
-                    unknownBox: t("collections.unknownBox"),
-                    unknownCard: t("collections.unknownCard"),
-                  })}
-                </Text>
+                <View style={styles.cardNameRow}>
+                  {cardLanguageFlag(item.language) ? (
+                    <Text
+                      accessibilityLabel={languageFlagAccessibilityLabel(
+                        item.language,
+                      ) ?? undefined}
+                      style={styles.languageFlag}
+                    >
+                      {cardLanguageFlag(item.language)}
+                    </Text>
+                  ) : null}
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.cardName, { color: colors.textPrimary }]}
+                  >
+                    {itemDisplayName(item, {
+                      unknownBox: t("collections.unknownBox"),
+                      unknownCard: t("collections.unknownCard"),
+                    })}
+                  </Text>
+                </View>
                 <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
                   {itemMetaLine(item, {
                     boosterBox: t("collections.boosterBox"),
-                    unknown: t("collections.unknown"),
                   })}
                 </Text>
                 {item.set_name && !isBoxItem(item) ? (
@@ -654,7 +697,10 @@ export default function CollectionDetailScreen() {
         transparent
         visible={Boolean(menuCard)}
       >
-        <Pressable style={styles.menuOverlay} onPress={() => setMenuCard(null)}>
+        <Pressable
+          style={[styles.menuOverlay, menuOverlayInsets]}
+          onPress={() => setMenuCard(null)}
+        >
           <View
             style={[styles.menuContent, { backgroundColor: colors.surface }]}
           >
@@ -754,7 +800,9 @@ export default function CollectionDetailScreen() {
               autoFocus
               ref={sheetAmountInputRef}
               keyboardType="decimal-pad"
-              onChangeText={setSheetAmount}
+              onChangeText={(value) =>
+                setSheetAmount(formatMoneyInput(value, locale, displayCurrency))
+              }
               placeholder={
                 sheetMode === "sale"
                   ? t("collections.salePrice")
@@ -792,7 +840,7 @@ export default function CollectionDetailScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                disabled={sheetSaving || !sheetAmount.trim()}
+                disabled={sheetSaving || parseMoneyInput(sheetAmount) === null}
                 onPress={() => void saveSheet()}
                 style={[
                   styles.sheetPrimaryButton,
@@ -800,7 +848,7 @@ export default function CollectionDetailScreen() {
                     backgroundColor:
                       sheetMode === "sale" ? colors.primary : colors.primary,
                   },
-                  sheetSaving || !sheetAmount.trim()
+                  sheetSaving || parseMoneyInput(sheetAmount) === null
                     ? styles.sheetButtonDisabled
                     : null,
                 ]}
@@ -835,8 +883,20 @@ const styles = StyleSheet.create({
     width: 44,
   },
   cardName: {
+    flex: 1,
     fontSize: 16,
     fontWeight: "800",
+    minWidth: 0,
+  },
+  cardNameRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 4,
+  },
+  languageFlag: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 1,
   },
   cardRow: {
     alignItems: "center",
@@ -923,8 +983,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     backgroundColor: "rgba(15, 23, 42, 0.24)",
     flex: 1,
-    justifyContent: "center",
-    padding: 24,
+    justifyContent: "flex-end",
   },
   menuText: {
     fontSize: 15,
@@ -1042,6 +1101,25 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
   },
+  titleNameRow: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  titleItemCount: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  metricsBlock: {
+    gap: 2,
+    marginTop: 4,
+  },
+  metricLine: {
+    fontSize: 15,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+  },
   titleRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -1064,10 +1142,5 @@ const styles = StyleSheet.create({
   historyButtonText: {
     fontSize: 14,
     fontWeight: "700",
-  },
-  total: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 4,
   },
 });

@@ -2,7 +2,7 @@
   "expo": {
     "name": "pokemon-tcg-app",
     "slug": "pokemon-tcg-app",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pokemontcgapp",
@@ -32,7 +32,8 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 280
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

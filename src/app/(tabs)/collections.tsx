@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -20,13 +21,15 @@ import {
 import { XMON_API_URL } from "@/config";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
-import { darkColors, type AppColors } from "@/theme/colors";
+import { type AppColors } from "@/theme/colors";
 import { useAuth } from "../../context/AuthContext";
 import {
   useThemeManager,
   type DisplayCurrency,
 } from "../../hooks/useThemeManager";
 import { useI18n } from "../../i18n";
+import { useActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
+import { getReturnColor } from "@/utils/returnDisplay";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 const ROW_DRAG_HEIGHT = 108;
@@ -216,16 +219,8 @@ function CollectionPlate({
     locale,
     displayCurrency,
   );
-  const returnText = formatReturn(collectionReturn(collection));
-  const metricsText = t("collections.plateMetrics", {
-    balance: balanceText,
-    holdings: holdingsText,
-    return: returnText,
-  });
-  const cardCountText = t("collections.cardLine", {
-    count: cardCount,
-    value: "",
-  }).replace(/\s*\|\s*$/, "");
+  const returnPct = collectionReturn(collection);
+  const returnText = formatReturn(returnPct);
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -302,12 +297,22 @@ function CollectionPlate({
           </Text>
         </View>
         <View style={styles.collectionIdentity}>
-          <Text
-            numberOfLines={1}
-            style={[styles.collectionName, { color: darkColors.primary }]}
-          >
-            {collection.name}
-          </Text>
+          <View style={styles.collectionNameRow}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.collectionName,
+                { color: colors.primary, flexShrink: 1 },
+              ]}
+            >
+              {collection.name}
+            </Text>
+            <Text
+              style={[styles.collectionItemCount, { color: colors.textSecondary }]}
+            >
+              ({cardCount})
+            </Text>
+          </View>
           {collection.description ? (
             <Text
               numberOfLines={1}
@@ -320,15 +325,19 @@ function CollectionPlate({
         <View style={styles.collectionStats}>
           <Text
             numberOfLines={1}
-            style={[styles.collectionValue, { color: darkColors.arbitragePositive }]}
+            style={[styles.metricLine, { color: colors.textPrimary }]}
           >
-            {metricsText}
+            {t("collections.balanceLabel")} {balanceText}
+            <Text style={{ color: getReturnColor(colors, returnPct) }}>
+              {" "}
+              ({returnText})
+            </Text>
           </Text>
           <Text
             numberOfLines={1}
-            style={[styles.collectionSubValue, { color: colors.textSecondary }]}
+            style={[styles.metricLine, { color: colors.textPrimary }]}
           >
-            {cardCountText}
+            {t("collections.holdingsLabel")} {holdingsText}
           </Text>
         </View>
       </Pressable>
@@ -349,6 +358,8 @@ export default function CollectionsScreen() {
   const auth = useAuth() as AuthState;
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
+  const tabBarHeight = useBottomTabBarHeight();
+  const menuOverlayInsets = useActionMenuOverlayInsets(tabBarHeight);
   const token = getAuthToken(auth);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [name, setName] = useState("");
@@ -725,13 +736,20 @@ export default function CollectionsScreen() {
                     cards: totalCards,
                   })}
                 </Text>
-                <Text style={[styles.summary, { color: colors.textSecondary }]}>
-                  {t("collections.summaryMetrics", {
-                    balance: currency(totalValue, locale, displayCurrency),
-                    holdings: currency(totalHoldings, locale, displayCurrency),
-                    return: formatReturn(totalReturn),
-                  })}
-                </Text>
+                <View style={styles.summaryMetrics}>
+                  <Text style={[styles.metricLine, { color: colors.textPrimary }]}>
+                    {t("collections.balanceLabel")}{" "}
+                    {currency(totalValue, locale, displayCurrency)}
+                    <Text style={{ color: getReturnColor(colors, totalReturn) }}>
+                      {" "}
+                      ({formatReturn(totalReturn)})
+                    </Text>
+                  </Text>
+                  <Text style={[styles.metricLine, { color: colors.textPrimary }]}>
+                    {t("collections.holdingsLabel")}{" "}
+                    {currency(totalHoldings, locale, displayCurrency)}
+                  </Text>
+                </View>
               </View>
               <Pressable
                 onPress={openCreateModal}
@@ -1005,7 +1023,7 @@ export default function CollectionsScreen() {
         visible={Boolean(menuCollection)}
       >
         <Pressable
-          style={styles.menuOverlay}
+          style={[styles.menuOverlay, menuOverlayInsets]}
           onPress={() => setMenuCollection(null)}
         >
           <View
@@ -1053,10 +1071,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   collectionName: {
-    color: "#0f172a",
     fontSize: 16,
     fontWeight: "800",
     minWidth: 0,
+  },
+  collectionNameRow: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    gap: 4,
+    minWidth: 0,
+  },
+  collectionItemCount: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "600",
   },
   collectionPlate: {
     alignItems: "center",
@@ -1105,21 +1133,19 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   collectionStats: {
-    alignItems: "flex-start",
+    alignItems: "flex-end",
     flex: 1,
+    gap: 2,
     minWidth: 0,
   },
-  collectionValue: {
-    color: "#0f172a",
-    fontSize: 14,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "900",
-  },
-  collectionSubValue: {
-    fontSize: 12,
+  metricLine: {
+    fontSize: 13,
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
-    marginTop: 2,
+    textAlign: "right",
+  },
+  summaryMetrics: {
+    gap: 2,
   },
   container: {
     gap: 0,
@@ -1207,8 +1233,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     backgroundColor: "rgba(15, 23, 42, 0.24)",
     flex: 1,
-    justifyContent: "center",
-    padding: 24,
+    justifyContent: "flex-end",
   },
   menuText: {
     color: "#0f172a",

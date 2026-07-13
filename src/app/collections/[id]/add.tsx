@@ -17,6 +17,15 @@ import {
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
 import { resolveCollectionSearchImageUrl } from "@/utils/mediaUrl";
+import {
+  formatMoneyInput,
+  formatMoneyInputFromNumber,
+  parseMoneyInput,
+} from "@/utils/moneyInput";
+import {
+  cardLanguageFlag,
+  languageFlagAccessibilityLabel,
+} from "@/utils/languageFlag";
 
 type AuthState = {
   token?: string | null;
@@ -92,22 +101,13 @@ function formatMoney(
   }).format(value);
 }
 
-function boxMetaLine(item: SearchCandidate, unknownLabel: string): string {
-  const parts = [
-    item.set_name,
-    item.set_code,
-    item.language,
-  ].filter(Boolean);
-  return parts.length ? parts.join(" | ") : unknownLabel;
+function boxMetaLine(item: SearchCandidate): string {
+  const parts = [item.set_name, item.set_code].filter(Boolean);
+  return parts.join(" | ");
 }
 
-function cardMetaLine(
-  item: SearchCandidate,
-  unknownLabel: string,
-): string {
-  return `#${cardNumber(item)} | ${item.language ?? unknownLabel}${
-    item.rarity ? ` | ${item.rarity}` : ""
-  }`;
+function cardMetaLine(item: SearchCandidate): string {
+  return `#${cardNumber(item)}${item.rarity ? ` | ${item.rarity}` : ""}`;
 }
 
 async function requestJson<T>(
@@ -192,7 +192,7 @@ export default function AddCollectionCardScreen() {
 
   function selectItem(item: SearchCandidate) {
     setSelectedItem(item);
-    setPrice("0");
+    setPrice(formatMoneyInputFromNumber(0, locale, displayCurrency));
     setMessage(null);
   }
 
@@ -275,19 +275,22 @@ export default function AddCollectionCardScreen() {
     setMessage(null);
 
     try {
+      const purchasePrice = parseMoneyInput(price);
       const payload =
         itemType === "box"
           ? {
               box_id: selectedId,
               display_currency: displayCurrency,
               item_type: "box" as const,
-              purchase_price: price.trim() ? Number(price) : undefined,
+              purchase_price:
+                purchasePrice !== null ? purchasePrice : undefined,
             }
           : {
               card_id: selectedId,
               display_currency: displayCurrency,
               item_type: "card" as const,
-              purchase_price: price.trim() ? Number(price) : undefined,
+              purchase_price:
+                purchasePrice !== null ? purchasePrice : undefined,
             };
 
       await requestJson(`/api/collections/${collectionId}/cards`, token, {
@@ -467,18 +470,35 @@ export default function AddCollectionCardScreen() {
                     </View>
                   )}
                   <View style={styles.selectedDetails}>
-                    <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                      {candidateName(selectedItem) ??
-                        (itemType === "box"
-                          ? t("collections.unknownBox")
-                          : t("collections.unknownCard"))}
-                    </Text>
+                    <View style={styles.cardNameRow}>
+                      {cardLanguageFlag(selectedItem.language) ? (
+                        <Text
+                          accessibilityLabel={
+                            languageFlagAccessibilityLabel(
+                              selectedItem.language,
+                            ) ?? undefined
+                          }
+                          style={styles.languageFlag}
+                        >
+                          {cardLanguageFlag(selectedItem.language)}
+                        </Text>
+                      ) : null}
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.cardName, { color: colors.textPrimary }]}
+                      >
+                        {candidateName(selectedItem) ??
+                          (itemType === "box"
+                            ? t("collections.unknownBox")
+                            : t("collections.unknownCard"))}
+                      </Text>
+                    </View>
                     <Text
                       style={[styles.mutedText, { color: colors.textSecondary }]}
                     >
                       {itemType === "box"
-                        ? boxMetaLine(selectedItem, t("collections.boosterBox"))
-                        : cardMetaLine(selectedItem, t("collections.unknown"))}
+                        ? boxMetaLine(selectedItem)
+                        : cardMetaLine(selectedItem)}
                     </Text>
                   </View>
                 </View>
@@ -491,7 +511,9 @@ export default function AddCollectionCardScreen() {
                 ) : null}
                 <TextInput
                   keyboardType="decimal-pad"
-                  onChangeText={setPrice}
+                  onChangeText={(value) =>
+                    setPrice(formatMoneyInput(value, locale, displayCurrency))
+                  }
                   placeholder={t("collections.valuePlaceholder")}
                   placeholderTextColor={colors.textMuted}
                   style={[
@@ -584,18 +606,33 @@ export default function AddCollectionCardScreen() {
                 </View>
               )}
               <View style={styles.resultText}>
-                <Text style={[styles.cardName, { color: colors.textPrimary }]}>
-                  {candidateName(item) ??
-                    (itemType === "box"
-                      ? t("collections.unknownBox")
-                      : t("collections.unknownCard"))}
-                </Text>
+                <View style={styles.cardNameRow}>
+                  {cardLanguageFlag(item.language) ? (
+                    <Text
+                      accessibilityLabel={
+                        languageFlagAccessibilityLabel(item.language) ?? undefined
+                      }
+                      style={styles.languageFlag}
+                    >
+                      {cardLanguageFlag(item.language)}
+                    </Text>
+                  ) : null}
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.cardName, { color: colors.textPrimary }]}
+                  >
+                    {candidateName(item) ??
+                      (itemType === "box"
+                        ? t("collections.unknownBox")
+                        : t("collections.unknownCard"))}
+                  </Text>
+                </View>
                 <Text
                   style={[styles.mutedText, { color: colors.textSecondary }]}
                 >
                   {itemType === "box"
-                    ? boxMetaLine(item, t("collections.boosterBox"))
-                    : cardMetaLine(item, t("collections.unknown"))}
+                    ? boxMetaLine(item)
+                    : cardMetaLine(item)}
                 </Text>
                 {typeof item.avgPrice === "number" ? (
                   <Text
@@ -619,8 +656,20 @@ export default function AddCollectionCardScreen() {
 
 const styles = StyleSheet.create({
   cardName: {
+    flex: 1,
     fontSize: 16,
     fontWeight: "700",
+    minWidth: 0,
+  },
+  cardNameRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 4,
+  },
+  languageFlag: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 1,
   },
   centered: {
     alignItems: "center",

@@ -19,7 +19,19 @@ import {
   View,
 } from "react-native";
 import { darkColors } from "@/theme/colors";
+import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
+import {
+  formatMoneyInput,
+  formatMoneyInputFromNumber,
+  parseMoneyInput,
+} from "@/utils/moneyInput";
+import { useActionMenuOverlayInsets } from "@/utils/actionMenuOverlay";
+import {
+  cardLanguageFlag,
+  languageFlagAccessibilityLabel,
+} from "@/utils/languageFlag";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 const PAGE_SIZE = 30;
@@ -94,16 +106,12 @@ function transactionItemName(
 ): string {
   const name = transaction.item_name ?? unknownLabel;
   if (transaction.item_type === "box") {
-    const meta = transaction.language ?? unknownLabel;
-    return `${name} [${meta}]`;
+    return name;
   }
 
   const number = transaction.card_number ? `#${transaction.card_number}` : null;
   const base = number ? `${name} ${number}` : name;
-  const metaParts = [
-    transaction.language ?? unknownLabel,
-    transaction.rarity ?? null,
-  ].filter(Boolean);
+  const metaParts = [transaction.rarity ?? null].filter(Boolean);
 
   return metaParts.length ? `${base} [${metaParts.join(" | ")}]` : base;
 }
@@ -157,6 +165,7 @@ export default function CollectionHistoryScreen() {
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
+  const menuOverlayInsets = useActionMenuOverlayInsets();
   const [transactions, setTransactions] = useState<CollectionTransaction[]>([]);
   const [filter, setFilter] = useState<"all" | "purchase" | "sale">("all");
   const [page, setPage] = useState(1);
@@ -169,7 +178,8 @@ export default function CollectionHistoryScreen() {
   const [editingTransaction, setEditingTransaction] =
     useState<CollectionTransaction | null>(null);
   const [editedPrice, setEditedPrice] = useState("");
-  const [editedDate, setEditedDate] = useState("");
+  const [editedOccurredAt, setEditedOccurredAt] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editedPriceInputRef = useRef<TextInput>(null);
@@ -260,9 +270,20 @@ export default function CollectionHistoryScreen() {
   function openEditTransaction(transaction: CollectionTransaction) {
     setMenuTransaction(null);
     setEditingTransaction(transaction);
-    setEditedPrice(String(transactionPrice(transaction) || ""));
-    setEditedDate(transaction.occurred_at.slice(0, 16));
+    setEditedPrice(
+      formatMoneyInputFromNumber(
+        transactionPrice(transaction),
+        locale,
+        displayCurrency,
+      ),
+    );
+    setEditedOccurredAt(new Date(transaction.occurred_at));
+    setShowDatePicker(false);
     setError(null);
+  }
+
+  function handlePriceChange(value: string) {
+    setEditedPrice(formatMoneyInput(value, locale, displayCurrency));
   }
 
   function confirmDeleteTransaction(transaction: CollectionTransaction) {
@@ -316,7 +337,8 @@ export default function CollectionHistoryScreen() {
   }
 
   async function saveEditedTransaction() {
-    if (!token || !collectionId || !editingTransaction || !editedPrice.trim()) {
+    const price = parseMoneyInput(editedPrice);
+    if (!token || !collectionId || !editingTransaction || price === null) {
       return;
     }
 
@@ -324,25 +346,21 @@ export default function CollectionHistoryScreen() {
     setError(null);
 
     try {
-      const occurredAt = editedDate.trim()
-        ? new Date(editedDate).toISOString()
-        : editingTransaction.occurred_at;
-
       await requestJson(
         `/api/collections/${collectionId}/transactions/${editingTransaction.id}`,
         token,
         {
           body: JSON.stringify({
             display_currency: displayCurrency,
-            occurred_at: occurredAt,
-            price: Number(editedPrice),
+            occurred_at: editedOccurredAt.toISOString(),
+            price,
           }),
           method: "PATCH",
         },
       );
       setEditingTransaction(null);
       setEditedPrice("");
-      setEditedDate("");
+      setShowDatePicker(false);
       await loadTransactions();
     } catch (caught) {
       setError(
@@ -475,7 +493,29 @@ export default function CollectionHistoryScreen() {
               ]}
             >
               <View style={styles.rowText}>
-                <View style={styles.rowTopLine}>
+                <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+                  {formatDate(item.occurred_at, locale)}
+                </Text>
+                <View style={styles.namePriceRow}>
+                  <View style={styles.itemNameRow}>
+                    {cardLanguageFlag(item.language) ? (
+                      <Text
+                        accessibilityLabel={
+                          languageFlagAccessibilityLabel(item.language) ??
+                          undefined
+                        }
+                        style={styles.languageFlag}
+                      >
+                        {cardLanguageFlag(item.language)}
+                      </Text>
+                    ) : null}
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.itemName, { color: colors.textPrimary }]}
+                    >
+                      {transactionItemName(item, t("collections.unknown"))}
+                    </Text>
+                  </View>
                   <Text
                     style={[
                       styles.amountText,
@@ -488,13 +528,7 @@ export default function CollectionHistoryScreen() {
                   >
                     {signedAmount}
                   </Text>
-                  <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-                    {formatDate(item.occurred_at, locale)}
-                  </Text>
                 </View>
-                <Text style={[styles.itemName, { color: colors.textPrimary }]}>
-                  {transactionItemName(item, t("collections.unknown"))}
-                </Text>
               </View>
               <Pressable
                 onPress={() => setMenuTransaction(item)}
@@ -518,7 +552,7 @@ export default function CollectionHistoryScreen() {
         visible={Boolean(menuTransaction)}
       >
         <Pressable
-          style={styles.menuOverlay}
+          style={[styles.menuOverlay, menuOverlayInsets]}
           onPress={() => setMenuTransaction(null)}
         >
           <View
@@ -590,7 +624,7 @@ export default function CollectionHistoryScreen() {
                 autoFocus
                 ref={editedPriceInputRef}
                 keyboardType="decimal-pad"
-                onChangeText={setEditedPrice}
+                onChangeText={handlePriceChange}
                 placeholder={t("collections.price")}
                 placeholderTextColor={colors.textMuted}
                 selectTextOnFocus
@@ -605,20 +639,48 @@ export default function CollectionHistoryScreen() {
                 ]}
                 value={editedPrice}
               />
-              <TextInput
-                onChangeText={setEditedDate}
-                placeholder={t("collections.transactionDate")}
-                placeholderTextColor={colors.textMuted}
+              <Text
+                style={[styles.sheetFieldLabel, { color: colors.textSecondary }]}
+              >
+                {t("collections.transactionDate")}
+              </Text>
+              <Pressable
+                onPress={() => setShowDatePicker((current) => !current)}
                 style={[
-                  styles.input,
+                  styles.dateField,
                   {
                     backgroundColor: colors.background,
                     borderColor: colors.border,
-                    color: colors.textPrimary,
                   },
                 ]}
-                value={editedDate}
-              />
+              >
+                <Text style={[styles.dateFieldText, { color: colors.textPrimary }]}>
+                  {formatDate(editedOccurredAt.toISOString(), locale)}
+                </Text>
+                <MaterialCommunityIcons
+                  name="calendar-month-outline"
+                  color={colors.textSecondary}
+                  size={20}
+                />
+              </Pressable>
+              {showDatePicker ? (
+                <DateTimePicker
+                  display={Platform.OS === "ios" ? "inline" : "default"}
+                  mode="datetime"
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === "android") {
+                      setShowDatePicker(false);
+                    }
+                    if (event.type === "dismissed") {
+                      return;
+                    }
+                    if (selectedDate) {
+                      setEditedOccurredAt(selectedDate);
+                    }
+                  }}
+                  value={editedOccurredAt}
+                />
+              ) : null}
               <View style={styles.modalActions}>
                 <Button
                   disabled={saving}
@@ -627,7 +689,7 @@ export default function CollectionHistoryScreen() {
                 />
                 <Button
                   color={colors.primary}
-                  disabled={saving || !editedPrice.trim()}
+                  disabled={saving || parseMoneyInput(editedPrice) === null}
                   onPress={() => void saveEditedTransaction()}
                   title={
                     saving ? t("collections.saving") : t("collections.save")
@@ -651,13 +713,30 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   amountText: {
+    flexShrink: 0,
     fontSize: 15,
     fontVariant: ["tabular-nums"],
     fontWeight: "900",
+    marginLeft: 12,
   },
   container: {
     gap: 10,
     padding: 20,
+  },
+  dateField: {
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 46,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dateFieldText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
   },
   dateText: {
     fontSize: 12,
@@ -696,8 +775,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   itemName: {
+    flex: 1,
     fontSize: 15,
     fontWeight: "700",
+    minWidth: 0,
+  },
+  itemNameRow: {
+    alignItems: "flex-start",
+    flex: 1,
+    flexDirection: "row",
+    gap: 4,
+    minWidth: 0,
+  },
+  languageFlag: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 1,
   },
   loadingRow: {
     alignItems: "center",
@@ -706,6 +799,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     alignItems: "center",
+    alignSelf: "center",
     borderRadius: 8,
     borderWidth: 1,
     height: 38,
@@ -728,8 +822,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     backgroundColor: "rgba(15, 23, 42, 0.24)",
     flex: 1,
-    justifyContent: "center",
-    padding: 24,
+    justifyContent: "flex-end",
   },
   menuText: {
     fontSize: 15,
@@ -763,6 +856,12 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  namePriceRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    minWidth: 0,
+  },
   row: {
     alignItems: "center",
     flexDirection: "row",
@@ -772,12 +871,11 @@ const styles = StyleSheet.create({
   rowText: {
     flex: 1,
     gap: 4,
+    minWidth: 0,
   },
-  rowTopLine: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "space-between",
+  sheetFieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   sectionTitle: {
     fontSize: 18,
