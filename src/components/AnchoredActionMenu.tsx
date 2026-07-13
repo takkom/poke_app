@@ -86,23 +86,25 @@ export function AnchoredActionMenu({
       animationType="fade"
       onRequestClose={onClose}
       transparent
-      visible={visible}
+      visible={visible && Boolean(anchor)}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <View
-          onStartShouldSetResponder={() => true}
-          style={[
-            styles.menuContent,
-            menuStyle,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          {children}
-        </View>
-      </Pressable>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        {anchor ? (
+          <View
+            style={[
+              styles.menuContent,
+              menuStyle,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            {children}
+          </View>
+        ) : null}
+      </View>
     </Modal>
   );
 }

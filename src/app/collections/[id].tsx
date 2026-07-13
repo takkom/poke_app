@@ -24,6 +24,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
 import {
@@ -196,6 +197,7 @@ export default function CollectionDetailScreen() {
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
+  const insets = useSafeAreaInsets();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [itemFilter, setItemFilter] = useState<"all" | "card" | "box">("all");
@@ -778,6 +780,7 @@ export default function CollectionDetailScreen() {
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
+                paddingBottom: Math.max(insets.bottom, 16) + 12,
               },
             ]}
           >
@@ -1046,7 +1049,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     borderWidth: 1,
     gap: 12,
-    paddingBottom: Platform.OS === "ios" ? 28 : 20,
     paddingHorizontal: 20,
     paddingTop: 12,
   },

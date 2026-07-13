@@ -24,7 +24,6 @@ import {
   AnchoredActionMenu,
   type MenuAnchor,
 } from "@/components/AnchoredActionMenu";
-import { TransactionDatePicker } from "@/components/TransactionDatePicker";
 import {
   formatMoneyInput,
   formatMoneyInputFromNumber,
@@ -35,6 +34,7 @@ import {
   languageFlagAccessibilityLabel,
 } from "@/utils/languageFlag";
 import { getReturnColor } from "@/utils/returnDisplay";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 const PAGE_SIZE = 30;
@@ -141,6 +141,51 @@ function formatSignedAmount(
   return transaction.transaction_type === "sale" ? `+${amount}` : `-${amount}`;
 }
 
+function formatDateInputValue(value: Date): string {
+  if (Number.isNaN(value.getTime())) {
+    return "";
+  }
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  const hours = String(value.getHours()).padStart(2, "0");
+  const minutes = String(value.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+function parseDateInputValue(value: string): Date | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const normalized = trimmed.includes("T")
+    ? trimmed
+    : trimmed.replace(" ", "T");
+  const parsed = Date.parse(normalized);
+  if (Number.isFinite(parsed)) {
+    return new Date(parsed);
+  }
+
+  const match = trimmed.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour = "0", minute = "0", second = "0"] = match;
+  const next = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  );
+  return Number.isNaN(next.getTime()) ? null : next;
+}
+
 async function requestJson<T>(
   path: string,
   token: string,
@@ -157,12 +202,19 @@ async function requestJson<T>(
   });
 
   const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
+  let body: unknown = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = null;
+    }
+  }
 
   if (!response.ok) {
     const message =
-      body && typeof body === "object" && "message" in body
-        ? String(body.message)
+      body && typeof body === "object" && body !== null && "message" in body
+        ? String((body as { message: unknown }).message)
         : "Request failed. Please try again.";
     throw new Error(message);
   }
@@ -177,6 +229,7 @@ export default function CollectionHistoryScreen() {
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
+  const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<CollectionTransaction[]>([]);
   const [filter, setFilter] = useState<"all" | "purchase" | "sale">("all");
   const [page, setPage] = useState(1);
@@ -192,7 +245,7 @@ export default function CollectionHistoryScreen() {
     useState<CollectionTransaction | null>(null);
   const [editedPrice, setEditedPrice] = useState("");
   const [editedOccurredAt, setEditedOccurredAt] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [editedDateText, setEditedDateText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editedPriceInputRef = useRef<TextInput>(null);
@@ -230,11 +283,14 @@ export default function CollectionHistoryScreen() {
           `/api/collections/${collectionId}/transactions?display_currency=${displayCurrency}&type=${filterQuery}&page=${nextPage}&limit=${PAGE_SIZE}`,
           token,
         );
+        const nextTransactions = Array.isArray(body?.transactions)
+          ? body.transactions
+          : [];
         setTransactions((current) =>
-          append ? [...current, ...body.transactions] : body.transactions,
+          append ? [...current, ...nextTransactions] : nextTransactions,
         );
-        setPage(body.page);
-        setHasMore(body.has_more);
+        setPage(typeof body?.page === "number" ? body.page : nextPage);
+        setHasMore(Boolean(body?.has_more));
       } catch (caught) {
         setError(
           caught instanceof Error
@@ -303,8 +359,9 @@ export default function CollectionHistoryScreen() {
         displayCurrency,
       ),
     );
-    setEditedOccurredAt(parseTransactionDate(transaction.occurred_at));
-    setShowDatePicker(false);
+    const nextDate = parseTransactionDate(transaction.occurred_at);
+    setEditedOccurredAt(nextDate);
+    setEditedDateText(formatDateInputValue(nextDate));
     setError(null);
   }
 
@@ -364,12 +421,15 @@ export default function CollectionHistoryScreen() {
 
   async function saveEditedTransaction() {
     const price = parseMoneyInput(editedPrice);
+    const parsedDate =
+      parseDateInputValue(editedDateText) ??
+      (Number.isNaN(editedOccurredAt.getTime()) ? null : editedOccurredAt);
     if (
       !token ||
       !collectionId ||
       !editingTransaction ||
       price === null ||
-      Number.isNaN(editedOccurredAt.getTime())
+      !parsedDate
     ) {
       return;
     }
@@ -384,7 +444,7 @@ export default function CollectionHistoryScreen() {
         {
           body: JSON.stringify({
             display_currency: displayCurrency,
-            occurred_at: editedOccurredAt.toISOString(),
+            occurred_at: parsedDate.toISOString(),
             price,
           }),
           method: "PATCH",
@@ -392,7 +452,7 @@ export default function CollectionHistoryScreen() {
       );
       setEditingTransaction(null);
       setEditedPrice("");
-      setShowDatePicker(false);
+      setEditedDateText("");
       await loadTransactions();
     } catch (caught) {
       setError(
@@ -423,7 +483,9 @@ export default function CollectionHistoryScreen() {
       <FlatList
         contentContainerStyle={styles.container}
         data={transactions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) =>
+          item?.id ? String(item.id) : `tx-${index}`
+        }
         onEndReached={() => {
           if (!loadingMore && hasMore) {
             void loadTransactions({ append: true, nextPage: page + 1 });
@@ -636,7 +698,12 @@ export default function CollectionHistoryScreen() {
           keyboardVerticalOffset={24}
           style={styles.modalKeyboardView}
         >
-          <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalOverlay,
+              { paddingBottom: Math.max(insets.bottom, 24) },
+            ]}
+          >
             <View
               style={[styles.modalContent, { backgroundColor: colors.surface }]}
             >
@@ -677,41 +744,29 @@ export default function CollectionHistoryScreen() {
               >
                 {t("collections.transactionDate")}
               </Text>
-              <Pressable
-                onPress={() => setShowDatePicker((current) => !current)}
+              <TextInput
+                onChangeText={(value) => {
+                  setEditedDateText(value);
+                  const parsed = parseDateInputValue(value);
+                  if (parsed) {
+                    setEditedOccurredAt(parsed);
+                  }
+                }}
+                placeholder="YYYY-MM-DD HH:mm"
+                placeholderTextColor={colors.textMuted}
                 style={[
-                  styles.dateField,
+                  styles.input,
                   {
                     backgroundColor: colors.background,
                     borderColor: colors.border,
+                    color: colors.textPrimary,
                   },
                 ]}
-              >
-                <Text style={[styles.dateFieldText, { color: colors.textPrimary }]}>
-                  {formatDate(editedOccurredAt, locale)}
-                </Text>
-                <MaterialCommunityIcons
-                  name="calendar-month-outline"
-                  color={colors.textSecondary}
-                  size={20}
-                />
-              </Pressable>
-              {showDatePicker ? (
-                <TransactionDatePicker
-                  onChange={(event, selectedDate) => {
-                    if (Platform.OS === "android") {
-                      setShowDatePicker(false);
-                    }
-                    if (event.type === "dismissed") {
-                      return;
-                    }
-                    if (selectedDate) {
-                      setEditedOccurredAt(selectedDate);
-                    }
-                  }}
-                  value={editedOccurredAt}
-                />
-              ) : null}
+                value={editedDateText}
+              />
+              <Text style={[styles.dateHint, { color: colors.textSecondary }]}>
+                {formatDate(editedOccurredAt, locale)}
+              </Text>
               <View style={styles.modalActions}>
                 <Button
                   disabled={saving}
@@ -720,7 +775,11 @@ export default function CollectionHistoryScreen() {
                 />
                 <Button
                   color={colors.primary}
-                  disabled={saving || parseMoneyInput(editedPrice) === null}
+                  disabled={
+                    saving ||
+                    parseMoneyInput(editedPrice) === null ||
+                    parseDateInputValue(editedDateText) === null
+                  }
                   onPress={() => void saveEditedTransaction()}
                   title={
                     saving ? t("collections.saving") : t("collections.save")
@@ -768,6 +827,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: "600",
+  },
+  dateHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: -4,
   },
   dateText: {
     fontSize: 12,
