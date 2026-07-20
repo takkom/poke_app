@@ -13,6 +13,7 @@ import Svg, {
 } from "react-native-svg";
 
 import {
+  MARKETPLACE_BADGE_LABELS,
   MARKETPLACE_CHART_LABELS,
   MARKETPLACE_COLUMN_ORDER,
 } from "@/constants/marketplaces";
@@ -62,7 +63,6 @@ type PriceHistoryChartProps = {
   displayCurrency?: "KRW" | "USD" | "JPY";
   locale?: "ko-KR" | "en-US";
   showLatestPrice?: boolean;
-  marketplaceSales?: MarketplaceSalesBadge[];
 };
 
 const platforms = MARKETPLACE_COLUMN_ORDER.map((key) => ({
@@ -247,6 +247,10 @@ function initialVisiblePlatforms(history: PriceHistoryPoint[]): VisiblePlatforms
   };
 }
 
+function sumPlatformVolume(points: RawMarketPoint[]): number {
+  return points.reduce((sum, point) => sum + point.volume, 0);
+}
+
 export function PriceHistoryChart({
   tcgdexId,
   cardName,
@@ -254,7 +258,6 @@ export function PriceHistoryChart({
   displayCurrency = "KRW",
   locale = "ko-KR",
   showLatestPrice = true,
-  marketplaceSales,
 }: PriceHistoryChartProps) {
   const { t } = useI18n();
   const { colors } = useThemeManager();
@@ -349,25 +352,28 @@ export function PriceHistoryChart({
   const yTicks = buildYAxisTicks(minValue, maxValue);
   const xLabelIndexes = buildXAxisIndexes(allDates.length);
   const totalVolume = datasets.reduce(
-    (sum, dataset) =>
-      sum + dataset.points.reduce((inner, point) => inner + point.volume, 0),
+    (sum, dataset) => sum + sumPlatformVolume(dataset.points),
     0,
+  );
+  const marketplaceSales = useMemo<MarketplaceSalesBadge[]>(
+    () =>
+      datasets.map((dataset) => ({
+        key: dataset.platform,
+        label: MARKETPLACE_BADGE_LABELS[dataset.platform],
+        count: sumPlatformVolume(dataset.points).toLocaleString(locale),
+        color: dataset.color,
+      })),
+    [datasets, locale],
   );
   const volumeByDate = useMemo(
     () =>
-      allDates.map((date) => {
-        const row = priceHistory.find((entry) => entry.date === date);
-        if (!row) {
-          return 0;
-        }
-
-        return activePlatforms.reduce(
-          (sum, platform) =>
-            sum + Number(row[volumeKey(platform.key)] ?? 0),
-          0,
-        );
-      }),
-    [activePlatforms, allDates, priceHistory],
+      allDates.map((date) =>
+        datasets.reduce((sum, dataset) => {
+          const point = dataset.points.find((entry) => entry.date === date);
+          return sum + (point?.volume ?? 0);
+        }, 0),
+      ),
+    [allDates, datasets],
   );
   const maxVolume = Math.max(1, ...volumeByDate);
   const volumeTop = chartPadding.top + pricePlotHeight + volumeGap;

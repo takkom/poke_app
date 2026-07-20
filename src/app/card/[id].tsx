@@ -10,10 +10,7 @@ import {
   PriceHistoryPoint,
   QualityBucketCode,
 } from "@/types/card";
-import {
-  MARKETPLACE_BADGE_LABELS,
-  MARKETPLACE_COLUMN_ORDER,
-} from "@/constants/marketplaces";
+import { MARKETPLACE_COLUMN_ORDER } from "@/constants/marketplaces";
 import { getDisplayCardName, getCardDetailRarity, getDisplaySetName } from "@/utils/displayNames";
 import { resolveCardDisplayNumber } from "@/utils/cardNumber";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -29,10 +26,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "@/components/ui/Text";
-
-function formatSalesCount(value: number | null | undefined, locale: string): string {
-  return (value ?? 0).toLocaleString(locale);
-}
 
 function cardLanguageFlag(language: string | null | undefined): string | null {
   if (language === "ja") return "🇯🇵";
@@ -57,8 +50,6 @@ function resolveImageUrl(card: CardWithPricing): string | null {
 }
 
 const CARD_ASPECT_RATIO = 2.5 / 3.5;
-
-const MARKETPLACE_SALES_ORDER = MARKETPLACE_COLUMN_ORDER;
 
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -205,35 +196,6 @@ export default function CardDetailScreen() {
     );
   }, [baseline, card, cardWithBaseline, priceHistory]);
 
-  const marketplaceSales = card
-    ? MARKETPLACE_SALES_ORDER.flatMap((key) => {
-        const hasMarketplace =
-          (key === "ebay" && card.hasEbay) ||
-          (key === "kream" && card.hasKream) ||
-          (key === "snkrdunk" && card.hasSnkrdunk);
-
-        if (!hasMarketplace) {
-          return [];
-        }
-
-        const sales =
-          key === "ebay"
-            ? card.ebaySales
-            : key === "kream"
-              ? card.kreamSales
-              : card.snkrdunkSales;
-
-        return [
-          {
-            key,
-            label: MARKETPLACE_BADGE_LABELS[key],
-            count: formatSalesCount(sales, locale),
-            color: themeColors.marketplaces[key],
-          },
-        ];
-      })
-    : [];
-
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
@@ -357,7 +319,6 @@ export default function CardDetailScreen() {
               displayCurrency={displayCurrency}
               locale={locale}
               showLatestPrice={false}
-              marketplaceSales={marketplaceSales}
             />
           )}
 
