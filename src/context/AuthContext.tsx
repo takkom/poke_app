@@ -27,11 +27,7 @@ type AuthContextValue = {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (
-    email: string,
-    password: string,
-    username: string,
-  ) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUsername: (username: string) => Promise<AuthUser>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -47,14 +43,13 @@ async function requestAuth(
   path: "login" | "signup",
   email: string,
   password: string,
-  username?: string,
 ) {
   const response = await fetch(`${XMON_API_URL}/api/auth/${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, password, username }),
+    body: JSON.stringify({ email, password }),
   });
 
   const data = (await response.json().catch(() => null)) as
@@ -134,8 +129,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const registerWithSession = useCallback(
-    async (email: string, password: string, username: string) => {
-      const auth = await requestAuth("signup", email, password, username);
+    async (email: string, password: string) => {
+      const auth = await requestAuth("signup", email, password);
       await persistSession(auth);
     },
     [persistSession],
@@ -305,10 +300,6 @@ export function useAuth() {
   return context;
 }
 
-export async function register(
-  email: string,
-  password: string,
-  username: string,
-) {
-  return requestAuth("signup", email, password, username);
+export async function register(email: string, password: string) {
+  return requestAuth("signup", email, password);
 }

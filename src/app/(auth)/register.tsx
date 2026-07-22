@@ -15,51 +15,19 @@ import {
   View,
 } from "react-native";
 
-const USERNAME_PATTERN = /^[a-zA-Z0-9가-힣]+$/;
-
-function usernameFromEmail(email: string): string {
-  return email.split("@")[0]?.replace(/[^a-zA-Z0-9가-힣]/g, "") ?? "";
-}
-
 export default function RegisterScreen() {
   const { colors } = useThemeManager();
   const { register } = useAuth();
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [isUsernameTouched, setIsUsernameTouched] = useState(false);
   const [password, setPassword] = useState("");
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTermsVisible, setIsTermsVisible] = useState(false);
   const [isPrivacyVisible, setIsPrivacyVisible] = useState(false);
-  const usernameInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
-  function handleEmailChange(value: string) {
-    setEmail(value);
-
-    if (!isUsernameTouched) {
-      setUsername(usernameFromEmail(value));
-    }
-  }
-
-  function handleUsernameChange(value: string) {
-    setIsUsernameTouched(true);
-    setUsername(value);
-  }
-
   async function handleRegister() {
-    const trimmedUsername = username.trim();
-
-    if (!USERNAME_PATTERN.test(trimmedUsername)) {
-      Alert.alert(
-        "Invalid username",
-        "Use only English letters, numbers, and Korean Hangul.",
-      );
-      return;
-    }
-
     if (!hasAcceptedTerms) {
       Alert.alert("Terms required", "Please agree to the Terms of Service before creating an account.");
       return;
@@ -74,7 +42,7 @@ export default function RegisterScreen() {
     setIsSubmitting(true);
 
     try {
-      await register(email.trim(), password, trimmedUsername);
+      await register(email.trim(), password);
     } catch (error) {
       Alert.alert("Registration failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
@@ -89,27 +57,14 @@ export default function RegisterScreen() {
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
-        onChangeText={handleEmailChange}
-        onSubmitEditing={() => usernameInputRef.current?.focus()}
+        onChangeText={setEmail}
+        onSubmitEditing={() => passwordInputRef.current?.focus()}
         placeholder="Email"
         placeholderTextColor={colors.textMuted}
         returnKeyType="next"
         style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
         submitBehavior="submit"
         value={email}
-      />
-      <TextInput
-        autoCapitalize="none"
-        autoCorrect={false}
-        onChangeText={handleUsernameChange}
-        onSubmitEditing={() => passwordInputRef.current?.focus()}
-        placeholder="Username"
-        placeholderTextColor={colors.textMuted}
-        ref={usernameInputRef}
-        returnKeyType="next"
-        style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
-        submitBehavior="submit"
-        value={username}
       />
       <TextInput
         autoComplete="new-password"
