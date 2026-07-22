@@ -34,6 +34,8 @@ import {
   cardLanguageFlag,
   languageFlagAccessibilityLabel,
 } from "@/utils/languageFlag";
+import { QualityBucketCode } from "@/types/card";
+import { QUALITY_BUCKET_OPTIONS } from "@/utils/qualityBucket";
 
 type AuthState = {
   token?: string | null;
@@ -177,6 +179,9 @@ export default function AddCollectionCardScreen() {
     null,
   );
   const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [qualityBucket, setQualityBucket] =
+    useState<QualityBucketCode>("RAW");
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -202,6 +207,8 @@ export default function AddCollectionCardScreen() {
     setSelectedItem(null);
     setCandidates([]);
     setPrice("");
+    setQuantity(1);
+    setQualityBucket("RAW");
     setMessage(null);
   }
 
@@ -216,6 +223,8 @@ export default function AddCollectionCardScreen() {
   function selectItem(item: SearchCandidate) {
     setSelectedItem(item);
     setPrice(formatMoneyInputFromNumber(0, locale, displayCurrency));
+    setQuantity(1);
+    setQualityBucket("RAW");
     setMessage(null);
   }
 
@@ -309,6 +318,7 @@ export default function AddCollectionCardScreen() {
               locale,
               purchase_price:
                 purchasePrice !== null ? purchasePrice : undefined,
+              quantity,
             }
           : {
               card_id: selectedId,
@@ -317,6 +327,8 @@ export default function AddCollectionCardScreen() {
               locale,
               purchase_price:
                 purchasePrice !== null ? purchasePrice : undefined,
+              quantity,
+              quality_bucket: qualityBucket,
             };
 
       await requestJson(`/api/collections/${collectionId}/cards`, token, {
@@ -536,12 +548,110 @@ export default function AddCollectionCardScreen() {
                     {t("collections.avg30", { value: selectedDefaultPrice })}
                   </Text>
                 ) : null}
+
+                <Text
+                  style={[styles.fieldLabel, { color: colors.textSecondary }]}
+                >
+                  {t("collections.quantity")}
+                </Text>
+                <View style={styles.quantityRow}>
+                  <Pressable
+                    disabled={quantity <= 1}
+                    onPress={() => setQuantity((current) => Math.max(1, current - 1))}
+                    style={[
+                      styles.quantityButton,
+                      {
+                        backgroundColor: colors.surfaceAlternate,
+                        borderColor: colors.border,
+                        opacity: quantity <= 1 ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="minus"
+                      color={colors.textPrimary}
+                      size={18}
+                    />
+                  </Pressable>
+                  <Text
+                    style={[styles.quantityValue, { color: colors.textPrimary }]}
+                  >
+                    {quantity}
+                  </Text>
+                  <Pressable
+                    onPress={() => setQuantity((current) => current + 1)}
+                    style={[
+                      styles.quantityButton,
+                      {
+                        backgroundColor: colors.surfaceAlternate,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="plus"
+                      color={colors.textPrimary}
+                      size={18}
+                    />
+                  </Pressable>
+                </View>
+
+                {itemType === "card" ? (
+                  <>
+                    <Text
+                      style={[styles.fieldLabel, { color: colors.textSecondary }]}
+                    >
+                      {t("collections.quality")}
+                    </Text>
+                    <View style={styles.qualityRow}>
+                      {QUALITY_BUCKET_OPTIONS.map((option) => {
+                        const active = qualityBucket === option.code;
+                        return (
+                          <Pressable
+                            key={option.code}
+                            onPress={() => setQualityBucket(option.code)}
+                            style={[
+                              styles.qualityChip,
+                              {
+                                backgroundColor: active
+                                  ? colors.primary
+                                  : colors.surfaceAlternate,
+                                borderColor: active
+                                  ? colors.primary
+                                  : colors.border,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.qualityChipText,
+                                {
+                                  color: active
+                                    ? colors.onPrimary
+                                    : colors.textSecondary,
+                                },
+                              ]}
+                            >
+                              {t(option.labelKey)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </>
+                ) : null}
+
+                <Text
+                  style={[styles.fieldLabel, { color: colors.textSecondary }]}
+                >
+                  {t("collections.purchasePrice")}
+                </Text>
                 <TextInput
                   keyboardType="decimal-pad"
                   onChangeText={(value) =>
                     setPrice(formatMoneyInput(value, locale, displayCurrency))
                   }
-                  placeholder={t("collections.valuePlaceholder")}
+                  placeholder={t("collections.purchasePrice")}
                   placeholderTextColor={colors.textMuted}
                   style={[
                     styles.input,
@@ -709,6 +819,10 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 20,
   },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
   header: {
     gap: 14,
   },
@@ -736,6 +850,40 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 14,
     fontWeight: "800",
+  },
+  qualityChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  qualityChipText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  qualityRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  quantityButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  quantityRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  quantityValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    minWidth: 28,
+    textAlign: "center",
   },
   resultRow: {
     alignItems: "center",

@@ -20,6 +20,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { AppColors } from "@/theme/colors";
+import type { QualityBucketCode } from "@/types/card";
+import { QUALITY_BUCKET_OPTIONS } from "@/utils/qualityBucket";
 
 type Collection = {
   id: string | number;
@@ -100,6 +102,9 @@ export function AddToCollectionModal({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [qualityBucket, setQualityBucket] =
+    useState<QualityBucketCode>("RAW");
 
   const loadCollections = useCallback(async () => {
     if (!token) {
@@ -135,6 +140,8 @@ export function AddToCollectionModal({
       setShowCreateForm(false);
       setNewName("");
       setNewDescription("");
+      setQuantity(1);
+      setQualityBucket("RAW");
       setError(null);
       return;
     }
@@ -157,6 +164,8 @@ export function AddToCollectionModal({
           display_currency: displayCurrency as DisplayCurrency,
           item_type: "card" as const,
           locale,
+          quantity,
+          quality_bucket: qualityBucket,
         }),
         method: "POST",
       });
@@ -201,6 +210,8 @@ export function AddToCollectionModal({
           display_currency: displayCurrency as DisplayCurrency,
           item_type: "card" as const,
           locale,
+          quantity,
+          quality_bucket: qualityBucket,
         }),
         method: "POST",
       });
@@ -336,6 +347,88 @@ export function AddToCollectionModal({
             </ScrollView>
           ) : (
             <>
+              <View style={styles.optionsBlock}>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                  {t("collections.quantity")}
+                </Text>
+                <View style={styles.quantityRow}>
+                  <Pressable
+                    disabled={quantity <= 1}
+                    onPress={() => setQuantity((current) => Math.max(1, current - 1))}
+                    style={[
+                      styles.quantityButton,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        opacity: quantity <= 1 ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="minus"
+                      color={colors.textPrimary}
+                      size={18}
+                    />
+                  </Pressable>
+                  <Text style={[styles.quantityValue, { color: colors.textPrimary }]}>
+                    {quantity}
+                  </Text>
+                  <Pressable
+                    onPress={() => setQuantity((current) => current + 1)}
+                    style={[
+                      styles.quantityButton,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="plus"
+                      color={colors.textPrimary}
+                      size={18}
+                    />
+                  </Pressable>
+                </View>
+
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                  {t("collections.quality")}
+                </Text>
+                <View style={styles.qualityRow}>
+                  {QUALITY_BUCKET_OPTIONS.map((option) => {
+                    const active = qualityBucket === option.code;
+                    return (
+                      <Pressable
+                        key={option.code}
+                        onPress={() => setQualityBucket(option.code)}
+                        style={[
+                          styles.qualityChip,
+                          {
+                            backgroundColor: active
+                              ? colors.primary
+                              : colors.background,
+                            borderColor: active ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.qualityChipText,
+                            {
+                              color: active
+                                ? colors.onPrimary
+                                : colors.textSecondary,
+                            },
+                          ]}
+                        >
+                          {t(option.labelKey)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
               {loading ? (
                 <View style={styles.loadingState}>
                   <ActivityIndicator color={colors.primary} />
@@ -436,8 +529,8 @@ function createStyles(colors: AppColors) {
     sheet: {
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
-      maxHeight: "78%",
-      minHeight: 280,
+      maxHeight: "85%",
+      minHeight: 320,
       paddingBottom: 24,
       paddingHorizontal: 16,
       paddingTop: 16,
@@ -473,6 +566,44 @@ function createStyles(colors: AppColors) {
     listContent: {
       gap: 8,
       paddingBottom: 8,
+    },
+    optionsBlock: {
+      gap: 10,
+      marginBottom: 12,
+    },
+    qualityChip: {
+      borderRadius: 16,
+      borderWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    qualityChipText: {
+      fontSize: 12,
+      fontWeight: "800",
+    },
+    qualityRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    quantityButton: {
+      alignItems: "center",
+      borderRadius: 8,
+      borderWidth: 1,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    quantityRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+    },
+    quantityValue: {
+      fontSize: 18,
+      fontWeight: "800",
+      minWidth: 28,
+      textAlign: "center",
     },
     collectionRow: {
       alignItems: "center",

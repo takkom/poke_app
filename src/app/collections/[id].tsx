@@ -49,6 +49,8 @@ import {
   formatMoneyInputFromNumber,
   parseMoneyInput,
 } from "@/utils/moneyInput";
+import { qualityBucketLabelKey } from "@/utils/qualityBucket";
+import type { QualityBucketCode } from "@/types/card";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
 
@@ -89,10 +91,19 @@ type CollectionCard = {
   purchase_price?: number | string | null;
   display_price?: number | string | null;
   display_currency?: DisplayCurrency | string | null;
+  display_sold_price?: number | string | null;
+  sold_price?: number | string | null;
+  quantity?: number | string | null;
+  quality_bucket?: QualityBucketCode | string | null;
   sold_at?: string | null;
 };
 
-type ItemSheetMode = "purchase" | "sale";
+type ItemSheetMode = "purchase" | "sale" | "remove";
+
+function itemQuantity(item: CollectionCard): number {
+  const parsed = toNumber(item.quantity ?? 1);
+  return parsed >= 1 ? Math.floor(parsed) : 1;
+}
 
 function isBoxItem(item: CollectionCard): boolean {
   return item.item_type === "box" || item.item_type === "booster_box";
@@ -228,6 +239,7 @@ export default function CollectionDetailScreen() {
   const [sheetMode, setSheetMode] = useState<ItemSheetMode | null>(null);
   const [sheetCard, setSheetCard] = useState<CollectionCard | null>(null);
   const [sheetAmount, setSheetAmount] = useState("");
+  const [sheetQuantity, setSheetQuantity] = useState(1);
   const [sheetSaving, setSheetSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -236,6 +248,11 @@ export default function CollectionDetailScreen() {
   const activeCards = useMemo(
     () => cards.filter((card) => !card.sold_at),
     [cards],
+  );
+
+  const activeItemCount = useMemo(
+    () => activeCards.reduce((sum, card) => sum + itemQuantity(card), 0),
+    [activeCards],
   );
 
   const visibleCards = useMemo(() => {
@@ -248,22 +265,30 @@ export default function CollectionDetailScreen() {
     if (collection?.balance_value !== undefined && collection?.balance_value !== null) {
       return toNumber(collection.balance_value);
     }
-    const holdings = activeCards.reduce((sum, card) => sum + cardValue(card), 0);
+    const holdingsTotal = activeCards.reduce(
+      (sum, card) => sum + cardValue(card) * itemQuantity(card),
+      0,
+    );
     const sales = cards.reduce(
       (sum, card) =>
         card.sold_at
-          ? sum + toNumber((card as { display_sold_price?: number }).display_sold_price ?? card.purchase_price)
+          ? sum +
+            toNumber(card.display_sold_price ?? card.sold_price ?? 0) *
+              itemQuantity(card)
           : sum,
       0,
     );
-    return holdings + sales;
+    return holdingsTotal + sales;
   }, [activeCards, cards, collection?.balance_value]);
 
   const holdings = useMemo(() => {
     if (collection?.holdings_value !== undefined && collection?.holdings_value !== null) {
       return toNumber(collection.holdings_value);
     }
-    return activeCards.reduce((sum, card) => sum + cardValue(card), 0);
+    return activeCards.reduce(
+      (sum, card) => sum + cardValue(card) * itemQuantity(card),
+      0,
+    );
   }, [activeCards, collection?.holdings_value]);
 
   const returnPct = useMemo(() => {
@@ -336,6 +361,7 @@ export default function CollectionDetailScreen() {
     setSheetMode(null);
     setSheetCard(null);
     setSheetAmount("");
+    setSheetQuantity(1);
   }
 
   function openItemMenu(item: CollectionCard, anchor: MenuAnchor) {
@@ -352,6 +378,7 @@ export default function CollectionDetailScreen() {
     closeItemMenu();
     setSheetCard(card);
     setSheetMode(mode);
+    setSheetQuantity(mode === "purchase" ? itemQuantity(card) : 1);
     setSheetAmount(
       mode === "purchase"
         ? formatMoneyInputFromNumber(cardValue(card), locale, displayCurrency)
@@ -367,7 +394,7 @@ export default function CollectionDetailScreen() {
     }
   }
 
-  async function confirmRemoveItem(card: CollectionCard) {
+  async function confirmRemoveItem(card: CollectionCard, quantity: number) {
     if (!token || !collectionId) {
       return;
     }
@@ -379,7 +406,10 @@ export default function CollectionDetailScreen() {
       await requestJson<{ removed: boolean }>(
         `/api/collections/${collectionId}/cards/${card.id}`,
         token,
-        { method: "DELETE" },
+        {
+          body: JSON.stringify({ quantity }),
+          method: "DELETE",
+        },
       );
       await loadCollection();
     } catch (caught) {
@@ -388,6 +418,7 @@ export default function CollectionDetailScreen() {
           ? caught.message
           : t("collections.couldNotRemoveCard"),
       );
+      throw caught;
     } finally {
       setRemoving(false);
     }
@@ -395,6 +426,11 @@ export default function CollectionDetailScreen() {
 
   function confirmRemoveFromCollection(card: CollectionCard) {
     closeItemMenu();
+    if (itemQuantity(card) > 1) {
+      openSheet(card, "remove");
+      return;
+    }
+
     Alert.alert(
       t("collections.removeFromCollectionTitle"),
       t("collections.removeFromCollectionMessage", {
@@ -406,7 +442,9 @@ export default function CollectionDetailScreen() {
       [
         { style: "cancel", text: t("collections.cancel") },
         {
-          onPress: () => void confirmRemoveItem(card),
+          onPress: () => {
+            void confirmRemoveItem(card, 1).catch(() => undefined);
+          },
           style: "destructive",
           text: t("collections.removeFromCollection"),
         },
@@ -415,8 +453,32 @@ export default function CollectionDetailScreen() {
   }
 
   async function saveSheet() {
+    if (!token || !collectionId || !sheetCard || !sheetMode) {
+      return;
+    }
+
+    const maxQuantity = itemQuantity(sheetCard);
+    if (sheetQuantity < 1 || sheetQuantity > maxQuantity) {
+      setError(t("collections.invalidQuantity", { max: maxQuantity }));
+      return;
+    }
+
+    if (sheetMode === "remove") {
+      setSheetSaving(true);
+      setError(null);
+      try {
+        await confirmRemoveItem(sheetCard, sheetQuantity);
+        closeSheet();
+      } catch {
+        // Error already surfaced via confirmRemoveItem.
+      } finally {
+        setSheetSaving(false);
+      }
+      return;
+    }
+
     const amount = parseMoneyInput(sheetAmount);
-    if (!token || !collectionId || !sheetCard || !sheetMode || amount === null) {
+    if (amount === null) {
       return;
     }
 
@@ -445,6 +507,7 @@ export default function CollectionDetailScreen() {
             body: JSON.stringify({
               display_currency: displayCurrency,
               locale,
+              quantity: sheetQuantity,
               sold_at: new Date().toISOString(),
               sold_price: amount,
             }),
@@ -513,7 +576,7 @@ export default function CollectionDetailScreen() {
                   <Text
                     style={[styles.titleItemCount, { color: colors.textSecondary }]}
                   >
-                    ({activeCards.length})
+                    ({activeItemCount})
                   </Text>
                 </View>
                 <View style={styles.metricsBlock}>
@@ -707,6 +770,24 @@ export default function CollectionDetailScreen() {
                     {item.set_name}
                   </Text>
                 ) : null}
+                <View style={styles.cardMetaRow}>
+                  {itemQuantity(item) > 1 ? (
+                    <Text
+                      style={[styles.quantityBadge, { color: colors.textPrimary }]}
+                    >
+                      {t("collections.quantityTimes", {
+                        count: itemQuantity(item),
+                      })}
+                    </Text>
+                  ) : null}
+                  {!isBoxItem(item) && qualityBucketLabelKey(item.quality_bucket) ? (
+                    <Text
+                      style={[styles.mutedText, { color: colors.textSecondary }]}
+                    >
+                      {t(qualityBucketLabelKey(item.quality_bucket)!)}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={[styles.cardValue, { color: colors.textPrimary }]}>
                   {t("collections.purchasedAt", {
                     value: formatMoney(cardValue(item), locale, displayCurrency),
@@ -812,7 +893,9 @@ export default function CollectionDetailScreen() {
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               {sheetMode === "sale"
                 ? t("collections.recordSale")
-                : t("collections.editPurchasePrice")}
+                : sheetMode === "remove"
+                  ? t("collections.removeFromCollection")
+                  : t("collections.editPurchasePrice")}
             </Text>
             <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
               {sheetCard
@@ -824,44 +907,117 @@ export default function CollectionDetailScreen() {
             </Text>
             {sheetMode === "sale" ? (
               <Text style={[styles.sheetHelp, { color: colors.textSecondary }]}>
-                {t("collections.recordSaleHelp")}
+                {sheetCard && itemQuantity(sheetCard) > 1
+                  ? t("collections.recordSaleHelpQuantity")
+                  : t("collections.recordSaleHelp")}
               </Text>
             ) : null}
-            <Text
-              style={[styles.sheetFieldLabel, { color: colors.textSecondary }]}
-            >
-              {sheetMode === "sale"
-                ? t("collections.salePrice")
-                : t("collections.purchasePrice")}
-            </Text>
-            <TextInput
-              autoFocus
-              ref={sheetAmountInputRef}
-              keyboardType="decimal-pad"
-              onChangeText={(value) =>
-                setSheetAmount(formatMoneyInput(value, locale, displayCurrency))
-              }
-              placeholder={
-                sheetMode === "sale"
-                  ? t("collections.salePrice")
-                  : t("collections.purchasePrice")
-              }
-              placeholderTextColor={colors.textMuted}
-              selectTextOnFocus
-              showSoftInputOnFocus
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.textPrimary,
-                },
-              ]}
-              value={sheetAmount}
-            />
+            {sheetMode === "remove" ? (
+              <Text style={[styles.sheetHelp, { color: colors.textSecondary }]}>
+                {t("collections.removeQuantityHelp")}
+              </Text>
+            ) : null}
+            {sheetMode === "sale" || sheetMode === "remove" ? (
+              sheetCard && itemQuantity(sheetCard) > 1 ? (
+              <>
+                <Text
+                  style={[styles.sheetFieldLabel, { color: colors.textSecondary }]}
+                >
+                  {t("collections.quantity")}
+                  {` (1–${itemQuantity(sheetCard)})`}
+                </Text>
+                <View style={styles.quantityRow}>
+                  <Pressable
+                    disabled={sheetQuantity <= 1}
+                    onPress={() =>
+                      setSheetQuantity((current) => Math.max(1, current - 1))
+                    }
+                    style={[
+                      styles.quantityButton,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        opacity: sheetQuantity <= 1 ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="minus"
+                      color={colors.textPrimary}
+                      size={18}
+                    />
+                  </Pressable>
+                  <Text
+                    style={[styles.quantityValue, { color: colors.textPrimary }]}
+                  >
+                    {sheetQuantity}
+                  </Text>
+                  <Pressable
+                    disabled={sheetQuantity >= itemQuantity(sheetCard)}
+                    onPress={() =>
+                      setSheetQuantity((current) =>
+                        Math.min(itemQuantity(sheetCard), current + 1),
+                      )
+                    }
+                    style={[
+                      styles.quantityButton,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        opacity:
+                          sheetQuantity >= itemQuantity(sheetCard) ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="plus"
+                      color={colors.textPrimary}
+                      size={18}
+                    />
+                  </Pressable>
+                </View>
+              </>
+              ) : null
+            ) : null}
+            {sheetMode !== "remove" ? (
+              <>
+                <Text
+                  style={[styles.sheetFieldLabel, { color: colors.textSecondary }]}
+                >
+                  {sheetMode === "sale"
+                    ? t("collections.salePrice")
+                    : t("collections.purchasePrice")}
+                </Text>
+                <TextInput
+                  autoFocus
+                  ref={sheetAmountInputRef}
+                  keyboardType="decimal-pad"
+                  onChangeText={(value) =>
+                    setSheetAmount(formatMoneyInput(value, locale, displayCurrency))
+                  }
+                  placeholder={
+                    sheetMode === "sale"
+                      ? t("collections.salePrice")
+                      : t("collections.purchasePrice")
+                  }
+                  placeholderTextColor={colors.textMuted}
+                  selectTextOnFocus
+                  showSoftInputOnFocus
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      color: colors.textPrimary,
+                    },
+                  ]}
+                  value={sheetAmount}
+                />
+              </>
+            ) : null}
             <View style={styles.sheetActions}>
               <Pressable
-                disabled={sheetSaving}
+                disabled={sheetSaving || removing}
                 onPress={closeSheet}
                 style={[
                   styles.sheetSecondaryButton,
@@ -878,15 +1034,23 @@ export default function CollectionDetailScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                disabled={sheetSaving || parseMoneyInput(sheetAmount) === null}
+                disabled={
+                  sheetSaving ||
+                  removing ||
+                  (sheetMode !== "remove" &&
+                    parseMoneyInput(sheetAmount) === null)
+                }
                 onPress={() => void saveSheet()}
                 style={[
                   styles.sheetPrimaryButton,
                   {
                     backgroundColor:
-                      sheetMode === "sale" ? colors.primary : colors.primary,
+                      sheetMode === "remove" ? colors.error : colors.primary,
                   },
-                  sheetSaving || parseMoneyInput(sheetAmount) === null
+                  sheetSaving ||
+                  removing ||
+                  (sheetMode !== "remove" &&
+                    parseMoneyInput(sheetAmount) === null)
                     ? styles.sheetButtonDisabled
                     : null,
                 ]}
@@ -897,11 +1061,13 @@ export default function CollectionDetailScreen() {
                     { color: colors.onPrimary },
                   ]}
                 >
-                  {sheetSaving
+                  {sheetSaving || removing
                     ? t("collections.saving")
                     : sheetMode === "sale"
                       ? t("collections.confirmSale")
-                      : t("collections.save")}
+                      : sheetMode === "remove"
+                        ? t("collections.removeFromCollection")
+                        : t("collections.save")}
                 </Text>
               </Pressable>
             </View>
@@ -930,6 +1096,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "row",
     gap: 4,
+  },
+  cardMetaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
   languageFlag: {
     fontSize: 11,
@@ -961,6 +1133,29 @@ const styles = StyleSheet.create({
   cardValue: {
     fontSize: 15,
     fontWeight: "800",
+  },
+  quantityBadge: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  quantityButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  quantityRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  quantityValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    minWidth: 28,
+    textAlign: "center",
   },
   centered: {
     alignItems: "center",

@@ -39,6 +39,7 @@ import {
 } from "@/utils/languageFlag";
 import { getDisplayName, getDisplayRarity } from "@/utils/displayNames";
 import { getReturnColor } from "@/utils/returnDisplay";
+import { qualityBucketLabelKey } from "@/utils/qualityBucket";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? XMON_API_URL;
@@ -62,6 +63,8 @@ type CollectionTransaction = {
   language?: string | null;
   set_name?: string | null;
   rarity?: string | null;
+  quantity?: number | string | null;
+  quality_bucket?: string | null;
   occurred_at: string;
   price?: number | string | null;
   display_price?: number | string | null;
@@ -141,11 +144,9 @@ function formatSignedAmount(
   locale: string,
   displayCurrency: DisplayCurrency,
 ): string {
-  const amount = formatMoney(
-    toNumber(transaction.display_price ?? transaction.price),
-    locale,
-    displayCurrency,
-  );
+  const unit = toNumber(transaction.display_price ?? transaction.price);
+  const quantity = Math.max(1, Math.floor(toNumber(transaction.quantity ?? 1)));
+  const amount = formatMoney(unit * quantity, locale, displayCurrency);
   return transaction.transaction_type === "sale" ? `+${amount}` : `-${amount}`;
 }
 
@@ -619,6 +620,11 @@ export default function CollectionHistoryScreen() {
                       style={[styles.itemName, { color: colors.textPrimary }]}
                     >
                       {transactionItemName(item, locale, t("collections.unknown"))}
+                      {toNumber(item.quantity ?? 1) > 1
+                        ? ` ${t("collections.quantityTimes", {
+                            count: Math.floor(toNumber(item.quantity ?? 1)),
+                          })}`
+                        : ""}
                     </Text>
                   </View>
                   <Text
@@ -635,6 +641,13 @@ export default function CollectionHistoryScreen() {
                     {signedAmount}
                   </Text>
                 </View>
+                {qualityBucketLabelKey(item.quality_bucket) ? (
+                  <Text
+                    style={[styles.dateText, { color: colors.textSecondary }]}
+                  >
+                    {t(qualityBucketLabelKey(item.quality_bucket)!)}
+                  </Text>
+                ) : null}
               </View>
               <Pressable
                 onPress={() => {
