@@ -79,16 +79,23 @@ Icons and splash assets are baked into native builds. After changing `assets/ima
 
 ### OTA updates (JavaScript only)
 
-Publish to the **same channel** as the build profile:
+Publish to the **same channel** as the build profile.
+
+**Critical:** `EXPO_PUBLIC_API_URL` is inlined into the OTA JS bundle. If you
+publish a `v2-preview` update without the v2 URL set, installs keep the
+v2-preview channel but silently talk to **v1**. Always set it explicitly:
 
 ```powershell
-# v2 preview channel
+# v2 preview channel (pin v2 API URL)
+$env:EXPO_PUBLIC_API_URL = "https://xmon-api-v2-production.up.railway.app"
 eas update --branch v2-preview --message "describe change"
 
 # v1 preview channel
+$env:EXPO_PUBLIC_API_URL = "https://xmon-api-production.up.railway.app"
 eas update --branch preview --message "describe change"
 
 # v1 production channel
+$env:EXPO_PUBLIC_API_URL = "https://xmon-api-production.up.railway.app"
 eas update --branch production --message "describe change"
 ```
 

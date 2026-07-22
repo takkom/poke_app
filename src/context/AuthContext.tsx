@@ -1,4 +1,9 @@
 import { XMON_API_URL } from "@/config";
+import type {
+  AppLocale,
+  DisplayCurrency,
+  ThemePreference,
+} from "@/hooks/useThemeManager";
 import * as SecureStore from "expo-secure-store";
 import {
   createContext,
@@ -10,16 +15,25 @@ import {
   useState,
 } from "react";
 
-type AuthUser = {
+export type AuthUser = {
   id: string;
   email: string;
   username: string;
   created_at?: string;
+  theme_preference?: ThemePreference;
+  locale?: AppLocale;
+  display_currency?: DisplayCurrency;
 };
 
 type AuthResponse = {
   user: AuthUser;
   access_token: string;
+};
+
+export type UserPreferencesUpdate = {
+  theme_preference?: ThemePreference;
+  locale?: AppLocale;
+  display_currency?: DisplayCurrency;
 };
 
 type AuthContextValue = {
@@ -30,6 +44,7 @@ type AuthContextValue = {
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUsername: (username: string) => Promise<AuthUser>;
+  updatePreferences: (prefs: UserPreferencesUpdate) => Promise<AuthUser>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   checkUsernameAvailability: (username: string) => Promise<boolean>;
@@ -38,6 +53,15 @@ type AuthContextValue = {
 const TOKEN_KEY = "xmon.auth.accessToken";
 const USER_KEY = "xmon.auth.user";
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function isAuthUser(value: unknown): value is AuthUser {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const user = value as Partial<AuthUser>;
+  return Boolean(user.id && user.email && user.username);
+}
 
 async function requestAuth(
   path: "login" | "signup",
@@ -56,7 +80,7 @@ async function requestAuth(
     | (Partial<AuthResponse> & { message?: string })
     | null;
 
-  if (!response.ok || !data?.access_token || !data.user) {
+  if (!response.ok || !data?.access_token || !isAuthUser(data.user)) {
     throw new Error(
       data?.message ?? "Authentication failed. Please try again.",
     );
@@ -65,10 +89,65 @@ async function requestAuth(
   return data as AuthResponse;
 }
 
+async function fetchMe(token: string): Promise<AuthUser> {
+  const response = await fetch(`${XMON_API_URL}/api/users/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = (await response.json().catch(() => null)) as
+    | (Partial<AuthUser> & { message?: string })
+    | null;
+
+  if (!response.ok || !isAuthUser(data)) {
+    throw new Error(data?.message ?? "Could not load profile.");
+  }
+
+  return data as AuthUser;
+}
+
+async function patchMe(
+  token: string,
+  body: Record<string, unknown>,
+): Promise<AuthUser> {
+  const response = await fetch(`${XMON_API_URL}/api/users/me`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = (await response.json().catch(() => null)) as
+    | (Partial<AuthUser> & { message?: string })
+    | null;
+
+  if (!response.ok || !isAuthUser(data)) {
+    throw new Error(data?.message ?? "Could not update profile.");
+  }
+
+  return data as AuthUser;
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const persistSession = useCallback(async (auth: AuthResponse) => {
+    await Promise.all([
+      SecureStore.setItemAsync(TOKEN_KEY, auth.access_token),
+      SecureStore.setItemAsync(USER_KEY, JSON.stringify(auth.user)),
+    ]);
+
+    setToken(auth.access_token);
+    setUser(auth.user);
+  }, []);
+
+  const updateStoredUser = useCallback(async (nextUser: AuthUser) => {
+    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -84,8 +163,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        const localUser = storedUser
+          ? (JSON.parse(storedUser) as AuthUser)
+          : null;
+
         setToken(storedToken);
-        setUser(storedUser ? (JSON.parse(storedUser) as AuthUser) : null);
+        setUser(localUser);
+
+        if (storedToken) {
+          try {
+            const remoteUser = await fetchMe(storedToken);
+            if (!isMounted) {
+              return;
+            }
+            await updateStoredUser(remoteUser);
+          } catch {
+            // Keep local session if profile refresh fails (offline / old API).
+          }
+        }
       } catch {
         await Promise.all([
           SecureStore.deleteItemAsync(TOKEN_KEY),
@@ -103,22 +198,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     }
 
-    hydrateAuth();
+    void hydrateAuth();
 
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  const persistSession = useCallback(async (auth: AuthResponse) => {
-    await Promise.all([
-      SecureStore.setItemAsync(TOKEN_KEY, auth.access_token),
-      SecureStore.setItemAsync(USER_KEY, JSON.stringify(auth.user)),
-    ]);
-
-    setToken(auth.access_token);
-    setUser(auth.user);
-  }, []);
+  }, [updateStoredUser]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -144,11 +229,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     setToken(null);
     setUser(null);
-  }, []);
-
-  const updateStoredUser = useCallback(async (nextUser: AuthUser) => {
-    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(nextUser));
-    setUser(nextUser);
   }, []);
 
   const checkUsernameAvailability = useCallback(
@@ -185,23 +265,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
         throw new Error("You need to sign in first.");
       }
 
-      const response = await fetch(`${XMON_API_URL}/api/users/me`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      });
-      const data = (await response.json().catch(() => null)) as
-        | (Partial<AuthUser> & { message?: string })
-        | null;
+      const nextUser = await patchMe(token, { username });
+      await updateStoredUser(nextUser);
+      return nextUser;
+    },
+    [token, updateStoredUser],
+  );
 
-      if (!response.ok || !data?.id || !data.email || !data.username) {
-        throw new Error(data?.message ?? "Could not update username.");
+  const updatePreferences = useCallback(
+    async (prefs: UserPreferencesUpdate) => {
+      if (!token) {
+        throw new Error("You need to sign in first.");
       }
 
-      const nextUser = data as AuthUser;
+      const nextUser = await patchMe(token, prefs);
       await updateStoredUser(nextUser);
       return nextUser;
     },
@@ -229,7 +306,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         | (Partial<AuthResponse> & { message?: string })
         | null;
 
-      if (!response.ok || !data?.access_token || !data.user) {
+      if (!response.ok || !data?.access_token || !isAuthUser(data.user)) {
         throw new Error(data?.message ?? "Could not change password.");
       }
 
@@ -269,6 +346,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       register: registerWithSession,
       logout,
       updateUsername,
+      updatePreferences,
       changePassword,
       deleteAccount,
       checkUsernameAvailability,
@@ -282,6 +360,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       logout,
       registerWithSession,
       token,
+      updatePreferences,
       updateUsername,
       user,
     ],

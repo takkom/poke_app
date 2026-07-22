@@ -1,4 +1,5 @@
 import { JaruLogo } from '@/components/JaruLogo';
+import { UserPreferencesSync } from '@/components/UserPreferencesSync';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeManagerProvider, useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
@@ -45,6 +46,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeManagerProvider>
         <AuthProvider>
+          <UserPreferencesSync />
           <RootStack />
         </AuthProvider>
       </ThemeManagerProvider>
