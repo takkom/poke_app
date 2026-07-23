@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,6 +13,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
@@ -92,6 +94,7 @@ export function AddToCollectionModal({
   const { token } = useAuth();
   const { colors, displayCurrency, locale } = useThemeManager();
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -105,6 +108,23 @@ export function AddToCollectionModal({
   const [quantity, setQuantity] = useState(1);
   const [qualityBucket, setQualityBucket] =
     useState<QualityBucketCode>("RAW");
+
+  const exitCreateForm = useCallback(() => {
+    Keyboard.dismiss();
+    setShowCreateForm(false);
+    setNewName("");
+    setNewDescription("");
+    setError(null);
+  }, []);
+
+  const handleRequestClose = useCallback(() => {
+    if (showCreateForm) {
+      exitCreateForm();
+      return;
+    }
+    Keyboard.dismiss();
+    onClose();
+  }, [exitCreateForm, onClose, showCreateForm]);
 
   const loadCollections = useCallback(async () => {
     if (!token) {
@@ -174,6 +194,7 @@ export function AddToCollectionModal({
         t("card.addedToCollectionTitle"),
         t("card.addedToCollection", { name: collection.name }),
       );
+      Keyboard.dismiss();
       onClose();
     } catch (caught) {
       setError(
@@ -220,6 +241,7 @@ export function AddToCollectionModal({
         t("card.addedToCollectionTitle"),
         t("card.addedToCollection", { name: created.name }),
       );
+      Keyboard.dismiss();
       onClose();
     } catch (caught) {
       setError(
@@ -235,26 +257,35 @@ export function AddToCollectionModal({
   return (
     <Modal
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleRequestClose}
       transparent
       visible={visible}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.overlayHost}
       >
         <Pressable
           style={[styles.backdrop, { backgroundColor: colors.overlayStrong }]}
-          onPress={onClose}
+          onPress={handleRequestClose}
         />
-        <View style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
+        <View
+          onStartShouldSetResponder={() => true}
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: colors.surfaceElevated,
+              paddingBottom: Math.max(insets.bottom, 16) + 12,
+            },
+          ]}
+        >
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.textPrimary }]}>
               {showCreateForm
                 ? t("collections.createTitle")
                 : t("card.selectCollection")}
             </Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
+            <Pressable onPress={handleRequestClose} style={styles.closeButton}>
               <MaterialCommunityIcons
                 name="close"
                 size={22}
@@ -321,12 +352,7 @@ export function AddToCollectionModal({
               <View style={styles.actions}>
                 <Pressable
                   disabled={creating}
-                  onPress={() => {
-                    setShowCreateForm(false);
-                    setNewName("");
-                    setNewDescription("");
-                    setError(null);
-                  }}
+                  onPress={exitCreateForm}
                   style={[styles.secondaryButton, { borderColor: colors.border }]}
                 >
                   <Text style={[styles.secondaryButtonText, { color: colors.textPrimary }]}>
@@ -533,7 +559,6 @@ function createStyles(colors: AppColors) {
       borderTopRightRadius: 16,
       maxHeight: "85%",
       minHeight: 320,
-      paddingBottom: 24,
       paddingHorizontal: 16,
       paddingTop: 16,
     },
