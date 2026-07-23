@@ -23,7 +23,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatSalesCount(value: number | null | undefined, locale: string): string {
   return (value ?? 0).toLocaleString(locale);
@@ -118,10 +117,7 @@ export default function SearchTab() {
   }
 
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.primary }]}>{t('search.title')}</Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
@@ -383,7 +379,7 @@ export default function SearchTab() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -426,7 +422,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 16,
   },
   headerTitle: {
     fontSize: 22,

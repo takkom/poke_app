@@ -450,16 +450,18 @@ const styles = StyleSheet.create({
   },
   outerContainer: {
     flex: 1,
+    paddingTop: 16,
   },
   listContent: {
     gap: 8,
     paddingBottom: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
   },
   typeToggle: {
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
+    marginHorizontal: 16,
     padding: 4,
   },
   typeToggleButton: {

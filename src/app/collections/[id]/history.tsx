@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 12,
     justifyContent: "center",
-    padding: 20,
+    padding: 16,
   },
   amountText: {
     flexShrink: 0,
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
   container: {
     gap: 10,
-    padding: 20,
+    padding: 16,
   },
   dateField: {
     alignItems: "center",

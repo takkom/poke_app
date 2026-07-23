@@ -1137,7 +1137,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 12,
     justifyContent: "center",
-    padding: 20,
+    padding: 16,
   },
   collectionName: {
     fontSize: 16,
@@ -1223,7 +1223,9 @@ const styles = StyleSheet.create({
   },
   container: {
     gap: 0,
-    padding: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   deleteText: {
     color: "#dc2626",

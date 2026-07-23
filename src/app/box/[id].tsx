@@ -156,7 +156,10 @@ export default function BoxDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        edges={['bottom', 'left', 'right']}
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
@@ -169,7 +172,10 @@ export default function BoxDetailScreen() {
 
   if (!box) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        edges={['bottom', 'left', 'right']}
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.center}>
           <MaterialCommunityIcons name="package-variant-closed-remove" size={52} color={colors.textSecondary} />
           <Text style={[styles.notFoundText, { color: colors.error }]}>
@@ -219,7 +225,10 @@ export default function BoxDetailScreen() {
   const MARKETPLACE_LABELS = MARKETPLACE_BADGE_LABELS;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      edges={['bottom', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
         {/* Hero image */}
@@ -343,10 +352,10 @@ const styles = StyleSheet.create({
     gap: 14,
     justifyContent: "center",
   },
-  scrollContent: { paddingBottom: 32 },
+  scrollContent: { paddingBottom: 16, paddingTop: 16 },
   imageContainer: {
     alignItems: "center",
-    paddingVertical: 24,
+    paddingBottom: 16,
   },
   boxImage: {
     borderRadius: 10,

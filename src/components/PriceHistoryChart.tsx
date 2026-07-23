@@ -545,7 +545,7 @@ export function PriceHistoryChart({
                   height={barHeight}
                   rx="2"
                   fill={volumeColor}
-                  opacity={volume > 0 ? 0.85 : 0}
+                  opacity={volume > 0 ? 0.75 : 0}
                 />
               );
             })}
@@ -583,7 +583,7 @@ export function PriceHistoryChart({
                 <Path
                   d={dataset.path}
                   fill="none"
-                  opacity={0.85}
+                  opacity={0.75}
                   stroke={dataset.color}
                   strokeLinecap="round"
                   strokeLinejoin="round"

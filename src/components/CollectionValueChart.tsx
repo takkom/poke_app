@@ -204,7 +204,7 @@ export function CollectionValueChart({
               <Path
                 d={linePath}
                 fill="none"
-                opacity={0.85}
+                opacity={0.75}
                 stroke={colors.primary}
                 strokeLinecap="round"
                 strokeLinejoin="round"

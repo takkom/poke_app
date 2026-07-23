@@ -200,7 +200,10 @@ export default function CardDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <SafeAreaView
+        edges={['bottom', 'left', 'right']}
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+      >
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={themeColors.primary} />
           <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>{t('card.loading')}</Text>
@@ -211,7 +214,10 @@ export default function CardDetailScreen() {
 
   if (!card) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <SafeAreaView
+        edges={['bottom', 'left', 'right']}
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+      >
         <View style={styles.centerContainer}>
           <Text style={[styles.errorText, { color: themeColors.error }]}>{t('card.notFound')}</Text>
         </View>
@@ -220,7 +226,10 @@ export default function CardDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView
+      edges={['bottom', 'left', 'right']}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.heroRow}>
           <View
@@ -372,12 +381,13 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: 10,
     paddingBottom: 16,
+    paddingTop: 16,
   },
   heroRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
     width: "100%",
   },
   heroImageFrame: {
@@ -423,7 +433,7 @@ const styles = StyleSheet.create({
   detailsContainer: {
     borderRadius: 8,
     gap: 18,
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
   cardName: {
