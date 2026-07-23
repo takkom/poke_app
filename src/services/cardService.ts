@@ -12,7 +12,6 @@ import {
 } from "../types/card";
 
 const API_BASE_URL = "https://api.tcgdex.net/v2/en";
-const LOCAL_API_BASE_URL = XMON_API_URL;
 
 interface TCGdexCard {
   id: string;
@@ -135,12 +134,12 @@ function resolveTcgdexImageUrl(
 
 function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.startsWith("/")) return `${LOCAL_API_BASE_URL}${url}`;
+  if (url.startsWith("/")) return `${XMON_API_URL}${url}`;
   return url;
 }
 
 const transformCard = (tcgCard: any): CardWithPricing => {
-  // Fall back gracefully across both local backend and TCGdex formats
+  // Fall back gracefully across API and TCGdex response shapes
   const imageBase =
     resolveImageUrl(tcgCard.image) ||
     resolveImageUrl(tcgCard.image_url) ||
@@ -524,7 +523,7 @@ export const getCardById = async (
 
   try {
     const localResponse = await axios.get(
-      `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(id)}?${query}`,
+      `${XMON_API_URL}/api/cards/${encodeURIComponent(id)}?${query}`,
     );
     if (localResponse.data) {
       return applyBaselineArbitrage(
@@ -534,7 +533,7 @@ export const getCardById = async (
     }
   } catch (error) {
     console.warn(
-      `Local card details unavailable for ${id}, falling back to TCGdex.`,
+      `API card details unavailable for ${id}, falling back to TCGdex.`,
     );
   }
 
@@ -581,7 +580,7 @@ export const getPriceHistory = async (
     params.set("qualities", qualities.join(","));
   }
   const response = await fetch(
-    `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history?${params.toString()}`,
+    `${XMON_API_URL}/api/cards/${encodeURIComponent(cardId)}/price-history?${params.toString()}`,
   );
 
   if (!response.ok) {
@@ -601,7 +600,7 @@ export const getPriceHistoryQualities = async (
   // the old unfiltered chart instead of showing nothing at all.
   try {
     const response = await fetch(
-      `${LOCAL_API_BASE_URL}/api/cards/${encodeURIComponent(cardId)}/price-history/qualities`,
+      `${XMON_API_URL}/api/cards/${encodeURIComponent(cardId)}/price-history/qualities`,
     );
 
     if (!response.ok) {
@@ -634,7 +633,7 @@ export const getMostSoldArbitrageCards = async (
     ...(itemType === "box" ? { item_type: "box" } : {}),
   });
   const response = await fetch(
-    `${LOCAL_API_BASE_URL}/api/cards/most-sold-arbitrage?${params.toString()}`,
+    `${XMON_API_URL}/api/cards/most-sold-arbitrage?${params.toString()}`,
   );
 
   if (!response.ok) {
@@ -702,7 +701,7 @@ export const searchCard = async (
 ): Promise<PokemonCard[]> => {
   try {
     const response = await fetch(
-      `${LOCAL_API_BASE_URL}/api/resolution/search`,
+      `${XMON_API_URL}/api/resolution/search`,
       {
         method: "POST",
         headers: {
@@ -737,7 +736,7 @@ export const searchCard = async (
         card.projected_image_asset_path?.trim() ||
         undefined;
       const resolvedRaw = rawImage?.startsWith("/")
-        ? `${LOCAL_API_BASE_URL}${rawImage}`
+        ? `${XMON_API_URL}${rawImage}`
         : rawImage;
       const image = resolvedRaw
         ? resolveTcgdexImageUrl(resolvedRaw, "low")
@@ -817,7 +816,7 @@ export const getBoxById = async (
     }
     const query = params.toString();
     const response = await fetch(
-      `${LOCAL_API_BASE_URL}/api/booster-boxes/${encodeURIComponent(id)}${query ? `?${query}` : ""}`,
+      `${XMON_API_URL}/api/booster-boxes/${encodeURIComponent(id)}${query ? `?${query}` : ""}`,
     );
     if (!response.ok) throw new Error(`Box fetch failed with ${response.status}`);
     const data = await response.json();
@@ -837,7 +836,7 @@ export const getBoxPriceHistory = async (
   try {
     const params = new URLSearchParams({ currency, locale });
     const response = await fetch(
-      `${LOCAL_API_BASE_URL}/api/booster-boxes/${encodeURIComponent(boxId)}/price-history?${params.toString()}`,
+      `${XMON_API_URL}/api/booster-boxes/${encodeURIComponent(boxId)}/price-history?${params.toString()}`,
     );
     if (!response.ok) throw new Error(`Box price history failed with ${response.status}`);
     const data = await response.json();
@@ -857,7 +856,7 @@ export const searchBox = async (
 ): Promise<BoosterBoxBlueprint[]> => {
   try {
     const response = await fetch(
-      `${LOCAL_API_BASE_URL}/api/resolution/search`,
+      `${XMON_API_URL}/api/resolution/search`,
       {
         method: "POST",
         headers: {
@@ -884,7 +883,7 @@ export const searchBox = async (
     return raw.map((b) => ({
       ...b,
       image_url: b.image_url?.startsWith("/")
-        ? `${LOCAL_API_BASE_URL}${b.image_url}`
+        ? `${XMON_API_URL}${b.image_url}`
         : b.image_url,
     }));
   } catch (error) {

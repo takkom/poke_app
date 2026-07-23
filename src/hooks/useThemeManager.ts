@@ -14,7 +14,6 @@ import { ColorSchemeName, useColorScheme } from "react-native";
 import { AppColors, darkColors, lightColors, ThemeMode } from "@/theme/colors";
 
 export type ThemePreference = "system" | ThemeMode;
-export type SearchMode = "local" | "tcgdex";
 export type AppLocale = "en-US" | "ko-KR";
 export type DisplayCurrency = "USD" | "KRW";
 
@@ -30,8 +29,6 @@ type ThemeManagerValue = {
   setPreference: (preference: ThemePreference) => void;
   mode: ThemeMode;
   systemScheme: ColorSchemeName;
-  searchMode: SearchMode;
-  setSearchMode: (mode: SearchMode) => void;
   locale: AppLocale;
   setLocale: (locale: AppLocale) => void;
   displayCurrency: DisplayCurrency;
@@ -97,7 +94,6 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
   const [preference, setPreferenceState] =
     useState<ThemePreference>(DEFAULT_PREFS.preference);
-  const [searchMode, setSearchMode] = useState<SearchMode>("local");
   const [locale, setLocaleState] = useState<AppLocale>(DEFAULT_PREFS.locale);
   const [displayCurrency, setDisplayCurrencyState] = useState<DisplayCurrency>(
     DEFAULT_PREFS.displayCurrency,
@@ -206,8 +202,6 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
       setPreference,
       mode,
       systemScheme,
-      searchMode,
-      setSearchMode,
       locale,
       setLocale,
       displayCurrency,
@@ -223,7 +217,6 @@ export function ThemeManagerProvider({ children }: PropsWithChildren) {
       mode,
       preference,
       preferencesReady,
-      searchMode,
       setDisplayCurrency,
       setLocale,
       setPreference,
