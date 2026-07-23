@@ -23,6 +23,7 @@ import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
 import { AppColors } from "@/theme/colors";
 import type { QualityBucketCode } from "@/types/card";
+import { formatMoneyInput, parseMoneyInput } from "@/utils/moneyInput";
 import { QUALITY_BUCKET_OPTIONS } from "@/utils/qualityBucket";
 
 type Collection = {
@@ -40,9 +41,12 @@ type CollectionListResponse =
   | Collection[]
   | { collections?: Collection[]; data?: Collection[] };
 
+export type CollectionItemType = "card" | "box";
+
 type AddToCollectionModalProps = {
   visible: boolean;
-  cardId: string;
+  itemId: string;
+  itemType: CollectionItemType;
   onClose: () => void;
 };
 
@@ -88,7 +92,8 @@ function collectionCardCount(collection: Collection): number {
 
 export function AddToCollectionModal({
   visible,
-  cardId,
+  itemId,
+  itemType,
   onClose,
 }: AddToCollectionModalProps) {
   const { token } = useAuth();
@@ -96,6 +101,7 @@ export function AddToCollectionModal({
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
+  const isBox = itemType === "box";
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,6 +114,54 @@ export function AddToCollectionModal({
   const [quantity, setQuantity] = useState(1);
   const [qualityBucket, setQualityBucket] =
     useState<QualityBucketCode>("RAW");
+  const [purchasePrice, setPurchasePrice] = useState("");
+
+  const selectCollectionTitle = isBox
+    ? t("box.selectCollection")
+    : t("card.selectCollection");
+  const addedTitle = isBox
+    ? t("box.addedToCollectionTitle")
+    : t("card.addedToCollectionTitle");
+  const addedMessage = (name: string) =>
+    isBox
+      ? t("box.addedToCollection", { name })
+      : t("card.addedToCollection", { name });
+  const addFailedMessage = isBox
+    ? t("collections.couldNotAddBox")
+    : t("collections.couldNotAddCard");
+
+  const buildAddPayload = useCallback(() => {
+    const parsedPrice = parseMoneyInput(purchasePrice);
+    const shared = {
+      display_currency: displayCurrency as DisplayCurrency,
+      locale,
+      purchase_price: parsedPrice !== null ? parsedPrice : undefined,
+      quantity,
+    };
+
+    if (isBox) {
+      return {
+        ...shared,
+        box_id: itemId,
+        item_type: "box" as const,
+      };
+    }
+
+    return {
+      ...shared,
+      card_id: itemId,
+      item_type: "card" as const,
+      quality_bucket: qualityBucket,
+    };
+  }, [
+    displayCurrency,
+    isBox,
+    itemId,
+    locale,
+    purchasePrice,
+    qualityBucket,
+    quantity,
+  ]);
 
   const exitCreateForm = useCallback(() => {
     Keyboard.dismiss();
@@ -162,6 +216,7 @@ export function AddToCollectionModal({
       setNewDescription("");
       setQuantity(1);
       setQualityBucket("RAW");
+      setPurchasePrice("");
       setError(null);
       return;
     }
@@ -179,28 +234,16 @@ export function AddToCollectionModal({
 
     try {
       await requestJson(`/api/collections/${collection.id}/cards`, token, {
-        body: JSON.stringify({
-          card_id: cardId,
-          display_currency: displayCurrency as DisplayCurrency,
-          item_type: "card" as const,
-          locale,
-          quantity,
-          quality_bucket: qualityBucket,
-        }),
+        body: JSON.stringify(buildAddPayload()),
         method: "POST",
       });
 
-      Alert.alert(
-        t("card.addedToCollectionTitle"),
-        t("card.addedToCollection", { name: collection.name }),
-      );
+      Alert.alert(addedTitle, addedMessage(collection.name));
       Keyboard.dismiss();
       onClose();
     } catch (caught) {
       setError(
-        caught instanceof Error
-          ? caught.message
-          : t("collections.couldNotAddCard"),
+        caught instanceof Error ? caught.message : addFailedMessage,
       );
     } finally {
       setAdding(false);
@@ -226,28 +269,16 @@ export function AddToCollectionModal({
       });
 
       await requestJson(`/api/collections/${created.id}/cards`, token, {
-        body: JSON.stringify({
-          card_id: cardId,
-          display_currency: displayCurrency as DisplayCurrency,
-          item_type: "card" as const,
-          locale,
-          quantity,
-          quality_bucket: qualityBucket,
-        }),
+        body: JSON.stringify(buildAddPayload()),
         method: "POST",
       });
 
-      Alert.alert(
-        t("card.addedToCollectionTitle"),
-        t("card.addedToCollection", { name: created.name }),
-      );
+      Alert.alert(addedTitle, addedMessage(created.name));
       Keyboard.dismiss();
       onClose();
     } catch (caught) {
       setError(
-        caught instanceof Error
-          ? caught.message
-          : t("collections.couldNotAddCard"),
+        caught instanceof Error ? caught.message : addFailedMessage,
       );
     } finally {
       setCreating(false);
@@ -283,7 +314,7 @@ export function AddToCollectionModal({
             <Text style={[styles.title, { color: colors.textPrimary }]}>
               {showCreateForm
                 ? t("collections.createTitle")
-                : t("card.selectCollection")}
+                : selectCollectionTitle}
             </Text>
             <Pressable onPress={handleRequestClose} style={styles.closeButton}>
               <MaterialCommunityIcons
@@ -420,42 +451,69 @@ export function AddToCollectionModal({
                   </Pressable>
                 </View>
 
+                {!isBox ? (
+                  <>
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                      {t("collections.quality")}
+                    </Text>
+                    <View style={styles.qualityRow}>
+                      {QUALITY_BUCKET_OPTIONS.map((option) => {
+                        const active = qualityBucket === option.code;
+                        return (
+                          <Pressable
+                            key={option.code}
+                            onPress={() => setQualityBucket(option.code)}
+                            style={[
+                              styles.qualityChip,
+                              {
+                                backgroundColor: active
+                                  ? colors.primary
+                                  : colors.background,
+                                borderColor: active ? colors.primary : colors.border,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.qualityChipText,
+                                {
+                                  color: active
+                                    ? colors.onPrimary
+                                    : colors.textSecondary,
+                                },
+                              ]}
+                            >
+                              {t(option.labelKey)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </>
+                ) : null}
+
                 <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                  {t("collections.quality")}
+                  {t("collections.purchasePrice")}
                 </Text>
-                <View style={styles.qualityRow}>
-                  {QUALITY_BUCKET_OPTIONS.map((option) => {
-                    const active = qualityBucket === option.code;
-                    return (
-                      <Pressable
-                        key={option.code}
-                        onPress={() => setQualityBucket(option.code)}
-                        style={[
-                          styles.qualityChip,
-                          {
-                            backgroundColor: active
-                              ? colors.primary
-                              : colors.background,
-                            borderColor: active ? colors.primary : colors.border,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.qualityChipText,
-                            {
-                              color: active
-                                ? colors.onPrimary
-                                : colors.textSecondary,
-                            },
-                          ]}
-                        >
-                          {t(option.labelKey)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <TextInput
+                  keyboardType="decimal-pad"
+                  onChangeText={(value) =>
+                    setPurchasePrice(
+                      formatMoneyInput(value, locale, displayCurrency),
+                    )
+                  }
+                  placeholder={t("collections.purchasePrice")}
+                  placeholderTextColor={colors.textMuted}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      color: colors.textPrimary,
+                    },
+                  ]}
+                  value={purchasePrice}
+                />
               </View>
 
               {loading ? (
@@ -470,6 +528,7 @@ export function AddToCollectionModal({
                   data={collections}
                   keyExtractor={(item) => String(item.id)}
                   contentContainerStyle={styles.listContent}
+                  keyboardShouldPersistTaps="handled"
                   ListEmptyComponent={
                     <Text style={[styles.helperText, { color: colors.textSecondary }]}>
                       {t("collections.empty")}

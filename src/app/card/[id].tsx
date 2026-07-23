@@ -467,7 +467,8 @@ export default function CardDetailScreen() {
       </View>
       <AddToCollectionModal
         visible={collectionModalVisible}
-        cardId={card.id}
+        itemId={card.id}
+        itemType="card"
         onClose={() => setCollectionModalVisible(false)}
       />
     </SafeAreaView>

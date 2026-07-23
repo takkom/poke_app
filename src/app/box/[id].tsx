@@ -1,3 +1,4 @@
+import { AddToCollectionModal } from "@/components/AddToCollectionModal";
 import {
   MARKETPLACE_BADGE_LABELS,
   MARKETPLACE_COLUMN_ORDER,
@@ -14,6 +15,7 @@ import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -99,6 +101,7 @@ export default function BoxDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
   const [priceHistoryError, setPriceHistoryError] = useState<string | null>(null);
+  const [collectionModalVisible, setCollectionModalVisible] = useState(false);
 
   const boxId = Array.isArray(id) ? id[0] : id;
 
@@ -340,6 +343,41 @@ export default function BoxDetailScreen() {
           )}
         </View>
       </ScrollView>
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+          },
+        ]}
+      >
+        <Pressable
+          onPress={() => setCollectionModalVisible(true)}
+          style={[
+            styles.addToCollectionButton,
+            {
+              backgroundColor: colors.primary,
+              borderColor: colors.primary,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="folder-plus-outline"
+            size={20}
+            color={colors.onPrimary}
+          />
+          <Text style={[styles.addToCollectionText, { color: colors.onPrimary }]}>
+            {t("box.addToCollection")}
+          </Text>
+        </Pressable>
+      </View>
+      <AddToCollectionModal
+        visible={collectionModalVisible}
+        itemId={box.id}
+        itemType="box"
+        onClose={() => setCollectionModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -353,6 +391,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scrollContent: { paddingBottom: 16, paddingTop: 16 },
+  bottomBar: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  addToCollectionButton: {
+    alignItems: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  addToCollectionText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
   imageContainer: {
     alignItems: "center",
     paddingBottom: 16,

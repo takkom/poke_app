@@ -213,7 +213,11 @@
     "box.marketPrices": "Marketplace Averages",
     "box.avg30": "30-Day Avg",
     "box.volume": "Volume",
-    "box.noMarketData": "No marketplace data available"
+    "box.noMarketData": "No marketplace data available",
+    "box.addToCollection": "Add to collection",
+    "box.selectCollection": "Select collection",
+    "box.addedToCollectionTitle": "Added",
+    "box.addedToCollection": "Box added to \"{name}\"."
   },
   "ko-KR": {
     "tabs.sold": "판매",
@@ -429,6 +433,10 @@
     "box.marketPrices": "마켓플레이스 평균",
     "box.avg30": "30일 평균",
     "box.volume": "거래량",
-    "box.noMarketData": "마켓플레이스 데이터가 없습니다"
+    "box.noMarketData": "마켓플레이스 데이터가 없습니다",
+    "box.addToCollection": "컬렉션에 추가",
+    "box.selectCollection": "컬렉션 선택",
+    "box.addedToCollectionTitle": "추가됨",
+    "box.addedToCollection": "\"{name}\" 컬렉션에 박스를 추가했습니다."
   }
 }
