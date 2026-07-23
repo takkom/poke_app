@@ -306,11 +306,14 @@ function TcgDexTestSearch() {
         visible={Boolean(selectedCard)}
         onRequestClose={() => setSelectedCard(null)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedCard(null)}>
+        <Pressable
+          style={[styles.modalBackdrop, { backgroundColor: colors.overlayStrong }]}
+          onPress={() => setSelectedCard(null)}
+        >
           <Pressable
             style={[
               styles.testDetailModal,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
             ]}
             onPress={(event) => event.stopPropagation()}
           >
@@ -546,9 +549,12 @@ export default function SearchTab() {
         visible={infoVisible}
         onRequestClose={() => setInfoVisible(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setInfoVisible(false)}>
+        <Pressable
+          style={[styles.modalBackdrop, { backgroundColor: colors.overlayStrong }]}
+          onPress={() => setInfoVisible(false)}
+        >
           <Pressable
-            style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.modalCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
             onPress={(event) => event.stopPropagation()}
           >
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('search.pricingBadges')}</Text>
@@ -904,7 +910,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
     flex: 1,
     justifyContent: 'center',
     padding: 20,

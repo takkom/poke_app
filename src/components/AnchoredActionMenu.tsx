@@ -88,7 +88,7 @@ export function AnchoredActionMenu({
       transparent
       visible={visible && Boolean(anchor)}
     >
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         {anchor ? (
           <View
@@ -96,7 +96,7 @@ export function AnchoredActionMenu({
               styles.menuContent,
               menuStyle,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: colors.surfaceElevated,
                 borderColor: colors.border,
               },
             ]}
@@ -111,7 +111,6 @@ export function AnchoredActionMenu({
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: "rgba(15, 23, 42, 0.24)",
     flex: 1,
   },
   menuContent: {

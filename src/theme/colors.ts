@@ -7,6 +7,9 @@ export const Palette = {
   jaruYellow: "#FFBB00",
   darkGrey: "#040404",
   mediumGrey: "#0B0B0B",
+  // One step above `mediumGrey` so modal/sheet surfaces separate from the page
+  // in dark mode even before the scrim is applied.
+  elevatedGrey: "#141414",
   lightGrey: "#585858",
   // Lighter neutrals used for text so labels stay readable when they sit on
   // top of `lightGrey` fills (e.g. inactive chip/button backgrounds), not
@@ -28,8 +31,13 @@ export const darkColors = {
   background: Palette.darkGrey,
   surface: Palette.mediumGrey,
   surfaceAlternate: Palette.mediumGrey,
+  surfaceElevated: Palette.elevatedGrey,
   surfaceMuted: Palette.lightGrey,
   border: Palette.lightGrey,
+  // Scrims for menus vs dialogs/sheets. Strong enough that elevated surfaces
+  // read clearly against near-black page backgrounds.
+  overlay: "rgba(0,0,0,0.55)",
+  overlayStrong: "rgba(0,0,0,0.72)",
   textPrimary: Palette.white,
   // Deliberately lighter than `lightGrey` (used for surfaceMuted/border) so
   // secondary/muted labels remain legible when placed on a muted chip fill,
@@ -49,8 +57,11 @@ export const lightColors = {
   background: "#f8fafc",
   surface: "#ffffff",
   surfaceAlternate: "#f1f5f9",
+  surfaceElevated: "#ffffff",
   surfaceMuted: "#e2e8f0",
   border: "#cbd5e1",
+  overlay: "rgba(15, 23, 42, 0.28)",
+  overlayStrong: "rgba(15, 23, 42, 0.45)",
   textPrimary: "#0f172a",
   textSecondary: "#475569",
   textMuted: "#64748b",

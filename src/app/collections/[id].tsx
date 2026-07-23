@@ -873,12 +873,15 @@ export default function CollectionDetailScreen() {
           keyboardVerticalOffset={0}
           style={styles.sheetHost}
         >
-          <Pressable style={styles.sheetBackdrop} onPress={closeSheet} />
+          <Pressable
+            style={[styles.sheetBackdrop, { backgroundColor: colors.overlayStrong }]}
+            onPress={closeSheet}
+          />
           <View
             style={[
               styles.sheetPanel,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: colors.surfaceElevated,
                 borderColor: colors.border,
                 paddingBottom: Math.max(insets.bottom, 16) + 12,
               },
@@ -1211,7 +1214,6 @@ const styles = StyleSheet.create({
   },
   menuOverlay: {
     alignItems: "flex-end",
-    backgroundColor: "rgba(15, 23, 42, 0.24)",
     flex: 1,
     justifyContent: "flex-end",
   },
@@ -1233,7 +1235,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sheetBackdrop: {
-    backgroundColor: "rgba(15, 23, 42, 0.32)",
     flex: 1,
   },
   sheetButtonDisabled: {

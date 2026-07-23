@@ -30,8 +30,8 @@ export function ContactUsModal({ visible, onClose }: ContactUsModalProps) {
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
-      <View style={styles.modalBackdrop}>
-        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+      <View style={[styles.modalBackdrop, { backgroundColor: colors.overlayStrong }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
           <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Contact Us</Text>
           <Text style={[styles.modalText, { color: colors.textSecondary }]}>
             Have a question, found a bug, or want to suggest a feature? Our team
@@ -95,7 +95,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
     flex: 1,
     justifyContent: "center",
     padding: 24,

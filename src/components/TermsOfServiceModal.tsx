@@ -12,8 +12,8 @@ export function TermsOfServiceModal({ visible, onClose }: TermsOfServiceModalPro
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
-      <View style={styles.modalBackdrop}>
-        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+      <View style={[styles.modalBackdrop, { backgroundColor: colors.overlayStrong }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
           <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Terms of Service</Text>
           <ScrollView style={styles.scrollArea}>
             <Text style={[styles.modalText, { color: colors.textSecondary }]}>
@@ -56,7 +56,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
     flex: 1,
     justifyContent: "center",
     padding: 24,

@@ -243,8 +243,11 @@ export function AddToCollectionModal({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlayHost}
       >
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+        <Pressable
+          style={[styles.backdrop, { backgroundColor: colors.overlayStrong }]}
+          onPress={onClose}
+        />
+        <View style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.textPrimary }]}>
               {showCreateForm
@@ -524,7 +527,6 @@ function createStyles(colors: AppColors) {
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(0,0,0,0.45)",
     },
     sheet: {
       borderTopLeftRadius: 16,

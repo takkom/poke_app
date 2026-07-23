@@ -354,8 +354,8 @@ export default function SettingsTab() {
         transparent
         visible={isEditVisible}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalBackdrop, { backgroundColor: colors.overlayStrong }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Edit username</Text>
             <TextInput
               autoCapitalize="none"
@@ -398,8 +398,8 @@ export default function SettingsTab() {
         transparent
         visible={isPasswordVisible}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalBackdrop, { backgroundColor: colors.overlayStrong }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
               {t('settings.changePasswordTitle')}
             </Text>
@@ -517,7 +517,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
     flex: 1,
     justifyContent: 'center',
     padding: 24,

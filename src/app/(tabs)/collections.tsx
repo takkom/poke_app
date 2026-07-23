@@ -896,7 +896,9 @@ export default function CollectionsScreen() {
           keyboardVerticalOffset={24}
           style={styles.formOverlayHost}
         >
-          <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalOverlay, { backgroundColor: colors.overlayStrong }]}
+          >
             <ScrollView
               contentContainerStyle={styles.modalScrollContent}
               keyboardShouldPersistTaps="handled"
@@ -904,7 +906,7 @@ export default function CollectionsScreen() {
               <View
                 style={[
                   styles.modalContent,
-                  { backgroundColor: colors.surface },
+                  { backgroundColor: colors.surfaceElevated },
                 ]}
               >
                 <Text
@@ -1311,7 +1313,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#ffffff",
     borderRadius: 8,
     gap: 12,
     maxWidth: 420,
@@ -1322,7 +1323,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalOverlay: {
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
     flex: 1,
     justifyContent: "center",
     padding: 24,

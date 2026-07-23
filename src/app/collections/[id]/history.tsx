@@ -724,11 +724,17 @@ export default function CollectionHistoryScreen() {
           <View
             style={[
               styles.modalOverlay,
-              { paddingBottom: Math.max(insets.bottom, 24) },
+              {
+                backgroundColor: colors.overlayStrong,
+                paddingBottom: Math.max(insets.bottom, 24),
+              },
             ]}
           >
             <View
-              style={[styles.modalContent, { backgroundColor: colors.surface }]}
+              style={[
+                styles.modalContent,
+                { backgroundColor: colors.surfaceElevated },
+              ]}
             >
               <Text
                 style={[styles.sectionTitle, { color: colors.textPrimary }]}
@@ -953,7 +959,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
     flex: 1,
     justifyContent: "center",
     padding: 24,
