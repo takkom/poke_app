@@ -14,9 +14,10 @@ import { MARKETPLACE_COLUMN_ORDER } from "@/constants/marketplaces";
 import { getDisplayCardName, getCardDetailRarity, getDisplaySetName } from "@/utils/displayNames";
 import { resolveCardDisplayNumber } from "@/utils/cardNumber";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -63,6 +64,16 @@ export default function CardDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [collectionModalVisible, setCollectionModalVisible] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [numberCopied, setNumberCopied] = useState(false);
+  const numberCopiedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (numberCopiedTimeout.current) {
+        clearTimeout(numberCopiedTimeout.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +177,21 @@ export default function CardDetailScreen() {
     imageUrl && !imageUrl.includes("placeholder.png") && !imageFailed,
   );
 
+  async function copyCardNumber() {
+    if (!displayNumber) {
+      return;
+    }
+
+    await Clipboard.setStringAsync(displayNumber);
+    setNumberCopied(true);
+    if (numberCopiedTimeout.current) {
+      clearTimeout(numberCopiedTimeout.current);
+    }
+    numberCopiedTimeout.current = setTimeout(() => {
+      setNumberCopied(false);
+    }, 1600);
+  }
+
   const cardForArbitrage = useMemo(() => {
     if (!card) {
       return null;
@@ -197,6 +223,14 @@ export default function CardDetailScreen() {
       baseline,
     );
   }, [baseline, card, cardWithBaseline, priceHistory]);
+
+  useEffect(() => {
+    setNumberCopied(false);
+    if (numberCopiedTimeout.current) {
+      clearTimeout(numberCopiedTimeout.current);
+      numberCopiedTimeout.current = null;
+    }
+  }, [card?.id]);
 
   if (loading) {
     return (
@@ -275,11 +309,68 @@ export default function CardDetailScreen() {
               </Text>
             </View>
             {displayNumber || displayRarity ? (
-              <Text style={[styles.cardNumber, { color: themeColors.textSecondary }]}>
-                {displayNumber ? `#${displayNumber}` : null}
-                {displayNumber && displayRarity ? " · " : null}
-                {displayRarity}
-              </Text>
+              <View style={styles.cardNumberRow}>
+                {displayNumber ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("card.copyNumber")}
+                    onPress={copyCardNumber}
+                    style={({ pressed }) => [
+                      styles.cardNumberChip,
+                      {
+                        backgroundColor: pressed
+                          ? themeColors.surfaceMuted
+                          : themeColors.surfaceElevated,
+                        borderColor: numberCopied
+                          ? themeColors.primary
+                          : themeColors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.cardNumber,
+                        {
+                          color: numberCopied
+                            ? themeColors.primary
+                            : themeColors.textPrimary,
+                        },
+                      ]}
+                    >
+                      #{displayNumber}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name={numberCopied ? "check" : "content-copy"}
+                      size={15}
+                      color={
+                        numberCopied
+                          ? themeColors.primary
+                          : themeColors.textSecondary
+                      }
+                    />
+                    {numberCopied ? (
+                      <Text
+                        style={[
+                          styles.cardNumberCopied,
+                          { color: themeColors.primary },
+                        ]}
+                      >
+                        {t("card.numberCopied")}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                ) : null}
+                {displayNumber && displayRarity ? (
+                  <Text style={[styles.cardMetaDot, { color: themeColors.textMuted }]}>
+                    ·
+                  </Text>
+                ) : null}
+                {displayRarity ? (
+                  <Text style={[styles.cardRarity, { color: themeColors.textSecondary }]}>
+                    {displayRarity}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
             {displaySetName ? (
               <Text
@@ -438,9 +529,9 @@ const styles = StyleSheet.create({
   },
   cardName: {
     flex: 1,
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: "800",
-    lineHeight: 26,
+    lineHeight: 24,
   },
   cardNameRow: {
     alignItems: "flex-start",
@@ -449,17 +540,45 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   languageFlag: {
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 19,
+    lineHeight: 24,
+  },
+  cardNumberRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  cardNumberChip: {
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   cardNumber: {
-    fontSize: 15,
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  cardNumberCopied: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  cardMetaDot: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  cardRarity: {
+    fontSize: 14,
     fontWeight: "700",
   },
   setName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
-    lineHeight: 18,
+    lineHeight: 16,
   },
   bottomBar: {
     borderTopWidth: 1,

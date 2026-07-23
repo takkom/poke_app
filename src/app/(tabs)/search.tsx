@@ -119,7 +119,14 @@ export default function SearchTab() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.primary }]}>{t('search.title')}</Text>
+        <View style={styles.headerTitleRow}>
+          <Text style={[styles.headerTitle, { color: colors.primary }]}>{t('search.title')}</Text>
+          {hasQuery ? (
+            <Text style={[styles.headerResultCount, { color: colors.textSecondary }]}>
+              {t('search.results', { count: resultCount })}
+            </Text>
+          ) : null}
+        </View>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
           {t('search.subtitle')}
         </Text>
@@ -186,12 +193,6 @@ export default function SearchTab() {
         >
           <Text style={[styles.submitText, { color: colors.onPrimary }]}>{t('search.submit')}</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.statusRow}>
-        <Text style={[styles.statusText, { color: colors.textSecondary }]}>
-          {hasQuery ? t('search.results', { count: resultCount }) : ''}
-        </Text>
       </View>
 
       <View style={styles.resultsArea}>
@@ -337,15 +338,14 @@ export default function SearchTab() {
                     {displayName}
                   </Text>
                   <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>
-                    {item.number ? `#${item.number}` : item.id}
+                    {[item.number ? `#${item.number}` : item.id, item.rarity]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </Text>
                   {item.set?.name ? (
                     <Text style={[styles.cardMeta, { color: colors.textMuted }]} numberOfLines={1}>
                       {item.set.name}
                     </Text>
-                  ) : null}
-                  {item.rarity ? (
-                    <Text style={[styles.rarity, { color: colors.primary }]}>{item.rarity}</Text>
                   ) : null}
                   {badges.length ? (
                     <View style={styles.marketBadgeRow}>
@@ -424,9 +424,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
   },
+  headerTitleRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: '900',
+  },
+  headerResultCount: {
+    fontSize: 15,
+    fontWeight: '800',
   },
   headerSubtitle: {
     fontSize: 12,
@@ -452,19 +462,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
   resultsArea: {
     flex: 1,
     minHeight: 1,
+    marginTop: 10,
   },
   state: {
     alignItems: 'center',
