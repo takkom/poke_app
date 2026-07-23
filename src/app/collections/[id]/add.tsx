@@ -1,5 +1,6 @@
 import {
   CardLanguageToggle,
+  cardLanguageFromAppLocale,
   type CardLanguage,
 } from "@/components/CardLanguageToggle";
 import { CardListImage } from "@/components/CardListImage";
@@ -15,7 +16,7 @@ import {
 import { useI18n } from "@/i18n";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -201,7 +202,10 @@ export default function AddCollectionCardScreen() {
   const [itemType, setItemType] = useState<SearchItemType>(() =>
     resolveSearchItemType(params.type),
   );
-  const [cardLanguage, setCardLanguage] = useState<CardLanguage>("ja");
+  const [cardLanguage, setCardLanguage] = useState<CardLanguage>(() =>
+    cardLanguageFromAppLocale(locale),
+  );
+  const [cardLanguageTouched, setCardLanguageTouched] = useState(false);
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<SearchCandidate[]>([]);
   const [selectedItem, setSelectedItem] = useState<SearchCandidate | null>(
@@ -215,6 +219,13 @@ export default function AddCollectionCardScreen() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<"info" | "error">("info");
+
+  useEffect(() => {
+    if (cardLanguageTouched) {
+      return;
+    }
+    setCardLanguage(cardLanguageFromAppLocale(locale));
+  }, [cardLanguageTouched, locale]);
 
   const selectedImage = useMemo(
     () => (selectedItem ? itemImage(selectedItem) : null),
@@ -259,8 +270,12 @@ export default function AddCollectionCardScreen() {
     if (next === cardLanguage) {
       return;
     }
+    setCardLanguageTouched(true);
     setCardLanguage(next);
     resetResults();
+    if (query.trim()) {
+      void search(next);
+    }
   }
 
   function selectItem(item: SearchCandidate) {
@@ -271,10 +286,12 @@ export default function AddCollectionCardScreen() {
     showMessage(null);
   }
 
-  async function search() {
+  async function search(languageOverride?: CardLanguage) {
     if (!token || !query.trim()) {
       return;
     }
+
+    const language = languageOverride ?? cardLanguage;
 
     Keyboard.dismiss();
     setSearching(true);
@@ -290,7 +307,7 @@ export default function AddCollectionCardScreen() {
           body: JSON.stringify({
             display_currency: displayCurrency,
             item_type: itemType,
-            language: cardLanguage,
+            language,
             locale,
             query: query.trim(),
           }),

@@ -23,6 +23,7 @@ export default function HomeTab() {
 
   return (
     <SafeAreaView
+      edges={["top", "left", "right"]}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <MostSoldArbitrageList

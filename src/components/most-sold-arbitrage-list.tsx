@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     gap: 8,
-    paddingBottom: 18,
+    paddingBottom: 8,
     paddingHorizontal: 10,
   },
   typeToggle: {

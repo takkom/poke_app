@@ -1,4 +1,8 @@
-import { CardLanguageToggle, type CardLanguage } from '@/components/CardLanguageToggle';
+import {
+  CardLanguageToggle,
+  cardLanguageFromAppLocale,
+  type CardLanguage,
+} from '@/components/CardLanguageToggle';
 import { CardListImage } from '@/components/CardListImage';
 import { Text } from '@/components/ui/Text';
 import { TextInput } from '@/components/ui/TextInput';
@@ -8,14 +12,12 @@ import { useI18n } from '@/i18n';
 import { searchCard, searchBox, type BoosterBoxBlueprint } from '@/services/cardService';
 import { PokemonCard } from '@/types/card';
 import { getDisplayCardName } from '@/utils/displayNames';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  Modal,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -34,15 +36,24 @@ export default function SearchTab() {
   const { colors, locale, displayCurrency } = useThemeManager();
   const { t } = useI18n();
   const [query, setQuery] = useState('');
-  const [cardLanguage, setCardLanguage] = useState<CardLanguage>('ja');
+  const [cardLanguage, setCardLanguage] = useState<CardLanguage>(() =>
+    cardLanguageFromAppLocale(locale),
+  );
+  const [cardLanguageTouched, setCardLanguageTouched] = useState(false);
   const [itemType, setItemType] = useState<SearchItemType>('card');
   const [results, setResults] = useState<PokemonCard[]>([]);
   const [boxResults, setBoxResults] = useState<BoosterBoxBlueprint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [infoVisible, setInfoVisible] = useState(false);
   const hasQuery = Boolean(query.trim());
   const resultCount = itemType === 'box' ? boxResults.length : results.length;
+
+  useEffect(() => {
+    if (cardLanguageTouched) {
+      return;
+    }
+    setCardLanguage(cardLanguageFromAppLocale(locale));
+  }, [cardLanguageTouched, locale]);
 
   function changeItemType(next: SearchItemType) {
     if (next === itemType) return;
@@ -54,15 +65,20 @@ export default function SearchTab() {
 
   function changeCardLanguage(next: CardLanguage) {
     if (next === cardLanguage) return;
+    setCardLanguageTouched(true);
     setCardLanguage(next);
     setResults([]);
     setBoxResults([]);
     setError(null);
+    if (query.trim()) {
+      void performSearch(next);
+    }
   }
 
-  async function performSearch() {
+  async function performSearch(languageOverride?: CardLanguage) {
     Keyboard.dismiss();
     const currentQuery = query.trim();
+    const language = languageOverride ?? cardLanguage;
     if (!currentQuery) {
       setResults([]);
       setBoxResults([]);
@@ -77,7 +93,7 @@ export default function SearchTab() {
       if (itemType === 'box') {
         const nextBoxResults = await searchBox(currentQuery, {
           currency: displayCurrency,
-          language: cardLanguage,
+          language,
           locale,
         });
         setBoxResults(nextBoxResults);
@@ -85,7 +101,7 @@ export default function SearchTab() {
       } else {
         const nextResults = await searchCard(currentQuery, {
           currency: displayCurrency,
-          language: cardLanguage,
+          language,
           locale,
         });
         setResults(nextResults);
@@ -102,68 +118,16 @@ export default function SearchTab() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.headerTitle, { color: colors.primary }]}>{t('search.title')}</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            {t('search.subtitle')}
-          </Text>
-        </View>
-        <TouchableOpacity
-          accessibilityLabel={t('search.infoLabel')}
-          onPress={() => setInfoVisible(true)}
-          style={[styles.infoButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
-        >
-          <MaterialCommunityIcons
-            name="information-outline"
-            size={22}
-            color={colors.textPrimary}
-          />
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.primary }]}>{t('search.title')}</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          {t('search.subtitle')}
+        </Text>
       </View>
-
-      <Modal
-        allowSwipeDismissal
-        animationType="fade"
-        transparent
-        visible={infoVisible}
-        onRequestClose={() => setInfoVisible(false)}
-      >
-        <Pressable
-          style={[styles.modalBackdrop, { backgroundColor: colors.overlayStrong }]}
-          onPress={() => setInfoVisible(false)}
-        >
-          <Pressable
-            style={[styles.modalCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-            onPress={(event) => event.stopPropagation()}
-          >
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('search.pricingBadges')}</Text>
-            {[
-              ['eBay', t('search.ebayDescription'), colors.marketplaces.ebay],
-              ['KREAM', t('search.kreamDescription'), colors.marketplaces.kream],
-              ['SNKRDUNK', t('search.snkrdunkDescription'), colors.marketplaces.snkrdunk],
-              ['TCGplayer', t('search.tcgplayerDescription'), colors.primary],
-              ['Cardmarket', t('search.cardmarketDescription'), colors.success],
-            ].map(([label, description, color]) => (
-              <View key={label} style={styles.legendRow}>
-                <View style={[styles.legendBadge, { borderColor: color, backgroundColor: `${color}22` }]}>
-                  <Text style={[styles.legendBadgeText, { color }]}>{label}</Text>
-                </View>
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>
-                  {description}
-                </Text>
-              </View>
-            ))}
-            <TouchableOpacity
-              onPress={() => setInfoVisible(false)}
-              style={[styles.closeButton, { backgroundColor: colors.primary }]}
-            >
-              <Text style={[styles.closeButtonText, { color: colors.onPrimary }]}>{t('search.close')}</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       <View
         style={[
@@ -350,12 +314,6 @@ export default function SearchTab() {
                       color: colors.marketplaces.snkrdunk,
                     }
                   : null,
-                item.hasTcgplayer
-                  ? { key: 'tcgplayer', label: 'TCGplayer', count: null, color: colors.primary }
-                  : null,
-                item.hasCardmarket
-                  ? { key: 'cardmarket', label: 'Cardmarket', count: null, color: colors.success }
-                  : null,
               ].filter(Boolean) as Array<{
                 key: string;
                 label: string;
@@ -447,7 +405,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginTop: 14,
+    marginTop: 10,
     padding: 4,
   },
   languageToggleWrap: {
@@ -467,11 +425,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 4,
   },
   headerTitle: {
     fontSize: 22,
@@ -481,66 +436,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
-  },
-  infoButton: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
-  modalBackdrop: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 14,
-    maxWidth: 420,
-    padding: 18,
-    width: '100%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  legendRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  legendBadge: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    minWidth: 86,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  legendBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  legendText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 17,
-  },
-  closeButton: {
-    alignItems: 'center',
-    borderRadius: 8,
-    marginTop: 4,
-    minHeight: 42,
-    justifyContent: 'center',
-  },
-  closeButtonText: {
-    fontSize: 14,
-    fontWeight: '900',
   },
   input: {
     borderRadius: 8,
@@ -596,7 +491,7 @@ const styles = StyleSheet.create({
     fontSize: 44,
   },
   listContent: {
-    paddingBottom: 18,
+    paddingBottom: 8,
     paddingHorizontal: 12,
   },
   cardRow: {
