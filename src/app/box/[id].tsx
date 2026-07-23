@@ -298,7 +298,6 @@ export default function BoxDetailScreen() {
           ) : priceHistory.length > 0 ? (
             <PriceHistoryChart
               tcgdexId={box.id}
-              cardName={box.name}
               priceHistory={priceHistory}
               displayCurrency={displayCurrency}
               locale={locale}

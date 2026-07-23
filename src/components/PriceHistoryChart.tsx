@@ -58,7 +58,6 @@ type MarketplaceSalesBadge = {
 
 type PriceHistoryChartProps = {
   tcgdexId: string;
-  cardName?: string;
   priceHistory: PriceHistoryPoint[];
   displayCurrency?: "KRW" | "USD" | "JPY";
   locale?: "ko-KR" | "en-US";
@@ -253,7 +252,6 @@ function sumPlatformVolume(points: RawMarketPoint[]): number {
 
 export function PriceHistoryChart({
   tcgdexId,
-  cardName,
   priceHistory,
   displayCurrency = "KRW",
   locale = "ko-KR",
@@ -402,14 +400,8 @@ export function PriceHistoryChart({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.eyebrow}>{t('chart.priceHistory')}</Text>
-          <Text style={styles.title} numberOfLines={1}>
-            {cardName ?? tcgdexId}
-          </Text>
-        </View>
-        {showLatestPrice && primaryLatest ? (
+      {showLatestPrice && primaryLatest ? (
+        <View style={styles.header}>
           <View style={styles.latest}>
             <Text
               style={[
@@ -423,8 +415,8 @@ export function PriceHistoryChart({
               {t('chart.latestAvg', { platform: primaryLatest.dataset.label })}
             </Text>
           </View>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {hasAnyData ? (
         <View style={styles.segmentedControl}>
@@ -591,6 +583,7 @@ export function PriceHistoryChart({
                 <Path
                   d={dataset.path}
                   fill="none"
+                  opacity={0.85}
                   stroke={dataset.color}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -721,23 +714,7 @@ function createStyles(colors: AppColors) {
     padding: 16,
   },
   header: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  eyebrow: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 4,
-    maxWidth: 180,
+    alignItems: "flex-end",
   },
   latest: {
     alignItems: "flex-end",
