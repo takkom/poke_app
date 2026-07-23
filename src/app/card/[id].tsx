@@ -14,7 +14,6 @@ import { MARKETPLACE_COLUMN_ORDER } from "@/constants/marketplaces";
 import { getDisplayCardName, getCardDetailRarity, getDisplaySetName } from "@/utils/displayNames";
 import { resolveCardDisplayNumber } from "@/utils/cardNumber";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +21,7 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   View,
 } from "react-native";
@@ -182,7 +182,16 @@ export default function CardDetailScreen() {
       return;
     }
 
-    await Clipboard.setStringAsync(displayNumber);
+    try {
+      const result = await Share.share({ message: displayNumber });
+      if (result.action !== Share.sharedAction) {
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to share card number:", error);
+      return;
+    }
+
     setNumberCopied(true);
     if (numberCopiedTimeout.current) {
       clearTimeout(numberCopiedTimeout.current);
