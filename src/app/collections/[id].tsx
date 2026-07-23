@@ -411,7 +411,7 @@ export default function CollectionDetailScreen() {
           method: "DELETE",
         },
       );
-      await loadCollection();
+      await loadCollection(true);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -487,7 +487,7 @@ export default function CollectionDetailScreen() {
 
     try {
       if (sheetMode === "purchase") {
-        await requestJson<CollectionCard>(
+        const updated = await requestJson<CollectionCard>(
           `/api/collections/${collectionId}/cards/${sheetCard.id}`,
           token,
           {
@@ -498,6 +498,13 @@ export default function CollectionDetailScreen() {
             }),
             method: "PATCH",
           },
+        );
+        setCards((prev) =>
+          prev.map((card) =>
+            String(card.id) === String(updated.id)
+              ? { ...card, ...updated }
+              : card,
+          ),
         );
       } else {
         await requestJson<{ removed: boolean; sold: boolean }>(
@@ -517,7 +524,7 @@ export default function CollectionDetailScreen() {
       }
 
       closeSheet();
-      await loadCollection();
+      await loadCollection(true);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -544,7 +551,7 @@ export default function CollectionDetailScreen() {
     );
   }
 
-  if (loading) {
+  if (loading && !collection) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.primary} />
