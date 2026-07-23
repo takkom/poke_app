@@ -151,12 +151,24 @@ async function requestJson<T>(
   });
 
   const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
+  let body: unknown = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = null;
+    }
+  }
 
   if (!response.ok) {
-    const message =
-      body && typeof body === "object" && "message" in body
-        ? String(body.message)
+    const rawMessage =
+      body && typeof body === "object" && body !== null && "message" in body
+        ? (body as { message: unknown }).message
+        : null;
+    const message = Array.isArray(rawMessage)
+      ? rawMessage.map(String).join(", ")
+      : typeof rawMessage === "string" && rawMessage.trim()
+        ? rawMessage
         : "Request failed. Please try again.";
     throw new Error(message);
   }
@@ -197,6 +209,7 @@ export default function AddCollectionCardScreen() {
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageTone, setMessageTone] = useState<"info" | "error">("info");
 
   const selectedImage = useMemo(
     () => (selectedItem ? itemImage(selectedItem) : null),
@@ -215,13 +228,18 @@ export default function AddCollectionCardScreen() {
     [displayCurrency, locale, selectedItem],
   );
 
+  function showMessage(next: string | null, tone: "info" | "error" = "info") {
+    setMessage(next);
+    setMessageTone(tone);
+  }
+
   function resetResults() {
     setSelectedItem(null);
     setCandidates([]);
     setPrice("");
     setQuantity(1);
     setQualityBucket("RAW");
-    setMessage(null);
+    showMessage(null);
   }
 
   function changeItemType(next: SearchItemType) {
@@ -237,7 +255,7 @@ export default function AddCollectionCardScreen() {
     setPrice(formatMoneyInputFromNumber(0, locale, displayCurrency));
     setQuantity(1);
     setQualityBucket("RAW");
-    setMessage(null);
+    showMessage(null);
   }
 
   async function search() {
@@ -247,7 +265,7 @@ export default function AddCollectionCardScreen() {
 
     Keyboard.dismiss();
     setSearching(true);
-    setMessage(null);
+    showMessage(null);
     setSelectedItem(null);
     setCandidates([]);
 
@@ -281,7 +299,7 @@ export default function AddCollectionCardScreen() {
       }
 
       setCandidates(nextCandidates);
-      setMessage(
+      showMessage(
         nextCandidates.length
           ? itemType === "box"
             ? t("collections.chooseExactBox")
@@ -291,10 +309,11 @@ export default function AddCollectionCardScreen() {
             : t("collections.noMatchingCards"),
       );
     } catch (caught) {
-      setMessage(
+      showMessage(
         caught instanceof Error
           ? caught.message
           : t("collections.searchFailed"),
+        "error",
       );
     } finally {
       setSearching(false);
@@ -308,16 +327,17 @@ export default function AddCollectionCardScreen() {
 
     const selectedId = itemIdentity(selectedItem);
     if (!selectedId) {
-      setMessage(
+      showMessage(
         itemType === "box"
           ? t("collections.boxMissingId")
           : t("collections.cardMissingId"),
+        "error",
       );
       return;
     }
 
     setSaving(true);
-    setMessage(null);
+    showMessage(null);
 
     try {
       const purchasePrice = parseMoneyInput(price);
@@ -349,12 +369,13 @@ export default function AddCollectionCardScreen() {
       });
       router.replace(`/collections/${collectionId}`);
     } catch (caught) {
-      setMessage(
+      showMessage(
         caught instanceof Error
           ? caught.message
           : itemType === "box"
             ? t("collections.couldNotAddBox")
             : t("collections.couldNotAddCard"),
+        "error",
       );
     } finally {
       setSaving(false);
@@ -699,7 +720,15 @@ export default function AddCollectionCardScreen() {
 
             {message ? (
               <Text
-                style={[styles.messageText, { color: colors.textSecondary }]}
+                style={[
+                  styles.messageText,
+                  {
+                    color:
+                      messageTone === "error"
+                        ? colors.error
+                        : colors.textSecondary,
+                  },
+                ]}
               >
                 {message}
               </Text>
