@@ -19,7 +19,7 @@ import {
 } from "@/constants/marketplaces";
 import { useThemeManager } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { AppColors, Marketplace } from "@/theme/colors";
+import { AppColors, Marketplace, withAlpha } from "@/theme/colors";
 import { PriceHistoryPoint } from "@/types/card";
 
 type VisiblePlatforms = Record<Marketplace, boolean>;
@@ -474,7 +474,7 @@ export function PriceHistoryChart({
                   x2="0"
                   y2="1"
                 >
-                  <Stop offset="0" stopColor={dataset.color} stopOpacity="0.18" />
+                  <Stop offset="0" stopColor={dataset.color} stopOpacity="0.1" />
                   <Stop offset="1" stopColor={dataset.color} stopOpacity="0" />
                 </LinearGradient>
               ))}
@@ -544,8 +544,7 @@ export function PriceHistoryChart({
                   width={volumeBarWidth}
                   height={barHeight}
                   rx="2"
-                  fill={volumeColor}
-                  opacity={volume > 0 ? 0.75 : 0}
+                  fill={withAlpha(volumeColor, volume > 0 ? 0.4 : 0)}
                 />
               );
             })}
@@ -583,11 +582,10 @@ export function PriceHistoryChart({
                 <Path
                   d={dataset.path}
                   fill="none"
-                  opacity={0.75}
-                  stroke={dataset.color}
+                  stroke={withAlpha(dataset.color, 0.5)}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth="3"
+                  strokeWidth="2.25"
                 />
                 {dataset.points.map((point, index) => (
                   <Circle

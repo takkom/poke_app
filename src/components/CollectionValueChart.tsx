@@ -1,5 +1,6 @@
 import { useThemeManager, type DisplayCurrency } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
+import { withAlpha } from "@/theme/colors";
 import React, { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
@@ -198,17 +199,16 @@ export function CollectionValueChart({
             />
 
             {areaPath ? (
-              <Path d={areaPath} fill={colors.primary} fillOpacity={0.12} />
+              <Path d={areaPath} fill={colors.primary} fillOpacity={0.08} />
             ) : null}
             {linePath ? (
               <Path
                 d={linePath}
                 fill="none"
-                opacity={0.75}
-                stroke={colors.primary}
+                stroke={withAlpha(colors.primary, 0.5)}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2.5}
+                strokeWidth={2}
               />
             ) : null}
 
@@ -217,8 +217,8 @@ export function CollectionValueChart({
                 key={point.date}
                 cx={point.x}
                 cy={point.y}
-                fill={colors.primary}
-                r={3}
+                fill={withAlpha(colors.primary, 0.55)}
+                r={2.5}
               />
             ))}
 

@@ -77,3 +77,17 @@ export const colors = darkColors;
 export type AppColors = typeof darkColors | typeof lightColors;
 export type ThemeMode = "dark" | "light";
 export type Marketplace = keyof typeof marketplaceColors;
+
+/** Bake alpha into a `#RRGGBB` color for SVG strokes/fills (more reliable than Path opacity). */
+export function withAlpha(color: string, alpha: number): string {
+  const clamped = Math.min(1, Math.max(0, alpha));
+  const hex = color.replace("#", "");
+  if (hex.length !== 6) {
+    return color;
+  }
+
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${clamped})`;
+}
