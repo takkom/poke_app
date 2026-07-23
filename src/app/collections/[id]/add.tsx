@@ -164,15 +164,27 @@ async function requestJson<T>(
   return body as T;
 }
 
+function resolveSearchItemType(
+  value: string | string[] | undefined,
+): SearchItemType {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === "box" ? "box" : "card";
+}
+
 export default function AddCollectionCardScreen() {
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    id?: string | string[];
+    type?: string | string[];
+  }>();
   const collectionId = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const auth = useAuth() as AuthState;
   const token = getAuthToken(auth);
   const { colors, displayCurrency } = useThemeManager();
   const { locale, t } = useI18n();
-  const [itemType, setItemType] = useState<SearchItemType>("card");
+  const [itemType, setItemType] = useState<SearchItemType>(() =>
+    resolveSearchItemType(params.type),
+  );
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<SearchCandidate[]>([]);
   const [selectedItem, setSelectedItem] = useState<SearchCandidate | null>(

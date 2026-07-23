@@ -625,7 +625,10 @@ export default function CollectionDetailScreen() {
                 </Pressable>
               </View>
               <Pressable
-                onPress={() => router.push(`/collections/${collectionId}/add`)}
+                onPress={() => {
+                  const type = itemFilter === "box" ? "box" : "card";
+                  router.push(`/collections/${collectionId}/add?type=${type}`);
+                }}
                 style={[styles.addButton, { backgroundColor: colors.primary }]}
               >
                 <MaterialCommunityIcons name="plus" color={colors.onPrimary} size={22} />
