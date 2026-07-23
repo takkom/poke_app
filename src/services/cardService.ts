@@ -697,6 +697,8 @@ export const searchCard = async (
   options?: {
     currency?: "KRW" | "USD";
     locale?: string;
+    /** Card print language filter (en|ja). Independent of UI locale. */
+    language?: "en" | "ja";
   },
 ): Promise<PokemonCard[]> => {
   try {
@@ -711,6 +713,7 @@ export const searchCard = async (
           query: searchTerm,
           ...(options?.currency ? { display_currency: options.currency } : {}),
           ...(options?.locale ? { locale: options.locale } : {}),
+          ...(options?.language ? { language: options.language } : {}),
         }),
       },
     );
@@ -852,6 +855,8 @@ export const searchBox = async (
   options?: {
     currency?: "KRW" | "USD";
     locale?: string;
+    /** Card/box print language filter (en|ja). Independent of UI locale. */
+    language?: "en" | "ja";
   },
 ): Promise<BoosterBoxBlueprint[]> => {
   try {
@@ -867,6 +872,7 @@ export const searchBox = async (
           item_type: "box",
           ...(options?.currency ? { display_currency: options.currency } : {}),
           ...(options?.locale ? { locale: options.locale } : {}),
+          ...(options?.language ? { language: options.language } : {}),
         }),
       },
     );

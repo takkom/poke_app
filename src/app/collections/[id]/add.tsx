@@ -1,3 +1,7 @@
+import {
+  CardLanguageToggle,
+  type CardLanguage,
+} from "@/components/CardLanguageToggle";
 import { CardListImage } from "@/components/CardListImage";
 import { Text } from "@/components/ui/Text";
 import { TextInput } from "@/components/ui/TextInput";
@@ -197,6 +201,7 @@ export default function AddCollectionCardScreen() {
   const [itemType, setItemType] = useState<SearchItemType>(() =>
     resolveSearchItemType(params.type),
   );
+  const [cardLanguage, setCardLanguage] = useState<CardLanguage>("ja");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<SearchCandidate[]>([]);
   const [selectedItem, setSelectedItem] = useState<SearchCandidate | null>(
@@ -250,6 +255,14 @@ export default function AddCollectionCardScreen() {
     resetResults();
   }
 
+  function changeCardLanguage(next: CardLanguage) {
+    if (next === cardLanguage) {
+      return;
+    }
+    setCardLanguage(next);
+    resetResults();
+  }
+
   function selectItem(item: SearchCandidate) {
     setSelectedItem(item);
     setPrice(formatMoneyInputFromNumber(0, locale, displayCurrency));
@@ -277,6 +290,7 @@ export default function AddCollectionCardScreen() {
           body: JSON.stringify({
             display_currency: displayCurrency,
             item_type: itemType,
+            language: cardLanguage,
             locale,
             query: query.trim(),
           }),
@@ -451,6 +465,11 @@ export default function AddCollectionCardScreen() {
                 );
               })}
             </View>
+
+            <CardLanguageToggle
+              value={cardLanguage}
+              onChange={changeCardLanguage}
+            />
 
             <View style={styles.searchRow}>
               <TextInput

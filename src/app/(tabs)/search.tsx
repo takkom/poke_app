@@ -1,3 +1,4 @@
+import { CardLanguageToggle, type CardLanguage } from '@/components/CardLanguageToggle';
 import { CardListImage } from '@/components/CardListImage';
 import { Text } from '@/components/ui/Text';
 import { TextInput } from '@/components/ui/TextInput';
@@ -33,6 +34,7 @@ export default function SearchTab() {
   const { colors, locale, displayCurrency } = useThemeManager();
   const { t } = useI18n();
   const [query, setQuery] = useState('');
+  const [cardLanguage, setCardLanguage] = useState<CardLanguage>('ja');
   const [itemType, setItemType] = useState<SearchItemType>('card');
   const [results, setResults] = useState<PokemonCard[]>([]);
   const [boxResults, setBoxResults] = useState<BoosterBoxBlueprint[]>([]);
@@ -45,6 +47,14 @@ export default function SearchTab() {
   function changeItemType(next: SearchItemType) {
     if (next === itemType) return;
     setItemType(next);
+    setResults([]);
+    setBoxResults([]);
+    setError(null);
+  }
+
+  function changeCardLanguage(next: CardLanguage) {
+    if (next === cardLanguage) return;
+    setCardLanguage(next);
     setResults([]);
     setBoxResults([]);
     setError(null);
@@ -67,6 +77,7 @@ export default function SearchTab() {
       if (itemType === 'box') {
         const nextBoxResults = await searchBox(currentQuery, {
           currency: displayCurrency,
+          language: cardLanguage,
           locale,
         });
         setBoxResults(nextBoxResults);
@@ -74,6 +85,7 @@ export default function SearchTab() {
       } else {
         const nextResults = await searchCard(currentQuery, {
           currency: displayCurrency,
+          language: cardLanguage,
           locale,
         });
         setResults(nextResults);
@@ -181,6 +193,10 @@ export default function SearchTab() {
             </TouchableOpacity>
           );
         })}
+      </View>
+
+      <View style={styles.languageToggleWrap}>
+        <CardLanguageToggle value={cardLanguage} onChange={changeCardLanguage} />
       </View>
 
       <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -433,6 +449,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 14,
     padding: 4,
+  },
+  languageToggleWrap: {
+    marginHorizontal: 16,
+    marginTop: 10,
   },
   typeToggleButton: {
     alignItems: 'center',
