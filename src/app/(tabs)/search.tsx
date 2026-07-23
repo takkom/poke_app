@@ -1,3 +1,6 @@
+import { CardListImage } from '@/components/CardListImage';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 import { XMON_API_URL } from '@/config';
 import { useThemeManager } from '@/hooks/useThemeManager';
 import { useI18n } from '@/i18n';
@@ -20,8 +23,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text } from '@/components/ui/Text';
-import { TextInput } from '@/components/ui/TextInput';
 
 type TcgDexCard = {
   id: string;
@@ -671,10 +672,9 @@ export default function SearchTab() {
             contentContainerStyle={styles.listContent}
             initialNumToRender={8}
             maxToRenderPerBatch={8}
-            removeClippedSubviews
             windowSize={7}
             renderItem={({ item }) => {
-              const rawUrl = item.image_url ?? undefined;
+              const rawUrl = item.image_url?.trim() || undefined;
               const image = rawUrl
                 ? rawUrl.startsWith('/') ? `${XMON_API_URL}${rawUrl}` : rawUrl
                 : undefined;
@@ -689,24 +689,14 @@ export default function SearchTab() {
                   ]}
                   onPress={boxNavId ? () => router.push(`/box/${boxNavId}`) : undefined}
                 >
-                  {image ? (
-                    <Image
-                      source={image}
-                      style={[styles.cardImage, { backgroundColor: colors.surfaceMuted }]}
-                      contentFit="cover"
-                      transition={120}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.cardImage,
-                        styles.boxImageFallback,
-                        { backgroundColor: colors.surfaceMuted },
-                      ]}
-                    >
-                      <MaterialCommunityIcons name="package-variant" color={colors.textSecondary} size={32} />
-                    </View>
-                  )}
+                  <CardListImage
+                    uri={image}
+                    recyclingKey={boxNavId ?? name}
+                    style={styles.cardImage}
+                    backgroundColor={colors.surfaceMuted}
+                    iconColor={colors.textSecondary}
+                    fallbackIcon="package-variant"
+                  />
                   <View style={styles.cardBody}>
                     <Text style={[styles.cardName, { color: colors.primary }]} numberOfLines={2}>
                       {name}
@@ -748,7 +738,6 @@ export default function SearchTab() {
             contentContainerStyle={styles.listContent}
             initialNumToRender={8}
             maxToRenderPerBatch={8}
-            removeClippedSubviews
             windowSize={7}
             renderItem={({ item }) => {
               const displayName = getDisplayCardName(item, locale);
@@ -798,15 +787,12 @@ export default function SearchTab() {
                   ]}
                   onPress={() => router.push(`/card/${item.id}`)}
                 >
-                <Image
-                  source={
-                    item.image ??
-                    item.images?.small ??
-                    'https://images.tcgdex.net/placeholder.png'
-                  }
-                  style={[styles.cardImage, { backgroundColor: colors.surfaceMuted }]}
-                  contentFit="cover"
-                  transition={120}
+                <CardListImage
+                  uri={item.image ?? item.images?.small}
+                  recyclingKey={item.id}
+                  style={styles.cardImage}
+                  backgroundColor={colors.surfaceMuted}
+                  iconColor={colors.textSecondary}
                 />
                 <View style={styles.cardBody}>
                   <Text style={[styles.cardName, { color: colors.primary }]} numberOfLines={2}>
@@ -891,11 +877,6 @@ const styles = StyleSheet.create({
   typeToggleText: {
     fontSize: 14,
     fontWeight: '700',
-  },
-  boxImageFallback: {
-    alignItems: 'center',
-    borderRadius: 6,
-    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',

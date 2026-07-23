@@ -1,25 +1,25 @@
+import { CardListImage } from "@/components/CardListImage";
+import { Text } from "@/components/ui/Text";
+import { TextInput } from "@/components/ui/TextInput";
 import { useAuth } from "@/context/AuthContext";
+import { XMON_API_URL } from "@/config";
 import {
   useThemeManager,
   type AppLocale,
   type DisplayCurrency,
 } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { XMON_API_URL } from "@/config";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Keyboard,
   Pressable,
   StyleSheet,
   View,
 } from "react-native";
-import { Text } from "@/components/ui/Text";
-import { TextInput } from "@/components/ui/TextInput";
 import {
   getCardListDisplayName,
   getDisplayRarity,
@@ -513,34 +513,22 @@ export default function AddCollectionCardScreen() {
                   {t("collections.selected")}
                 </Text>
                 <View style={styles.selectedRow}>
-                  {selectedImage ? (
-                    <Image
-                      source={{ uri: selectedImage }}
-                      style={
-                        itemType === "box"
-                          ? styles.selectedBoxThumbnail
-                          : styles.selectedThumbnail
-                      }
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        itemType === "box"
-                          ? styles.selectedBoxThumbnail
-                          : styles.selectedThumbnail,
-                        styles.thumbnailFallback,
-                        { backgroundColor: colors.surfaceMuted },
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name={
-                          itemType === "box" ? "package-variant" : "cards-outline"
-                        }
-                        color={colors.textSecondary}
-                        size={24}
-                      />
-                    </View>
-                  )}
+                  <CardListImage
+                    uri={selectedImage}
+                    recyclingKey={
+                      selectedItem ? itemIdentity(selectedItem) : "selected"
+                    }
+                    style={
+                      itemType === "box"
+                        ? styles.selectedBoxThumbnail
+                        : styles.selectedThumbnail
+                    }
+                    backgroundColor={colors.surfaceMuted}
+                    iconColor={colors.textSecondary}
+                    fallbackIcon={
+                      itemType === "box" ? "package-variant" : "cards-outline"
+                    }
+                  />
                   <View style={styles.selectedDetails}>
                     <View style={styles.cardNameRow}>
                       {cardLanguageFlag(selectedItem.language) ? (
@@ -763,26 +751,16 @@ export default function AddCollectionCardScreen() {
                 },
               ]}
             >
-              {image ? (
-                <Image
-                  source={{ uri: image }}
-                  style={itemType === "box" ? styles.boxThumbnail : styles.thumbnail}
-                />
-              ) : (
-                <View
-                  style={[
-                    itemType === "box" ? styles.boxThumbnail : styles.thumbnail,
-                    styles.thumbnailFallback,
-                    { backgroundColor: colors.surfaceMuted },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={itemType === "box" ? "package-variant" : "cards-outline"}
-                    color={colors.textSecondary}
-                    size={24}
-                  />
-                </View>
-              )}
+              <CardListImage
+                uri={image}
+                recyclingKey={itemIdentity(item)}
+                style={itemType === "box" ? styles.boxThumbnail : styles.thumbnail}
+                backgroundColor={colors.surfaceMuted}
+                iconColor={colors.textSecondary}
+                fallbackIcon={
+                  itemType === "box" ? "package-variant" : "cards-outline"
+                }
+              />
               <View style={styles.resultText}>
                 <View style={styles.cardNameRow}>
                   {cardLanguageFlag(item.language) ? (

@@ -1,11 +1,14 @@
+import { CardListImage } from "@/components/CardListImage";
+import { Text } from "@/components/ui/Text";
+import { TextInput } from "@/components/ui/TextInput";
 import { useAuth } from "@/context/AuthContext";
+import { XMON_API_URL } from "@/config";
 import {
   useThemeManager,
   type AppLocale,
   type DisplayCurrency,
 } from "@/hooks/useThemeManager";
 import { useI18n } from "@/i18n";
-import { XMON_API_URL } from "@/config";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -19,7 +22,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -29,8 +31,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text } from "@/components/ui/Text";
-import { TextInput } from "@/components/ui/TextInput";
 import {
   getCardListDisplayName,
   getDisplayRarity,
@@ -721,31 +721,18 @@ export default function CollectionDetailScreen() {
                 pressed && detailRoute ? styles.cardRowPressed : null,
               ]}
             >
-              {item.image_url ? (
-                <Image
-                  source={{ uri: item.image_url }}
-                  style={
-                    isBoxItem(item) ? styles.boxThumbnail : styles.thumbnail
-                  }
-                />
-              ) : (
-                <View
-                  style={[
-                    isBoxItem(item)
-                      ? styles.boxThumbnailFallback
-                      : styles.thumbnailFallback,
-                    { backgroundColor: colors.surfaceMuted },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={
-                      isBoxItem(item) ? "package-variant" : "cards-outline"
-                    }
-                    color={colors.textSecondary}
-                    size={24}
-                  />
-                </View>
-              )}
+              <CardListImage
+                uri={item.image_url}
+                recyclingKey={String(item.id)}
+                style={
+                  isBoxItem(item) ? styles.boxThumbnail : styles.thumbnail
+                }
+                backgroundColor={colors.surfaceMuted}
+                iconColor={colors.textSecondary}
+                fallbackIcon={
+                  isBoxItem(item) ? "package-variant" : "cards-outline"
+                }
+              />
               <View style={styles.cardText}>
                 <View style={styles.cardNameRow}>
                   {cardLanguageFlag(item.language) ? (

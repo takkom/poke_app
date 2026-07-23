@@ -115,19 +115,22 @@ function resolveTcgdexImageUrl(
   quality: "low" | "high" = "low",
 ): string {
   const fallback = "https://images.tcgdex.net/placeholder.png";
-  if (!value) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
     return fallback;
   }
 
-  if (/\.(png|jpg|jpeg|webp)(\?.*)?$/i.test(value)) {
-    return value;
+  // Match only a real file extension at the end. Kream CDNs embed ".PNG/" in
+  // the path before the filename; a mid-string match would corrupt those URLs.
+  if (/\.(png|jpg|jpeg|webp)(\?.*)?$/i.test(trimmed)) {
+    return trimmed;
   }
 
-  if (value.includes("assets.tcgdex.net")) {
-    return `${value.replace(/\/$/, "")}/${quality}.webp`;
+  if (trimmed.includes("assets.tcgdex.net")) {
+    return `${trimmed.replace(/\/$/, "")}/${quality}.webp`;
   }
 
-  return value;
+  return trimmed;
 }
 
 function resolveImageUrl(url: string | null | undefined): string | null {
@@ -719,65 +722,77 @@ export const searchCard = async (
 
     const data = (await response.json()) as ResolutionSearchResponse;
     const blueprints = data.card ? [data.card] : (data.candidates ?? []);
+    const seenIds = new Set<string>();
 
-    return blueprints.map((card) => {
+    return blueprints.flatMap((card) => {
       const cardId =
         card.canonical_id ?? card.tcgdex_id ?? card.id ?? data.tcgdex_id ?? "";
+      if (!cardId || seenIds.has(cardId)) {
+        return [];
+      }
+      seenIds.add(cardId);
+
       const rawImage =
-        card.image_url ?? card.projected_image_asset_path ?? undefined;
+        card.image_url?.trim() ||
+        card.projected_image_asset_path?.trim() ||
+        undefined;
       const resolvedRaw = rawImage?.startsWith("/")
         ? `${LOCAL_API_BASE_URL}${rawImage}`
         : rawImage;
       const image = resolvedRaw
         ? resolveTcgdexImageUrl(resolvedRaw, "low")
         : undefined;
+      const usableImage =
+        image && !image.includes("placeholder.png") ? image : undefined;
 
-      return {
-        id: cardId,
-        db_id: card.id,
-        canonical_id: card.canonical_id ?? null,
-        tcgdex_id: card.tcgdex_id ?? null,
-        language: card.language ?? null,
-        name: card.name ?? cardId,
-        number: resolveCardDisplayNumber({
-          card_code: card.card_code,
-          local_id: card.local_id,
-        }),
-        card_code: card.card_code ?? null,
-        local_id: card.local_id ?? null,
-        rarity: card.rarity ?? undefined,
-        image,
-        image_url: image,
-        images: image
-          ? {
-              small: image,
-              large: image,
-            }
-          : undefined,
-        set: card.set_id
-          ? {
-              id: card.set_id,
-              name: card.set_id,
-            }
-          : undefined,
-        hasEbay: Boolean(card.hasEbay),
-        hasKream: Boolean(card.hasKream),
-        hasSnkrdunk: Boolean(card.hasSnkrdunk),
-        hasTcgplayer: Boolean(card.hasTcgplayer),
-        hasCardmarket: Boolean(card.hasCardmarket),
-        totalSales:
-          typeof card.totalSales === "number" ? card.totalSales : undefined,
-        ebaySales:
-          typeof card.ebaySales === "number" ? card.ebaySales : undefined,
-        kreamSales:
-          typeof card.kreamSales === "number" ? card.kreamSales : undefined,
-        snkrdunkSales:
-          typeof card.snkrdunkSales === "number"
-            ? card.snkrdunkSales
+      return [
+        {
+          id: cardId,
+          db_id: card.id,
+          canonical_id: card.canonical_id ?? null,
+          tcgdex_id: card.tcgdex_id ?? null,
+          language: card.language ?? null,
+          name: card.name ?? cardId,
+          number: resolveCardDisplayNumber({
+            card_code: card.card_code,
+            local_id: card.local_id,
+          }),
+          card_code: card.card_code ?? null,
+          local_id: card.local_id ?? null,
+          rarity: card.rarity ?? undefined,
+          image: usableImage,
+          image_url: usableImage,
+          images: usableImage
+            ? {
+                small: usableImage,
+                large: usableImage,
+              }
             : undefined,
-        avgPrice: typeof card.avgPrice === "number" ? card.avgPrice : null,
-        displayCurrency: card.displayCurrency ?? undefined,
-      };
+          set: card.set_id
+            ? {
+                id: card.set_id,
+                name: card.set_id,
+              }
+            : undefined,
+          hasEbay: Boolean(card.hasEbay),
+          hasKream: Boolean(card.hasKream),
+          hasSnkrdunk: Boolean(card.hasSnkrdunk),
+          hasTcgplayer: Boolean(card.hasTcgplayer),
+          hasCardmarket: Boolean(card.hasCardmarket),
+          totalSales:
+            typeof card.totalSales === "number" ? card.totalSales : undefined,
+          ebaySales:
+            typeof card.ebaySales === "number" ? card.ebaySales : undefined,
+          kreamSales:
+            typeof card.kreamSales === "number" ? card.kreamSales : undefined,
+          snkrdunkSales:
+            typeof card.snkrdunkSales === "number"
+              ? card.snkrdunkSales
+              : undefined,
+          avgPrice: typeof card.avgPrice === "number" ? card.avgPrice : null,
+          displayCurrency: card.displayCurrency ?? undefined,
+        },
+      ];
     });
   } catch (error) {
     console.error("Search failed:", error);

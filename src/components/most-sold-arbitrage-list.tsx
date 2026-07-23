@@ -1,4 +1,5 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { CardListImage } from "@/components/CardListImage";
+import { Text } from "@/components/ui/Text";
 import {
   MARKETPLACE_COLUMN_ORDER,
   MARKETPLACE_LIST_LABELS,
@@ -9,7 +10,6 @@ import { AppColors } from "@/theme/colors";
 import { MarketplaceKey, PokemonCard } from "@/types/card";
 import { resolveCardDisplayNumber } from "@/utils/cardNumber";
 import { getCardListDisplayName } from "@/utils/displayNames";
-import { Image } from "expo-image";
 import { memo, useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,7 +18,6 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Text } from "@/components/ui/Text";
 
 type ItemType = "card" | "box";
 
@@ -174,34 +173,14 @@ const ArbitrageRow = memo(function ArbitrageRow({
       onPress={() => onPressCard(item.id, item.item_type ?? "card")}
     >
       <View style={styles.cardCell}>
-        {isBox && !item.image && !item.images?.small ? (
-          <View
-            style={[
-              styles.boxThumbnail,
-              styles.imageFallback,
-              { backgroundColor: colors.surfaceMuted },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="package-variant"
-              color={colors.textSecondary}
-              size={26}
-            />
-          </View>
-        ) : (
-          <Image
-            source={
-              item.image ??
-              item.images?.small ??
-              "https://images.tcgdex.net/placeholder.png"
-            }
-            style={[
-              isBox ? styles.boxThumbnail : styles.thumbnail,
-              { backgroundColor: colors.surfaceMuted },
-            ]}
-            contentFit="cover"
-          />
-        )}
+        <CardListImage
+          uri={item.image ?? item.images?.small}
+          recyclingKey={String(item.id)}
+          style={isBox ? styles.boxThumbnail : styles.thumbnail}
+          backgroundColor={colors.surfaceMuted}
+          iconColor={colors.textSecondary}
+          fallbackIcon={isBox ? "package-variant" : "cards-outline"}
+        />
         <View style={styles.cardText}>
           <View style={styles.cardNameRow}>
             {cardLanguageFlag(item.language) ? (
@@ -433,7 +412,6 @@ export function MostSoldArbitrageList({
         contentContainerStyle={styles.listContent}
         initialNumToRender={10}
         maxToRenderPerBatch={8}
-        removeClippedSubviews
         updateCellsBatchingPeriod={80}
         windowSize={7}
         renderItem={({ item }) => (
@@ -554,10 +532,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     height: 58,
     width: 58,
-  },
-  imageFallback: {
-    alignItems: "center",
-    justifyContent: "center",
   },
   cardText: {
     flex: 1,

@@ -18,6 +18,7 @@ export function resolveTcgdexImageUrl(
   }
 
   const trimmed = value.trim();
+  // End-anchored only: marketplace CDNs (e.g. Kream) embed ".PNG/" mid-path.
   if (/\.(png|jpg|jpeg|webp)(\?.*)?$/i.test(trimmed)) {
     return trimmed;
   }

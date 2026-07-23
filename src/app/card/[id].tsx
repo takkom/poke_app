@@ -62,6 +62,7 @@ export default function CardDetailScreen() {
   const [priceHistoryError, setPriceHistoryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [collectionModalVisible, setCollectionModalVisible] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +82,7 @@ export default function CardDetailScreen() {
         });
 
         if (!cancelled) {
+          setImageFailed(false);
           setCard(cardData);
         }
       } catch (error) {
@@ -161,7 +163,7 @@ export default function CardDetailScreen() {
   const displayRarity = card ? getCardDetailRarity(card.rarity, locale) : null;
   const languageFlag = card ? cardLanguageFlag(card.language) : null;
   const hasValidImage = Boolean(
-    imageUrl && !imageUrl.includes("placeholder.png"),
+    imageUrl && !imageUrl.includes("placeholder.png") && !imageFailed,
   );
 
   const cardForArbitrage = useMemo(() => {
@@ -233,6 +235,7 @@ export default function CardDetailScreen() {
                 style={styles.heroImage}
                 contentFit="cover"
                 transition={200}
+                onError={() => setImageFailed(true)}
               />
             ) : (
               <View style={styles.heroImageFallback}>
