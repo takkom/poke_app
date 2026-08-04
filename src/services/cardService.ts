@@ -508,6 +508,7 @@ export const getCardById = async (
     baseline?: MarketplaceKey;
     currency?: "KRW" | "USD" | "JPY";
     locale?: string;
+    qualities?: QualityBucketCode[];
   },
 ): Promise<CardWithPricing | null> => {
   const baseline = options?.baseline ?? "kream";
@@ -518,6 +519,9 @@ export const getCardById = async (
   params.set("baseline", baseline);
   if (options?.locale) {
     params.set("locale", options.locale);
+  }
+  if (options?.qualities?.length) {
+    params.set("qualities", options.qualities.join(","));
   }
   const query = params.toString();
 

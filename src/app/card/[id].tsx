@@ -34,9 +34,16 @@ function cardLanguageFlag(language: string | null | undefined): string | null {
   return null;
 }
 
-// Price history is locked to PSA 10 for now. Comparing RAW eBay prices to
-// PSA 10 KREAM/SNKRDUNK prices was misleading (e.g. Clefairy 86/80).
+// Default to PSA 10 so marketplace averages stay comparable. RAW is available
+// as an explicit toggle (mixed RAW/PSA 10 series were misleading historically).
 const DEFAULT_QUALITY: QualityBucketCode = "PSA_10";
+const CHART_QUALITY_OPTIONS: {
+  code: QualityBucketCode;
+  labelKey: "quality.psa10" | "quality.raw";
+}[] = [
+  { code: "PSA_10", labelKey: "quality.psa10" },
+  { code: "RAW", labelKey: "quality.raw" },
+];
 
 function resolveImageUrl(card: CardWithPricing): string | null {
   if (card.images?.large) {
@@ -58,6 +65,8 @@ export default function CardDetailScreen() {
   const { t } = useI18n();
   const [card, setCard] = useState<CardWithPricing | null>(null);
   const [baseline, setBaseline] = useState<MarketplaceKey>("kream");
+  const [selectedQuality, setSelectedQuality] =
+    useState<QualityBucketCode>(DEFAULT_QUALITY);
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(false);
   const [priceHistoryError, setPriceHistoryError] = useState<string | null>(null);
@@ -90,6 +99,7 @@ export default function CardDetailScreen() {
           baseline,
           currency: displayCurrency,
           locale,
+          qualities: [selectedQuality],
         });
 
         if (!cancelled) {
@@ -110,7 +120,7 @@ export default function CardDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, displayCurrency, locale]);
+  }, [id, displayCurrency, locale, selectedQuality]);
 
   const cardWithBaseline = useMemo(
     () => (card ? applyBaselineArbitrage(card, baseline) : null),
@@ -138,7 +148,7 @@ export default function CardDetailScreen() {
         const history = await getPriceHistory(
           requestedCardId,
           displayCurrency,
-          [DEFAULT_QUALITY],
+          [selectedQuality],
           locale,
         );
         if (!cancelled) {
@@ -165,7 +175,7 @@ export default function CardDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [card?.id, displayCurrency, locale, t]);
+  }, [card?.id, displayCurrency, locale, selectedQuality, t]);
 
   const imageUrl = card ? resolveImageUrl(card) : null;
   const displayName = card ? getDisplayCardName(card, locale) : "";
@@ -399,6 +409,52 @@ export default function CardDetailScreen() {
             currency={card.displayCurrency ?? displayCurrency}
             onBaselineChange={setBaseline}
           />
+          <View style={styles.qualitySection}>
+            <Text style={[styles.qualityLabel, { color: themeColors.textSecondary }]}>
+              {t("chart.selectQuality")}
+            </Text>
+            <View
+              style={[
+                styles.qualitySegmented,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              {CHART_QUALITY_OPTIONS.map((option) => {
+                const selected = selectedQuality === option.code;
+                return (
+                  <Pressable
+                    key={option.code}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setSelectedQuality(option.code)}
+                    style={[
+                      styles.qualitySegment,
+                      selected && {
+                        backgroundColor: themeColors.primary,
+                        borderColor: themeColors.primary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.qualitySegmentText,
+                        {
+                          color: selected
+                            ? themeColors.onPrimary
+                            : themeColors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {t(option.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
           {priceHistoryLoading ? (
             <View
               style={[
@@ -536,6 +592,37 @@ const styles = StyleSheet.create({
     gap: 18,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  qualitySection: {
+    gap: 8,
+  },
+  qualityLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  qualitySegmented: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 4,
+    padding: 4,
+  },
+  qualitySegment: {
+    alignItems: "center",
+    borderColor: "transparent",
+    borderRadius: 6,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 36,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  qualitySegmentText: {
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "center",
   },
   cardName: {
     flex: 1,
