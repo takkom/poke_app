@@ -13,7 +13,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://xmon-api-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://xmon-api-v2-production.up.railway.app"
       }
     },
     "v2-preview": {
@@ -28,7 +28,7 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://xmon-api-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://xmon-api-v2-production.up.railway.app"
       }
     }
   },

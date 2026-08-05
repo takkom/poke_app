@@ -1,4 +1,4 @@
-const DEFAULT_XMON_API_URL = "https://xmon-api-production.up.railway.app";
+const DEFAULT_XMON_API_URL = "https://xmon-api-v2-production.up.railway.app";
 
 function normalizeApiUrl(url: string): string {
   return url.replace(/\/+$/, "");

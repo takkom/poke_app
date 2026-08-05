@@ -41,37 +41,39 @@ This command will move the starter code to the **app-example** directory and cre
 - If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
 - Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
 
-## V1 / V2 builds, channels, and API backends
+## Builds, channels, and API backend
 
-This app can talk to **two backends** while v2 is being rolled out. They are kept separate by **EAS build profile** (API URL baked at build time) and **update channel** (OTA stream).
+All active build profiles use the v2 backend. Profiles remain separated by
+**update channel** so preview and production OTA streams can be tested and
+released independently.
 
 | EAS profile | Update channel | API (`EXPO_PUBLIC_API_URL`) | Use for |
 |-------------|----------------|----------------------------|---------|
-| `preview` | `preview` | `https://xmon-api-production.up.railway.app` (v1) | Internal v1 preview builds |
-| `production` | `production` | `https://xmon-api-production.up.railway.app` (v1) | Store / production v1 |
+| `preview` | `preview` | `https://xmon-api-v2-production.up.railway.app` (v2) | Internal preview builds |
+| `production` | `production` | `https://xmon-api-v2-production.up.railway.app` (v2) | Store / production builds |
 | `v2-preview` | `v2-preview` | `https://xmon-api-v2-production.up.railway.app` (v2) | Internal v2 preview (arbitrage UI, v2 data) |
-| `development` | `development` | Falls back to v1 via `src/config.ts` | Dev client |
+| `development` | `development` | Falls back to v2 via `src/config.ts` | Dev client |
 
 **Important:**
 
 - **Channel** = which OTA updates an install receives. Pushing to `v2-preview` does **not** affect `preview` or `production` installs.
 - **API URL** = set in `eas.json` per profile at **native build** time. It is not switched at runtime.
-- **`runtimeVersion`** in `app.json` is currently `"1"` for all profiles. Channels still isolate OTA; do not publish v2-only breaking JS to v1 channels.
-- **Local dev** (`npx expo start`): optional override in `.env` (see comments there). If unset, defaults to v1 in `src/config.ts`. EAS cloud builds ignore ad-hoc `.env` values when the profile sets `env` in `eas.json`.
+- **`runtimeVersion`** in `app.json` is currently `"1"` for all profiles. Channels still isolate OTA updates.
+- **Local dev** (`npx expo start`): optional override in `.env` (see comments there). If unset, defaults to v2 in `src/config.ts`. EAS cloud builds use the profile value from `eas.json`.
 
 ### Build commands
 
 ```powershell
 cd D:\apps\poke_app
 
-# v2 internal preview (new pipeline, v2 API)
+# v2 internal preview
 eas build --profile v2-preview --platform android
 eas build --profile v2-preview --platform ios
 
-# v1 internal preview (unchanged v1 backend)
+# internal preview
 eas build --profile preview --platform android
 
-# v1 production
+# production
 eas build --profile production --platform android
 ```
 
@@ -81,22 +83,19 @@ Icons and splash assets are baked into native builds. After changing `assets/ima
 
 Publish to the **same channel** as the build profile.
 
-**Critical:** `EXPO_PUBLIC_API_URL` is inlined into the OTA JS bundle. If you
-publish a `v2-preview` update without the v2 URL set, installs keep the
-v2-preview channel but silently talk to **v1**. Always set it explicitly:
+**Critical:** Publish to the channel used by the installed build. A `preview`
+build does not receive a `v2-preview` update. Expo SDK 56 also requires an EAS
+environment when publishing.
 
 ```powershell
-# v2 preview channel (pin v2 API URL)
-$env:EXPO_PUBLIC_API_URL = "https://xmon-api-v2-production.up.railway.app"
-eas update --branch v2-preview --message "describe change"
+# v2 preview channel
+eas update --channel v2-preview --environment preview --message "describe change"
 
-# v1 preview channel
-$env:EXPO_PUBLIC_API_URL = "https://xmon-api-production.up.railway.app"
-eas update --branch preview --message "describe change"
+# preview channel
+eas update --channel preview --environment preview --message "describe change"
 
-# v1 production channel
-$env:EXPO_PUBLIC_API_URL = "https://xmon-api-production.up.railway.app"
-eas update --branch production --message "describe change"
+# production channel
+eas update --channel production --environment production --message "describe change"
 ```
 
 ### App version display

@@ -1,30 +1,15 @@
-import { Text } from "@/components/ui/Text";
 import { useI18n, type TranslationKey } from "@/i18n";
 import { AppColors } from "@/theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
-
-const NEUTRAL_TREND_THRESHOLD = 2;
 
 type TrendState = "up" | "down" | "flat" | "unknown";
 
 type PriceTrendIndicatorProps = {
-  animationKey: number;
-  animate: boolean;
   colors: AppColors;
+  direction: TrendState | undefined;
   percent: number | null | undefined;
 };
-
-function resolveTrendState(percent: number | null | undefined): TrendState {
-  if (typeof percent !== "number" || !Number.isFinite(percent)) {
-    return "unknown";
-  }
-  if (percent > NEUTRAL_TREND_THRESHOLD) return "up";
-  if (percent < -NEUTRAL_TREND_THRESHOLD) return "down";
-  return "flat";
-}
 
 function formatTrendPercent(percent: number | null | undefined): string {
   if (typeof percent !== "number" || !Number.isFinite(percent)) {
@@ -35,40 +20,27 @@ function formatTrendPercent(percent: number | null | undefined): string {
 }
 
 export function PriceTrendIndicator({
-  animationKey,
-  animate,
   colors,
+  direction,
   percent,
 }: PriceTrendIndicatorProps) {
   const { t } = useI18n();
-  const state = resolveTrendState(percent);
-  const [revealed, setRevealed] = useState(!animate);
-
-  useEffect(() => {
-    if (!animate) {
-      setRevealed(true);
-      return;
-    }
-
-    setRevealed(false);
-    const timer = setTimeout(() => setRevealed(true), 320);
-    return () => clearTimeout(timer);
-  }, [animate, animationKey]);
-
-  const displayedState = revealed ? state : "flat";
+  const state: TrendState = direction ?? "unknown";
   const formattedPercent = formatTrendPercent(percent);
   const color =
-    displayedState === "up"
+    state === "up"
       ? colors.arbitragePositive
-      : displayedState === "down"
+      : state === "down"
         ? colors.arbitrageNegative
         : colors.textSecondary;
   const iconName =
-    displayedState === "up"
+    state === "up"
       ? "chevron-up"
-      : displayedState === "down"
+      : state === "down"
         ? "chevron-down"
-        : "minus";
+        : state === "flat"
+          ? "minus"
+          : "help-circle-outline";
   const labelKey: TranslationKey =
     state === "up"
       ? "home.trendUp"
@@ -88,20 +60,7 @@ export function PriceTrendIndicator({
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="text"
     >
-      <Animated.View
-        key={`${animationKey}-${displayedState}`}
-        entering={animate && revealed ? FadeIn.duration(180) : undefined}
-        style={styles.iconContainer}
-      >
-        <MaterialCommunityIcons name={iconName} color={color} size={20} />
-      </Animated.View>
-      <Text
-        style={[styles.percent, { color }]}
-        numberOfLines={1}
-        selectable
-      >
-        {revealed ? formattedPercent : "—"}
-      </Text>
+      <MaterialCommunityIcons name={iconName} color={color} size={15} />
     </View>
   );
 }
@@ -109,20 +68,8 @@ export function PriceTrendIndicator({
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    flex: 0.54,
-    gap: 1,
+    height: 16,
     justifyContent: "center",
-    minWidth: 0,
-  },
-  iconContainer: {
-    alignItems: "center",
-    height: 20,
-    justifyContent: "center",
-  },
-  percent: {
-    fontSize: 9,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-    textAlign: "center",
+    width: 16,
   },
 });
