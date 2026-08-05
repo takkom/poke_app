@@ -67,8 +67,8 @@ export const lightColors = {
   textMuted: "#64748b",
   error: "#dc2626",
   success: "#16a34a",
-  arbitragePositive: "#22c55e",
-  arbitrageNegative: "#ef4444",
+  arbitragePositive: "#15803d",
+  arbitrageNegative: "#b91c1c",
   marketplaces: marketplaceColors,
 } as const;
 
