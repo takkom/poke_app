@@ -466,8 +466,9 @@ export function MostSoldArbitrageList({
   const [cards, setCards] = useState<PokemonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
+  const [highlightCycle, setHighlightCycle] = useState(0);
   const [highlightedCells, setHighlightedCells] = useState<ReadonlySet<string>>(
     new Set(),
   );
@@ -475,6 +476,9 @@ export function MostSoldArbitrageList({
     new Set(),
   );
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 40 }).current;
+  const scrollSettleTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: Array<ViewToken<PokemonCard>> }) => {
       const nextIds = new Set(
@@ -493,6 +497,34 @@ export function MostSoldArbitrageList({
       });
     },
   ).current;
+
+  const handleScrollStart = useCallback(() => {
+    if (scrollSettleTimeout.current) {
+      clearTimeout(scrollSettleTimeout.current);
+      scrollSettleTimeout.current = null;
+    }
+    setIsScrolling(true);
+    setHighlightedCells(new Set());
+  }, []);
+
+  const handleScrollEnd = useCallback(() => {
+    if (scrollSettleTimeout.current) {
+      clearTimeout(scrollSettleTimeout.current);
+    }
+    scrollSettleTimeout.current = setTimeout(() => {
+      scrollSettleTimeout.current = null;
+      setIsScrolling(false);
+    }, 180);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (scrollSettleTimeout.current) {
+        clearTimeout(scrollSettleTimeout.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -563,53 +595,63 @@ export function MostSoldArbitrageList({
   }, [baseline, displayCurrency, itemType, locale, refreshing]);
 
   useEffect(() => {
-    if (!isFocused || loading || refreshing || cards.length === 0) {
+    if (
+      !isFocused ||
+      isScrolling ||
+      loading ||
+      refreshing ||
+      cards.length === 0
+    ) {
       setHighlightedCells(new Set());
       return;
     }
 
-    let nextCycle: ReturnType<typeof setTimeout> | undefined;
+    const marketCandidates = cards
+      .filter((card) => visibleCardIds.has(String(card.id)))
+      .flatMap((card) =>
+        MARKETPLACES.flatMap(({ key }) => {
+          const relativePercent =
+            card.marketplaceAverages?.[key]?.relativePercent;
+          return key !== baseline &&
+            typeof relativePercent === "number" &&
+            Number.isFinite(relativePercent) &&
+            relativePercent !== 0
+            ? [`${card.id}:${key}`]
+            : [];
+        }),
+      );
 
-    const updateHighlights = () => {
-      const marketCandidates = cards
-        .filter((card) => visibleCardIds.has(String(card.id)))
-        .flatMap((card) =>
-          MARKETPLACES.flatMap(({ key }) => {
-            const relativePercent =
-              card.marketplaceAverages?.[key]?.relativePercent;
-            return key !== baseline &&
-              typeof relativePercent === "number" &&
-              Number.isFinite(relativePercent) &&
-              relativePercent !== 0
-              ? [`${card.id}:${key}`]
-              : [];
-          }),
-        );
+    for (let index = marketCandidates.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [marketCandidates[index], marketCandidates[swapIndex]] = [
+        marketCandidates[swapIndex],
+        marketCandidates[index],
+      ];
+    }
 
-      for (let index = marketCandidates.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [marketCandidates[index], marketCandidates[swapIndex]] = [
-          marketCandidates[swapIndex],
-          marketCandidates[index],
-        ];
-      }
+    const maximumCount = Math.min(6, marketCandidates.length);
+    const minimumCount = Math.min(2, maximumCount);
+    const highlightCount =
+      minimumCount +
+      Math.floor(Math.random() * (maximumCount - minimumCount + 1));
 
-      const maximumCount = Math.min(9, marketCandidates.length);
-      const minimumCount = Math.min(2, maximumCount);
-      const highlightCount =
-        minimumCount +
-        Math.floor(Math.random() * (maximumCount - minimumCount + 1));
+    setHighlightedCells(new Set(marketCandidates.slice(0, highlightCount)));
 
-      setHighlightedCells(new Set(marketCandidates.slice(0, highlightCount)));
-      setAnimationKey((current) => current + 1);
-      nextCycle = setTimeout(updateHighlights, 2000 + Math.random() * 2000);
-    };
-
-    updateHighlights();
-    return () => {
-      if (nextCycle) clearTimeout(nextCycle);
-    };
-  }, [baseline, cards, isFocused, loading, refreshing, visibleCardIds]);
+    const nextCycle = setTimeout(
+      () => setHighlightCycle((current) => current + 1),
+      3000 + Math.random() * 3000,
+    );
+    return () => clearTimeout(nextCycle);
+  }, [
+    baseline,
+    cards,
+    highlightCycle,
+    isFocused,
+    isScrolling,
+    loading,
+    refreshing,
+    visibleCardIds,
+  ]);
 
   const renderColumnHeader = useCallback(
     () => (
@@ -743,7 +785,7 @@ export function MostSoldArbitrageList({
       {typeToggle}
       <FlatList
         data={cards}
-        extraData={`${locale}-${baseline}-${itemType}-${animationKey}-${refreshing}-${reduceMotion}`}
+        extraData={`${locale}-${baseline}-${itemType}-${highlightCycle}-${refreshing}-${reduceMotion}`}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={renderColumnHeader}
         stickyHeaderIndices={[0]}
@@ -760,13 +802,17 @@ export function MostSoldArbitrageList({
         }
         initialNumToRender={10}
         maxToRenderPerBatch={8}
+        onMomentumScrollBegin={handleScrollStart}
+        onMomentumScrollEnd={handleScrollEnd}
+        onScrollBeginDrag={handleScrollStart}
+        onScrollEndDrag={handleScrollEnd}
         onViewableItemsChanged={onViewableItemsChanged}
         updateCellsBatchingPeriod={80}
         viewabilityConfig={viewabilityConfig}
         windowSize={7}
         renderItem={({ item }) => (
           <ArbitrageRow
-            animationKey={animationKey}
+            animationKey={highlightCycle}
             baseline={baseline}
             colors={colors}
             currency={item.displayCurrency ?? displayCurrency}
